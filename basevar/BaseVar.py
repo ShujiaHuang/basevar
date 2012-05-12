@@ -6,13 +6,13 @@ Date: 2016-10-06 16:38:00
 """
 import sys
 import time
-import argparse
 
 from genotype import BQprob
-import executor as exe
+from executor import RunBaseType
 
 def basetype():
-    exe.basetype()
+    bt = RunBaseType()
+    bt.run()
 
 def bqprob():
     BQprob()
