@@ -11,7 +11,7 @@ class CommonParameter(object):
     defined some globle common parameters
     """
     def __init__(self):
-        self.LRT_THRESHOLD = 24   ## 24 corresponding to a pvalue of 10^-6
+        self.LRT_THRESHOLD = 24   ## 24 corresponding to a chi-pvalue of 10^-6
         self.QUAL_THRESHOLD = 60  ## -10 * lg(10^-6)
         self.MLN10TO10 = -0.23025850929940458 # -np.log(10)/10
         self.BASE = ['A', 'C', 'G', 'T']
@@ -41,7 +41,7 @@ def vcf_header_define():
 
 def fetch_next(iter_fh):
     """
-    redefine the next funtion in fetch function of pysam TabixFile()
+    re-define the next funtion in fetch function of pysam TabixFile()
     prevent throunghing the 'StopIteration'
     """
 
