@@ -14,6 +14,7 @@ import numpy as np
 from scipy.stats import fisher_exact
 
 import utils
+import mpileup
 from variantcaller import BaseType
 
 class RunBaseType(object):
@@ -108,7 +109,7 @@ class RunBaseType(object):
                         position, iter_tokes, go_iter, sample_info)
 
                     """
-                    sample_info = [utils.fetch_next(iter_tokes[i]) if g else sample_info[i]
+                    sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
                                    for i, g in enumerate(go_iter)]
 
                     sample_base_qual = []
@@ -117,7 +118,7 @@ class RunBaseType(object):
                     ref_base = ''
                     for i, sample_line in enumerate(sample_info):
 
-                        sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = utils.seek_position(
+                        sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
                             position, sample_line, len(self.sample_id[i]), iter_tokes[i])
 
                         sample_base.extend(bs)
@@ -147,7 +148,7 @@ class RunBaseType(object):
     def _fetch_position(self, position, iter_tokes, go_iter, sample_info):
 
         # just fetch one line each time
-        sample_info = [utils.fetch_next(iter_tokes[i]) if g else sample_info[i]
+        sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
                        for i, g in enumerate(go_iter)]
 
         sample_base_qual = []
@@ -156,7 +157,7 @@ class RunBaseType(object):
         ref_base = ''
         for i, sample_line in enumerate(sample_info):
 
-            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = utils.seek_position(
+            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
                 position, sample_line, len(self.sample_id[i]), iter_tokes[i])
 
             sample_base.extend(bs)
