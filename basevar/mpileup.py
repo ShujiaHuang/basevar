@@ -6,6 +6,8 @@ Date : 2016-07-19 14:14:21
 import re
 import numpy as np
 
+import utils
+
 def rmStartEnd(bases):
     """
     remove start(`^`) and end(`$`) character
@@ -45,14 +47,7 @@ def fetch_next(iter_fh):
     prevent throunghing the 'StopIteration'
     """
 
-    if iter_fh == '': return ''
-
-    try:
-        line = iter_fh.next()
-    except StopIteration:
-        line = ''
-
-    return line
+    return utils.fetch_next(iter_fh)
 
 
 def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
@@ -84,7 +79,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
         elif pos < target_pos:
 
             while pos < target_pos:
-                sample_line = fetch_next(sample_tb_iter)
+                sample_line = utils.fetch_next(sample_tb_iter)
                 if sample_line:
                     tmp = sample_line.split('\t')
                     pos = int(tmp[1])

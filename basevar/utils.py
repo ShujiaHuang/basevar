@@ -35,6 +35,22 @@ def vcf_header_define():
     return header
 
 
+def fetch_next(iter_fh):
+    """
+    re-define the next funtion in fetch function of pysam TabixFile()
+    prevent throunghing the 'StopIteration'
+    """
+
+    if iter_fh == '': return ''
+
+    try:
+        line = iter_fh.next()
+    except StopIteration:
+        line = ''
+
+    return line
+
+
 def load_file_list(in_file):
 
     with open(in_file) as fh:
