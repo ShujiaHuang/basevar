@@ -7,14 +7,16 @@ Date: 2016-10-06 16:38:00
 import sys
 import time
 
-from genotype import BQprob
-from executor import RunBaseType
 
 def basetype():
+    from executor import RunBaseType
+
     bt = RunBaseType()
     bt.run()
 
+
 def bqprob():
+    from genotype import BQprob
     BQprob()
 
 
