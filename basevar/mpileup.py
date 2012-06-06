@@ -26,7 +26,6 @@ def rmStartEnd(bases):
     ... ...,..A,..A...,,,.,,...+5AGGC...-8GTCGG......,a,,.,
     """
     return REOBJ_RM_START_END.sub('', bases)
-    #return re.sub('\^\S|\$', '', bases)
 
 
 def rmIndel(bases):
@@ -43,7 +42,6 @@ def rmIndel(bases):
 
     """
     return REOBJ_RM_INDEL.sub('', bases)
-    #return re.sub('[-+]\d+[ACGTacgtNn]+', '', bases)
 
 
 def fetch_next(iter_fh):
@@ -115,7 +113,7 @@ def best_base(ref_base, bases, quality):
     ignore the indels, '^' or '$'
     """
     b = rmIndel(rmStartEnd(bases))
-    #idx = np.argmax(quality) # get the best quality index
+    #idx = np.argmax(quality, axis=0).eval() # get the best quality index
     idx = 0
 
     ret_base = ref_base if b[idx] in [',', '.'] else b[idx]
