@@ -8,9 +8,12 @@ Update : 2017-01-03
 """
 import itertools   # Use the combinations function
 import numpy as np
-from scipy.stats import chisqprob
+#import tensorflow as tf
+from scipy.stats import sp_chisqprob
 
 from utils import CommonParameter
+
+#sess = tf.InteractiveSession()
 
 class BaseType(object):
 
@@ -34,8 +37,6 @@ class BaseType(object):
         ``cmm``: A ``CommonParameter`` class value, optional
 
         """
-        bases = np.array(bases)
-        quals = np.array(quals)
 
         self._alt_bases = []
         self._var_qual = 0 # init the variant quality
@@ -47,6 +48,7 @@ class BaseType(object):
         self.eaf = {} ## estimated allele frequency by EM
         self.depth = {b:0 for b in self.cmm.BASE}
 
+        quals = np.array(quals)
         self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
         for i, b in enumerate(bases):
             ## individual per row for [A, C, G, T] and the prior probability is
@@ -178,7 +180,7 @@ class BaseType(object):
                 self._var_qual = 5000
 
             else:
-                chi_prob = chisqprob(chi_sqrt_value, 1)
+                chi_prob = sp_chisqprob(chi_sqrt_value, 1)
                 self._var_qual = round(-10 * np.log10(chi_prob), 2) if chi_prob else 10000
 
         return
@@ -212,7 +214,6 @@ class BaseType(object):
                 np.tile(base_expect_prob, (self.prior_prob.shape[0],1)))
 
             new_log_pop_likelihood = np.log(pop_likelihood)
-
             delta = np.abs(new_log_pop_likelihood - log_pop_likelihood).sum()
             if delta < epsilon:
                 break
