@@ -9,7 +9,7 @@ Update : 2017-01-03
 import itertools   # Use the combinations function
 import numpy as np
 #import tensorflow as tf
-from scipy.stats import sp_chisqprob
+from scipy.stats import chisqprob as sp_chisqprob
 
 from utils import CommonParameter
 
