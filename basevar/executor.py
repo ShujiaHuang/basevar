@@ -104,11 +104,7 @@ class RunBaseType(object):
             go_iter = [1] * len(iter_tokes)
             for start, end in regions:
                 for position in xrange(start, end+1):
-                    """
-                    ref_base, sample_base, sample_base_qual, strands = self._fetch_position(
-                        position, iter_tokes, go_iter, sample_info)
 
-                    """
                     sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
                                    for i, g in enumerate(go_iter)]
 
@@ -144,30 +140,6 @@ class RunBaseType(object):
         self._close_tabix()
 
         return
-
-    def _fetch_position(self, position, iter_tokes, go_iter, sample_info):
-
-        # just fetch one line each time
-        sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
-                       for i, g in enumerate(go_iter)]
-
-        sample_base_qual = []
-        sample_base = []
-        strands = []
-        ref_base = ''
-        for i, sample_line in enumerate(sample_info):
-
-            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
-                position, sample_line, len(self.sample_id[i]), iter_tokes[i])
-
-            sample_base.extend(bs)
-            strands.extend(strand)
-            sample_base_qual.extend([ord(q) - 33 for q in qs])
-
-            if not ref_base:
-                ref_base = ref_base_t
-
-        return ref_base, sample_base, sample_base_qual, strands
 
     def _out_vcf_line(self, chrid, position, ref_base, sample_base, strands, bt):
         #  
