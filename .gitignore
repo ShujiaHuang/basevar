@@ -1,0 +1,10 @@
+*.py[cod]
+*.sh
+*.so
+.*.sw?
+*.egg
+.DS_Store
+
+.ipynb_checkpoints/
+.egg-info/
+trash/
