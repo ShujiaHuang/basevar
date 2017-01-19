@@ -1,2 +1,2 @@
-#BaseVar
-Call vaiant without calling genotype
+# BaseVar
+Call variants without calling genotype
