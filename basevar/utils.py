@@ -3,7 +3,6 @@
 import sys
 import numpy as np
 
-# my own package
 import mpileup
 
 
@@ -17,6 +16,7 @@ class CommonParameter(object):
         self.MLN10TO10 = -0.23025850929940458 # -np.log(10)/10
         self.BASE = ['A', 'C', 'G', 'T']
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
+        self.debug = False
 
 
 def vcf_header_define():
@@ -74,7 +74,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
             for i in range(sample_num):
                 try:
                     if tmp[3*(i + 1)] != '0' and tmp[3*(i+1)+1] != '*':
-                       strand[i], bases[i], quals[i] = shuffle_base(
+                       strand[i], bases[i], quals[i] = best_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
 
                 except IndexError:
@@ -95,7 +95,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
                 go_iter_mark = 1
                 for i in range(sample_num):
                     if tmp[3*(i + 1)] != '0' and tmp[3*(i+1)+1] != '*':
-                        strand[i], bases[i], quals[i] = shuffle_base(
+                        strand[i], bases[i], quals[i] = best_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
 
         else:
@@ -142,6 +142,7 @@ def mat_seek_pos(target_pos, sample_line, sample_size, sample_tb_iter):
 
 def shuffle_base(ref_base, bases, quality):
     """
+
     ignore the indels, '^' or '$'
     """
     b = mpileup.rmIndel(mpileup.rmStartEnd(bases))
@@ -154,6 +155,21 @@ def shuffle_base(ref_base, bases, quality):
     strand = '-' if (b[idx[0]] == ',' or b[idx[0]].islower()) else '+'
 
     return strand, ret_base.upper(), quality[idx[0]]
+
+
+def best_base(ref_base, bases, quality):
+    """Just get the best quality base for each sample.
+
+    ignore the indels, '^' or '$'
+    """
+    b = mpileup.rmIndel(mpileup.rmStartEnd(bases))
+    idx = np.argmax(quality) # get the best quality index
+
+    ret_base = ref_base if b[idx] in [',', '.'] else b[idx]
+
+    # Forwarstrand => +; reverseStrand => -.
+    strand = '-' if (b[idx] == ',' or b[idx].islower()) else '+'
+    return strand, ret_base.upper(), quality[idx]
 
 
 def load_file_list(in_file):
