@@ -5,7 +5,6 @@ Date : 2016-07-19 14:14:21
 """
 import re
 
-
 def rmStartEnd(bases):
     """
     remove start(`^`) and end(`$`) character
