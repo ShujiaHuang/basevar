@@ -72,7 +72,6 @@ def basetype(cmm=utils.CommonParameter()):
     print '\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
                     total_sample)
 
-#print "# init done", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "\n"
     for chrid, regions in sorted(sites.items(), key = lambda x:x[0]):
         # ``positions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
         # fetch the position data from each mpileup files
@@ -82,14 +81,14 @@ def basetype(cmm=utils.CommonParameter()):
         tmp_region = sorted(tmp_region)
 
         start, end = tmp_region[0], tmp_region[-1]
-#start, end = positions[0], positions[-1]
         iter_tokes = []
         for i, tb in enumerate(tb_files):
             try:
                 iter_tokes.append(tb.fetch(chrid, start-1, end))
             except ValueError:
-                print >> sys.stderr, ("# [WARMING] Empty region",
-                                      chrid, start-1, end, files[i])
+                if cmm.debug:
+                    print >> sys.stderr, ("# [WARMING] Empty region",
+                                          chrid, start-1, end, files[i])
                 iter_tokes.append('')
 
         # Set iteration marker: 1->iterate; 0->donot iterate or hit the end
@@ -122,42 +121,52 @@ def basetype(cmm=utils.CommonParameter()):
                 bt.lrt()
 
                 print >> sys.stderr, '\t'.join([chrid, str(position), str(int(bt.total_depth))] +
-                                               [str(bt.depth[b]) for b in cmm.BASE]) # ACGT count
+                                               [str(bt.depth[b])
+                                                if b!=ref_base.upper() else str(bt.depth[b]) + '*'
+                                                for b in cmm.BASE]) # ACGT count and mark the refbase
                 if len(bt.alt_bases()) > 0:
 
+                    alt_gt = {b:'./'+str(k+1) for k,b in enumerate(bt.alt_bases())}
                     samples = []
+
+                    ref_fwd, ref_rev = 0, 0
+                    alt_fwd, alt_rev = 0, 0
+
                     for k, b in enumerate(sample_base):
+
+                        # For sample FORMAT
                         if b != 'N':
+                            # For the base which not in bt.alt_bases()
+                            if b not in alt_gt: alt_gt[b] = './.'
+                            gt = '0/.' if b==ref_base.upper() else alt_gt[b]
+
                             ## bt.qual_pvalue[k] is the base quality of 'b'
-                            samples.append('./.:'+b+':'+strands[k]+':'+
+                            samples.append(gt+':'+b+':'+strands[k]+':'+
                                            str(round(bt.qual_pvalue[k], 6)))
                         else:
                             samples.append('./.') ## 'N' base
 
-                    # base=>[AF, allele depth]
-                    af = {b:['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
-                             bt.depth[b]] for b in bt.alt_bases()}
-
-                    ref_fwd, ref_rev = 0, 0
-                    alt_fwd, alt_rev = 0, 0
-                    for k, s in enumerate(strands):
-
-                        if sample_base[k] == 'N': continue
-
-                        if s == '+':
-                            if sample_base[k] == ref_base.upper():
+                        # For strand bias
+                        if b == 'N': continue
+                        if strands[k] == '+':
+                            if b == ref_base.upper():
                                 ref_fwd += 1
                             else:
                                 alt_fwd += 1
 
-                        elif s == '-':
-                            if sample_base[k] == ref_base.upper():
+                        elif strands[k] == '-':
+                            if b == ref_base.upper():
                                 ref_rev += 1
                             else:
                                 alt_rev += 1
 
+                    # Strand bias by fisher exact test
                     fs = round(-10 * np.log10(fisher_exact(
                                [[ref_fwd, ref_rev],[alt_fwd, alt_rev]])[1]), 3)
+
+                    # base=>[AF, allele depth]
+                    af = {b:['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
+                             bt.depth[b]] for b in bt.alt_bases()}
 
                     info = {'CM_DP': str(int(bt.total_depth)),
                             'CM_AC': ','.join(map(str, [af[b][1] for b in bt.alt_bases()])),
