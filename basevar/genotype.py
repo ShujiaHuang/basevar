@@ -58,7 +58,6 @@ def BQprob():
         # fetch the position data from each mpileup files
         # `iter_tokes` is a list of iterator for each sample's mpileup
         start, end = positions[0], positions[-1]
-#iter_tokes = [tb.fetch(chrid, start-1, end) for tb in tb_files]
         iter_tokes = []
         for i, tb in enumerate(tb_files):
             try:
