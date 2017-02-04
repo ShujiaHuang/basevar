@@ -8,7 +8,7 @@ except ImportError:
 
 config = {
     'description': ('BaseVar: A python software to call varaint without'
-                                        ' calling genotype'),
+                    ' calling genotype'),
     'author': 'Shujia Huang',
     'url': 'http://gitlab.biosoft.pub/huangshujia/BaseVar',
     'download_url': 'http://gitlab.biosoft.pub/huangshujia/BaseVar',
