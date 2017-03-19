@@ -35,8 +35,26 @@ class RunBaseType(object):
                           help='The input mpileup file list.', default='')
         optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                           metavar='FILE', help='The sample list.')
+        optp.add_argument('-o', '--outprefix', dest='outprefix',
+                          metavar='FILE', default='out',
+                          help='The prefix of output files. [out]')
+        optp.add_argument('-q', '--basequality', dest='basequality',
+                          metavar='INT', default=5,
+                          help='The minine base quality threshold [5]')
 
         opt = optp.parse_args()
+        self.basequality_threshold = int(opt.basequality)
+        self.out_vcf_file = opt.outprefix + '.vcf'
+        self.out_cvg_file = opt.outprefix + '.cvg.tsv' # position coverage
+
+        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
+            optp.error('[ERROR] At least one mpileup to input\n')
+
+        if len(opt.samplelistfile) == 0:
+            optp.error('[ERROR] Must input the sample\'s ID list file by (-s)')
+
+        if len(opt.positions) == 0 and len(opt.regions) == 0:
+            optp.error('[ERROR] The list of position (-L or -R) is required.\n')
 
         # Loading positions
         _sites = utils.get_list_position(opt.positions) if opt.positions else {}
@@ -77,71 +95,77 @@ class RunBaseType(object):
         _ = [total_sample.extend(s) for s in self.sample_id]
         vcf_header = utils.vcf_header_define()
 
-        print '\n'.join(vcf_header)
-        print '\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
-                        total_sample)
 
-        for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
-            # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
-            # fetch the position data from each mpileup files
-            # `iter_tokes` is a list of iterator for each sample's mpileup
-            tmp_region = []
-            for p in regions: tmp_region.extend(p)
-            tmp_region = sorted(tmp_region)
+        with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
-            start, end = tmp_region[0], tmp_region[-1]
-            iter_tokes = []
-            for i, tb in enumerate(self.tb_files):
-                try:
-                    iter_tokes.append(tb.fetch(chrid, start-1, end))
-                except ValueError:
-                    if self.cmm.debug:
-                        print >> sys.stderr, ("# [WARMING] Empty region",
-                                              chrid, start-1, end, self.files[i])
-                    iter_tokes.append('')
+            VCF.write('\n'.join(vcf_header) + '\n')
+            VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
+                            total_sample))
 
-            # Set iteration marker: 1->iterate; 0->donot iterate or hit the end
-            go_iter = [1] * len(iter_tokes)
-            for start, end in regions:
-                for position in xrange(start, end+1):
+            for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
+                # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+                # fetch the position data from each mpileup files
+                # `iter_tokes` is a list of iterator for each sample's mpileup
+                tmp_region = []
+                for p in regions: tmp_region.extend(p)
+                tmp_region = sorted(tmp_region)
 
-                    sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
-                                   for i, g in enumerate(go_iter)]
+                start, end = tmp_region[0], tmp_region[-1]
+                iter_tokes = []
+                for i, tb in enumerate(self.tb_files):
+                    try:
+                        iter_tokes.append(tb.fetch(chrid, start-1, end))
+                    except ValueError:
+                        if self.cmm.debug:
+                            print >> sys.stderr, ("# [WARMING] Empty region",
+                                                  chrid, start-1, end, self.files[i])
+                        iter_tokes.append('')
 
-                    sample_base_qual = []
-                    sample_base = []
-                    strands = []
-                    ref_base = ''
-                    for i, sample_line in enumerate(sample_info):
+                # Set iteration marker: 1->iterate; 0->donot iterate or hit the end
+                go_iter = [1] * len(iter_tokes)
+                for start, end in regions:
+                    for position in xrange(start, end+1):
 
-                        sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
-                            position, sample_line, len(self.sample_id[i]), iter_tokes[i])
+                        sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
+                                       for i, g in enumerate(go_iter)]
 
-                        sample_base.extend(bs)
-                        strands.extend(strand)
-                        sample_base_qual.extend([ord(q) - 33 for q in qs])
+                        sample_base_qual = []
+                        sample_base = []
+                        strands = []
+                        ref_base = ''
+                        for i, sample_line in enumerate(sample_info):
 
-                        if not ref_base:
-                            ref_base = ref_base_t
+                            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
+                                position, sample_line, len(self.sample_id[i]), iter_tokes[i])
 
-                    bt = BaseType(ref_base.upper(), sample_base, sample_base_qual)
-                    bt.lrt()
+                            sample_base.extend(bs)
+                            strands.extend(strand)
+                            sample_base_qual.extend([ord(q) - 33 for q in qs])
 
-                    print >> sys.stderr, ('\t'.join(
-                        [chrid, str(position), str(int(bt.total_depth))] +
-                        [str(bt.depth[b])
-                         if b!=ref_base.upper() else str(bt.depth[b]) + '*'
-                         for b in self.cmm.BASE])) # ACGT count and mark the refbase
+                            if not ref_base:
+                                ref_base = ref_base_t
 
-                    if len(bt.alt_bases()) > 0:
-                        self._out_vcf_line(chrid, position, ref_base,
-                                           sample_base, strands, bt)
+                        bt = BaseType(ref_base.upper(), sample_base, sample_base_qual)
+                        bt.lrt()
+
+                        # ACGT count and mark the refbase
+                        CVG.write('\t'.join(
+                            [chrid, str(position), str(int(bt.total_depth))] +
+                            [str(bt.depth[b])
+                             if b!=ref_base.upper() else str(bt.depth[b]) + '*'
+                             for b in self.cmm.BASE]) + '\n')
+
+                        if len(bt.alt_bases()) > 0:
+                            VCF.write('\n')
+                            self._out_vcf_line(chrid, position, ref_base,
+                                               sample_base, strands, bt, VCF)
 
         self._close_tabix()
 
         return
 
-    def _out_vcf_line(self, chrid, position, ref_base, sample_base, strands, bt):
+    def _out_vcf_line(self, chrid, position, ref_base, sample_base,
+                      strands, bt, out_file_handle):
         #  
         alt_gt = {b:'./'+str(k+1) for k,b in enumerate(bt.alt_bases())}
         samples = []
@@ -194,12 +218,12 @@ class RunBaseType(object):
                 'SB_REF': str(ref_fwd)+','+str(ref_rev),
                 'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
 
-        print '\t'.join([chrid, str(position), '.', ref_base,
+        out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
                          ','.join(bt.alt_bases()), str(bt.var_qual()),
                          '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
                          ';'.join([k+'='+v for k, v in sorted(
                             info.items(), key=lambda x:x[0])]),
-                            'GT:AB:SO:BP'] + samples)
+                            'GT:AB:SO:BP'] + samples))
         return
 
     def _close_tabix(self):
