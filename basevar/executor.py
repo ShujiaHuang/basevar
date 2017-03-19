@@ -29,7 +29,8 @@ class RunBaseType(object):
         optp.add_argument('basetype')
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos)', default='')
-        optp.add_argument('-R', '--regions', metavar='Region', dest='regions',
+        optp.add_argument('-R', '--regions',
+                          metavar='chr:start-end', dest='regions',
                           help='skip positions not in (chr:start-end)', default='')
         optp.add_argument('-l', '--mpileup-list', dest='infilelist', metavar='FILE',
                           help='The input mpileup file list.', default='')
@@ -89,7 +90,6 @@ class RunBaseType(object):
 
     def run(self):
 
-        print >> sys.stderr, '\t'.join(['#CHROM','POS','Depth'] + self.cmm.BASE)
 
         total_sample = []
         _ = [total_sample.extend(s) for s in self.sample_id]
@@ -97,6 +97,9 @@ class RunBaseType(object):
 
 
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
+
+            CVG.write('\t'.join(['#CHROM','POS','Depth'] +
+                                self.cmm.BASE + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
@@ -156,7 +159,7 @@ class RunBaseType(object):
                              for b in self.cmm.BASE]) + '\n')
 
                         if len(bt.alt_bases()) > 0:
-                            VCF.write('\n')
+                            #VCF.write('\n')
                             self._out_vcf_line(chrid, position, ref_base,
                                                sample_base, strands, bt, VCF)
 
@@ -223,7 +226,7 @@ class RunBaseType(object):
                          '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
                          ';'.join([k+'='+v for k, v in sorted(
                             info.items(), key=lambda x:x[0])]),
-                            'GT:AB:SO:BP'] + samples))
+                            'GT:AB:SO:BP'] + samples) + '\n')
         return
 
     def _close_tabix(self):
