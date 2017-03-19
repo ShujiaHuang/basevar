@@ -95,15 +95,14 @@ class RunBaseType(object):
         _ = [total_sample.extend(s) for s in self.sample_id]
         vcf_header = utils.vcf_header_define()
 
-
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
             CVG.write('\t'.join(['#CHROM','POS','Depth'] +
-                                self.cmm.BASE ) + '\n')
+                                self.cmm.BASE) + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
-            VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
-                            total_sample))
+            VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
+                                 'INFO\tFORMAT'] + total_sample) + '\n')
 
             for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -121,15 +120,18 @@ class RunBaseType(object):
                     except ValueError:
                         if self.cmm.debug:
                             print >> sys.stderr, ("# [WARMING] Empty region",
-                                                  chrid, start-1, end, self.files[i])
+                                                  chrid, start-1, end,
+                                                  self.files[i])
                         iter_tokes.append('')
 
-                # Set iteration marker: 1->iterate; 0->donot iterate or hit the end
+                # Set iteration marker: 1->iterate; 0->donot
+                # iterate or hit the end
                 go_iter = [1] * len(iter_tokes)
                 for start, end in regions:
                     for position in xrange(start, end+1):
 
-                        sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
+                        sample_info = [mpileup.fetch_next(iter_tokes[i])
+                                       if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
                         sample_base_qual = []
@@ -138,8 +140,11 @@ class RunBaseType(object):
                         ref_base = ''
                         for i, sample_line in enumerate(sample_info):
 
-                            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = mpileup.seek_position(
-                                position, sample_line, len(self.sample_id[i]), iter_tokes[i])
+                            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = (
+                                mpileup.seek_position(position, sample_line,
+                                                      len(self.sample_id[i]),
+                                                      iter_tokes[i])
+                            )
 
                             sample_base.extend(bs)
                             strands.extend(strand)
@@ -148,7 +153,8 @@ class RunBaseType(object):
                             if not ref_base:
                                 ref_base = ref_base_t
 
-                        bt = BaseType(ref_base.upper(), sample_base, sample_base_qual)
+                        bt = BaseType(ref_base.upper(), sample_base,
+                                      sample_base_qual)
                         bt.lrt()
 
                         # ACGT count and mark the refbase
