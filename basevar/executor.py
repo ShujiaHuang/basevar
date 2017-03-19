@@ -99,7 +99,7 @@ class RunBaseType(object):
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
             CVG.write('\t'.join(['#CHROM','POS','Depth'] +
-                                self.cmm.BASE + '\n')
+                                self.cmm.BASE ) + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] +
