@@ -1,6 +1,7 @@
 """
-This is the main program of BaseVar. It's the toppest of all
-the BaseVar's tool sets.
+This is the main program of BaseVar. It's the toppest layer of
+BaseVar's tool sets.
+
 Autor: Shujia Huang
 Date: 2016-10-06 16:38:00
 """

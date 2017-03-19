@@ -5,6 +5,7 @@ Date : 2016-07-19 14:14:21
 """
 import re
 import numpy as np
+import sys
 
 import utils
 
@@ -49,17 +50,15 @@ def fetch_next(iter_fh):
     re-define the next funtion in fetch function of pysam TabixFile()
     prevent throunghing the 'StopIteration'
     """
-
     return utils.fetch_next(iter_fh)
 
 
 def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
 
     ref_base = ''
-
-    bases = ['N' for i in range(sample_num)]
-    quals = ['!' for i in range(sample_num)]
-    strand = ['.' for i in range(sample_num)]
+    bases = ['N' for i in xrange(sample_num)]
+    quals = ['!' for i in xrange(sample_num)]
+    strand = ['.' for i in xrange(sample_num)]
 
     go_iter_mark = 0  # 1->iterate; 0->donot iterate or hit the end
     if sample_line:
@@ -70,14 +69,15 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
 
             ref_base = tmp[2]
             go_iter_mark = 1  # keep iterate
-            for i in range(sample_num):
+            for i in xrange(sample_num):
                 try:
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
                        strand[i], bases[i], quals[i] = best_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
 
                 except IndexError:
-                    print >> sys.stderr, "[WARNING] IndexError", len(tmp), tmp
+                    print >> sys.stderr, "[WARNING] IndexError. SampleID:", i+1, sample_num, len(tmp)
+                    print >> sys.stderr, sample_line, "\n", tmp
 
         elif pos < target_pos:
 
@@ -95,7 +95,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
 
                 ref_base = tmp[2]
                 go_iter_mark = 1
-                for i in range(sample_num):
+                for i in xrange(sample_num):
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
                         strand[i], bases[i], quals[i] = best_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
