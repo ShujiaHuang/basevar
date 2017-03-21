@@ -83,10 +83,10 @@ def creat_basetype_pipe():
                             '-l '+ opt.infilelist,
                             '-s '+ opt.samplelistfile,
                             '-o '+ opt.outdir + '/' + outfile_prefix,
-                            '&& '+ bgzip + ' -f' + opt.outdir + '/' + outfile_prefix + '.vcf',
-                            '&& '+ bgzip + ' -f' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv',
-                            '&& '+ tabix + ' -f -p vcf' + opt.outdir + '/' + outfile_prefix + '.vcf.gz',
-                            '&& '+ tabix + ' -f -b 2 -e 2' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv.gz',
+                            '&& '+ bgzip + ' -f ' + opt.outdir + '/' + outfile_prefix + '.vcf',
+                            '&& '+ bgzip + ' -f ' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv',
+                            '&& '+ tabix + ' -f -p vcf ' + opt.outdir + '/' + outfile_prefix + '.vcf.gz',
+                            '&& '+ tabix + ' -f -b 2 -e 2 ' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv.gz',
                             '&& echo "** %s done **"' % outfile_prefix])
 
 
