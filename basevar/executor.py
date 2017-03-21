@@ -192,6 +192,10 @@ class Runner(object):
                         bt.lrt()
 
                         # ACGT count and mark the refbase
+                        if not ref_base:
+                            # mark '*' if the coverage is 0
+                            ref_base = '*'
+
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base, str(int(bt.total_depth))] +
                             [str(bt.depth[b]) for b in self.cmm.BASE]) + '\n')
@@ -278,6 +282,10 @@ class Runner(object):
                                 base_depth[b] += 1
 
                         # ACGT count and mark the refbase
+                        if not ref_base:
+                            # mark '*' if the coverage is 0
+                            ref_base = '*'
+
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base,
                              str(sum(base_depth.values()))] +
