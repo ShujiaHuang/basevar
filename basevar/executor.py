@@ -31,6 +31,7 @@ class Runner(object):
         :param optp:
         :return:
         """
+        # common parameters
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos)', default='')
         optp.add_argument('-R', '--regions',
@@ -42,12 +43,6 @@ class Runner(object):
                           metavar='FILE', help='The sample list.')
         optp.add_argument('-S', '--subsample-list', dest='subsample', metavar='FILE',
                           help='Skip samples not in subsample-list.')
-        optp.add_argument('-o', '--outprefix', dest='outprefix',
-                          metavar='FILE', default='out',
-                          help='The prefix of output files. [out]')
-        # optp.add_argument('-q', '--basequality', dest='basequality',
-        #                   metavar='INT', default=5,
-        #                   help='The minine base quality threshold [5]')
 
         opt = optp.parse_args()
 
@@ -118,10 +113,17 @@ class Runner(object):
 
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
+        optp.add_argument('-o', '--outprefix', dest='outprefix',
+                          metavar='FILE', default='out',
+                          help='The prefix of output files. [out]')
+        # optp.add_argument('-q', '--basequality', dest='basequality',
+        #                   metavar='INT', default=5,
+        #                   help='The minine base quality threshold [5]')
+        # self.basequality_threshold = int(self.opt.basequality)
+
         self.opt = self._common_init(optp)
 
         # output file name
-        self.basequality_threshold = int(self.opt.basequality)
         self.out_vcf_file = self.opt.outprefix + '.vcf'
         self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
@@ -206,10 +208,13 @@ class Runner(object):
 
         optp = argparse.ArgumentParser()
         optp.add_argument('converage')
+        optp.add_argument('-o', '--outfile', dest='outfile',
+                          metavar='FILE', default='out.tsv',
+                          help='The name of output file. [out.tsv]')
         self.opt = self._common_init(optp)
 
         # output file name
-        self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
+        self.out_cvg_file = self.opt.outfile + '.cvg.tsv' # position coverage
 
         with open(self.out_cvg_file, 'w') as CVG:
 
