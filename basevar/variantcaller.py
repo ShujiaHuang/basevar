@@ -8,12 +8,10 @@ Update : 2017-01-03
 """
 import itertools   # Use the combinations function
 import numpy as np
-#import tensorflow as tf
 from scipy.stats import chisqprob as sp_chisqprob
 
 from utils import CommonParameter
 
-#sess = tf.InteractiveSession()
 
 class BaseType(object):
 
@@ -51,7 +49,7 @@ class BaseType(object):
         quals = np.array(quals)
         self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
         for i, b in enumerate(bases):
-            ## individual per row for [A, C, G, T] and the prior probability is
+            ## Individual per row for [A, C, G, T] and the prior probability is
             if b != 'N':  # ignore all the 'N' base sample
                 self.prior_prob.append([self.qual_pvalue[i]
                                         if b == t else (1.0-self.qual_pvalue[i])/3
@@ -203,7 +201,6 @@ class BaseType(object):
         # ind_base_likelihood is a `n x 4` matrix. n is sample size
         ind_base_likelihood, pop_likelihood = self.m_step(ind_base_likelihood)
         log_pop_likelihood = np.log(pop_likelihood)
-        base_expect_prob = []
         for i in xrange(iter_num):
 
             # e_step
