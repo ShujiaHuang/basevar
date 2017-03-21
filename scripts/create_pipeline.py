@@ -40,18 +40,28 @@ def creat_basetype_pipe():
                       default='')
     optp.add_argument('-o', '--outdir', metavar='STR', dest='outdir',
                       help='The output directory', default='')
-    bgzip='/home/huangshujia/local/bin/bgzip'
+
+    optp.add_argument('-b', '--bgzip', metavar='STR', dest='bgzip',
+                      help='The path of bgzip',
+                      default='/home/huangshujia/local/bin/bgzip')
+    optp.add_argument('-t', '--tabix', metavar='STR', dest='tabix',
+                      help='The path of tabix',
+                      default='/home/huangshujia/local/bin/tabix')
 
     ## Parameters for BaseType
     optp.add_argument('-l', '--mpileup-list', dest='infilelist', metavar='FILE',
                       help='The input mpileup file list.', default='')
     optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                       metavar='FILE', help='The sample list.')
+
     opt = optp.parse_args()
     opt.delta = int(opt.delta)
     opt.infilelist = os.path.abspath(opt.infilelist)
     opt.samplelistfile = os.path.abspath(opt.samplelistfile)
     opt.outdir = os.path.abspath(opt.outdir)
+
+    bgzip = opt.bgzip
+    tabix = opt.tabix
 
     chroms = opt.chrom.strip().split(',') if opt.chrom else []
     ref_fai = load_reference_fai(opt.ref_fai, chroms) if opt.ref_fai else {}
@@ -72,9 +82,11 @@ def creat_basetype_pipe():
                             '-R '+ reg,
                             '-l '+ opt.infilelist,
                             '-s '+ opt.samplelistfile,
-                            '2> '+ opt.outdir + '/' + outfile_prefix + '.cvg.all_sites.txt',
-                            '| '+ bgzip + ' -f',
-                            '> '+ opt.outdir + '/' + outfile_prefix + '.vcf.gz',
+                            '-o '+ opt.outdir + '/' + outfile_prefix,
+                            '&& '+ bgzip + ' -f' + opt.outdir + '/' + outfile_prefix + '.vcf',
+                            '&& '+ bgzip + ' -f' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv',
+                            '&& '+ tabix + ' -f -p vcf' + opt.outdir + '/' + outfile_prefix + '.vcf.gz',
+                            '&& '+ tabix + ' -f -b 2 -e 2' + opt.outdir + '/' + outfile_prefix + '.cvg.tsv.gz',
                             '&& echo "** %s done **"' % outfile_prefix])
 
 

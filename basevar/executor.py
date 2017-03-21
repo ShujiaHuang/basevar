@@ -22,7 +22,6 @@ class RunBaseType(object):
     def __init__(self, cmm=utils.CommonParameter()):
         """init function
         """
-
         self.cmm = cmm
 
         optp = argparse.ArgumentParser()
@@ -89,7 +88,6 @@ class RunBaseType(object):
                     self.sample_id.append([s.strip().split()[0] for s in I])
 
     def run(self):
-
 
         total_sample = []
         _ = [total_sample.extend(s) for s in self.sample_id]
