@@ -17,7 +17,7 @@ import utils
 import mpileup
 from variantcaller import BaseType
 
-class RunBaseType(object):
+class Runner(object):
 
     def __init__(self, cmm=utils.CommonParameter()):
         """init function
@@ -43,9 +43,7 @@ class RunBaseType(object):
                           help='The minine base quality threshold [5]')
 
         opt = optp.parse_args()
-        self.basequality_threshold = int(opt.basequality)
-        self.out_vcf_file = opt.outprefix + '.vcf'
-        self.out_cvg_file = opt.outprefix + '.cvg.tsv' # position coverage
+        self.opt = opt
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
             optp.error('[ERROR] At least one mpileup to input\n')
@@ -87,7 +85,11 @@ class RunBaseType(object):
                 with open(f) as I:
                     self.sample_id.append([s.strip().split()[0] for s in I])
 
-    def run(self):
+    def basetype(self):
+
+        self.basequality_threshold = int(self.opt.basequality)
+        self.out_vcf_file = self.opt.outprefix + '.vcf'
+        self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
         total_sample = []
         _ = [total_sample.extend(s) for s in self.sample_id]
@@ -163,7 +165,6 @@ class RunBaseType(object):
                              for b in self.cmm.BASE]) + '\n')
 
                         if len(bt.alt_bases()) > 0:
-                            #VCF.write('\n')
                             self._out_vcf_line(chrid, position, ref_base,
                                                sample_base, strands, bt, VCF)
 

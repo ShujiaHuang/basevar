@@ -10,10 +10,10 @@ import time
 
 
 def basetype():
-    from executor import RunBaseType
+    from executor import Runner
 
-    bt = RunBaseType()
-    bt.run()
+    bt = Runner()
+    bt.basetype()
 
 
 def bqprob():
@@ -21,9 +21,15 @@ def bqprob():
     BQprob()
 
 
+def coverage():
+    pass
+
+
 if __name__ == '__main__':
 
-    runner = {'bqprob': bqprob, 'basetype': basetype}
+    runner = {'bqprob': bqprob,
+              'basetype': basetype,
+              'cvg': coverage}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         print >> sys.stderr, '[Usage] python [option] %s' % sys.argv[0]
