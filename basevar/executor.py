@@ -217,8 +217,8 @@ class Runner(object):
                           help='The name of output file. [out.tsv]')
         self.opt = self._common_init(optp)
 
-        # output file name
-        self.out_cvg_file = self.opt.outfile + '.cvg.tsv' # position coverage
+        # output file name, position coverage
+        self.out_cvg_file = self.opt.outfile
 
         with open(self.out_cvg_file, 'w') as CVG:
 
