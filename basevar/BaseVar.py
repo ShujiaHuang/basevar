@@ -22,14 +22,16 @@ def bqprob():
 
 
 def coverage():
-    pass
+    from executor import Runner
+    cvg = Runner()
+    cvg.coverage()
 
 
 if __name__ == '__main__':
 
     runner = {'bqprob': bqprob,
               'basetype': basetype,
-              'cvg': coverage}
+              'coverage': coverage}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         print >> sys.stderr, '[Usage] python [option] %s' % sys.argv[0]

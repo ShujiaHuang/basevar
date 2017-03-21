@@ -24,8 +24,13 @@ class Runner(object):
         """
         self.cmm = cmm
 
-        optp = argparse.ArgumentParser()
-        optp.add_argument('basetype')
+    def _common_init(self, optp):
+        """
+        Common init function for getting positions and region.
+
+        :param optp:
+        :return:
+        """
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos)', default='')
         optp.add_argument('-R', '--regions',
@@ -35,15 +40,16 @@ class Runner(object):
                           help='The input mpileup file list.', default='')
         optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                           metavar='FILE', help='The sample list.')
+        optp.add_argument('-S', '--subsample-list', dest='subsample', metavar='FILE',
+                          help='Skip samples not in subsample-list.')
         optp.add_argument('-o', '--outprefix', dest='outprefix',
                           metavar='FILE', default='out',
                           help='The prefix of output files. [out]')
-        optp.add_argument('-q', '--basequality', dest='basequality',
-                          metavar='INT', default=5,
-                          help='The minine base quality threshold [5]')
+        # optp.add_argument('-q', '--basequality', dest='basequality',
+        #                   metavar='INT', default=5,
+        #                   help='The minine base quality threshold [5]')
 
         opt = optp.parse_args()
-        self.opt = opt
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
             optp.error('[ERROR] At least one mpileup to input\n')
@@ -59,7 +65,9 @@ class Runner(object):
         if len(opt.regions):
             chrid, reg = opt.regions.strip().split(':')
             reg = map(int, reg.split('-'))
-            if chrid not in _sites: _sites[chrid] = []
+            if chrid not in _sites:
+                _sites[chrid] = []
+
             _sites[chrid].append([reg[0], reg[1]])
 
         self.sites = {k:utils.merge_region(v) for k, v in _sites.items()}
@@ -85,24 +93,48 @@ class Runner(object):
                 with open(f) as I:
                     self.sample_id.append([s.strip().split()[0] for s in I])
 
+        self.total_sample = []
+        _ = [self.total_sample.extend(s) for s in self.sample_id]
+
+        # loading subsample if provide
+        self.subsamcol = []
+        if opt.subsample:
+            subsample = []
+            with open(opt.subsample) as I:
+                for r in I:
+                    if r[0] == '#': continue
+                    subsample.append(r.strip().split()[0])
+
+            subsample = set(subsample)
+            for i, s in enumerate(self.total_sample):
+                if s in subsample:
+                    self.subsamcol.append(i)
+
+            self.subsamcol = set(self.subsamcol)
+
+        return opt
+
     def basetype(self):
 
+        optp = argparse.ArgumentParser()
+        optp.add_argument('basetype')
+        self.opt = self._common_init(optp)
+
+        # output file name
         self.basequality_threshold = int(self.opt.basequality)
         self.out_vcf_file = self.opt.outprefix + '.vcf'
         self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
-        total_sample = []
-        _ = [total_sample.extend(s) for s in self.sample_id]
         vcf_header = utils.vcf_header_define()
 
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
-            CVG.write('\t'.join(['#CHROM','POS','Depth'] +
+            CVG.write('\t'.join(['#CHROM','POS', 'REF','Depth'] +
                                 self.cmm.BASE) + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
-                                 'INFO\tFORMAT'] + total_sample) + '\n')
+                                 'INFO\tFORMAT'] + self.total_sample) + '\n')
 
             for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -159,14 +191,92 @@ class Runner(object):
 
                         # ACGT count and mark the refbase
                         CVG.write('\t'.join(
-                            [chrid, str(position), str(int(bt.total_depth))] +
-                            [str(bt.depth[b])
-                             if b!=ref_base.upper() else str(bt.depth[b]) + '*'
-                             for b in self.cmm.BASE]) + '\n')
+                            [chrid, str(position), ref_base, str(int(bt.total_depth))] +
+                            [str(bt.depth[b]) for b in self.cmm.BASE]) + '\n')
 
                         if len(bt.alt_bases()) > 0:
                             self._out_vcf_line(chrid, position, ref_base,
                                                sample_base, strands, bt, VCF)
+
+        self._close_tabix()
+
+        return
+
+    def coverage(self):
+
+        optp = argparse.ArgumentParser()
+        optp.add_argument('converage')
+        self.opt = self._common_init(optp)
+
+        # output file name
+        self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
+
+        with open(self.out_cvg_file, 'w') as CVG:
+
+            CVG.write('\t'.join(['#CHROM','POS', 'REF','Depth'] +
+                                self.cmm.BASE) + '\n')
+
+            for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
+                # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+                # fetch the position data from each mpileup files
+                # `iter_tokes` is a list of iterator for each sample's mpileup
+                tmp_region = []
+                for p in regions: tmp_region.extend(p)
+                tmp_region = sorted(tmp_region)
+
+                start, end = tmp_region[0], tmp_region[-1]
+                iter_tokes = []
+
+                for i, tb in enumerate(self.tb_files):
+                    try:
+                        iter_tokes.append(tb.fetch(chrid, start-1, end))
+                    except ValueError:
+                        if self.cmm.debug:
+                            print >> sys.stderr, ("# [WARMING] Empty region",
+                                                  chrid, start-1, end,
+                                                  self.files[i])
+                        iter_tokes.append('')
+
+                # Set iteration marker: 1->iterate; 0->donot
+                # iterate or hit the end
+                go_iter = [1] * len(iter_tokes)
+                for start, end in regions:
+                    for position in xrange(start, end+1):
+
+                        sample_info = [mpileup.fetch_next(iter_tokes[i])
+                                       if g else sample_info[i]
+                                       for i, g in enumerate(go_iter)]
+
+                        sample_base = []
+                        ref_base = ''
+                        for i, sample_line in enumerate(sample_info):
+
+                            sample_info[i], ref_base_t, bs, _, _, go_iter[i] = (
+                                mpileup.seek_position(position, sample_line,
+                                                      len(self.sample_id[i]),
+                                                      iter_tokes[i])
+                            )
+
+                            sample_base.extend(bs)
+
+                            if not ref_base:
+                                ref_base = ref_base_t
+
+                        base_depth = {b: 0 for b in self.cmm.BASE}
+                        for k, b in enumerate(sample_base):
+
+                            if self.subsamcol and k not in self.subsamcol:
+                                continue
+
+                            # ignore all bases which not match ``cmm.BASE``
+                            if b in base_depth:
+                                base_depth[b] += 1
+
+                        # ACGT count and mark the refbase
+                        CVG.write('\t'.join(
+                            [chrid, str(position), ref_base,
+                             str(sum(base_depth.values()))] +
+                            [str(base_depth[b]) for b in self.cmm.BASE]) + '\n')
 
         self._close_tabix()
 
