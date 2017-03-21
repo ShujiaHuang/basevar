@@ -34,7 +34,7 @@ def creat_basetype_pipe():
     optp.add_argument('-r', '--regions', metavar='Region', dest='regions',
                       help='skip positions not in (chr:start-end)', default='')
     optp.add_argument('-d', '--delta', metavar='INT', dest='delta',
-                      help='Set the region size', default=10000)
+                      help='Set the region size', default=100000)
     optp.add_argument('-c', '--chrom', metavar='STR', dest='chrom',
                       help='skip comma delimited unlisted chrom. e.g chr1,chr2',
                       default='')
