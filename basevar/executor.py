@@ -305,8 +305,8 @@ class Runner(object):
                             [chrid, str(position), ref_base,
                              str(sum(base_depth.values())),
                              str(fs)] +
-                            [str(base_depth[b]) for b in self.cmm.BASE],
-                            ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n'))
+                            [str(base_depth[b]) for b in self.cmm.BASE]) + '\t' +
+                            ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
 
         self._close_tabix()
 
