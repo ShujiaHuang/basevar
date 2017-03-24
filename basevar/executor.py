@@ -304,9 +304,8 @@ class Runner(object):
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base,
                              str(sum(base_depth.values())),
-                             str(fs),
-                             map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])
-                             ] +
+                             str(fs)] +
+                             map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]) +
                             [str(base_depth[b]) for b in self.cmm.BASE]) + '\n')
 
         self._close_tabix()
