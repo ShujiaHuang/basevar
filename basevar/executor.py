@@ -295,28 +295,11 @@ class Runner(object):
 
         return
 
-    def _out_vcf_line(self, chrid, position, ref_base, sample_base,
-                      strands, bt, out_file_handle):
-        #  
-        alt_gt = {b:'./'+str(k+1) for k,b in enumerate(bt.alt_bases())}
-        samples = []
+    def strand_bias(self, ref_base, sample_base, strands):
 
         ref_fwd, ref_rev = 0, 0
         alt_fwd, alt_rev = 0, 0
-
         for k, b in enumerate(sample_base):
-
-            # For sample FORMAT
-            if b != 'N':
-                # For the base which not in bt.alt_bases()
-                if b not in alt_gt: alt_gt[b] = './.'
-                gt = '0/.' if b==ref_base.upper() else alt_gt[b]
-
-                ## bt.qual_pvalue[k] is the base quality of 'b'
-                samples.append(gt+':'+b+':'+strands[k]+':'+
-                               str(round(bt.qual_pvalue[k], 6)))
-            else:
-                samples.append('./.') ## 'N' base
 
             # For strand bias
             if b == 'N': continue
@@ -334,8 +317,31 @@ class Runner(object):
 
         # Strand bias by fisher exact test
         # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        fs = round(-10 * np.log10(fisher_exact(
-                   [[ref_fwd, ref_rev],[alt_fwd, alt_rev]])[1]), 3)
+        return round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
+                                                  [alt_fwd, alt_rev]])[1]), 3)
+
+    def _out_vcf_line(self, chrid, position, ref_base, sample_base,
+                      strands, bt, out_file_handle):
+        #  
+        alt_gt = {b:'./'+str(k+1) for k,b in enumerate(bt.alt_bases())}
+        samples = []
+
+        for k, b in enumerate(sample_base):
+
+            # For sample FORMAT
+            if b != 'N':
+                # For the base which not in bt.alt_bases()
+                if b not in alt_gt: alt_gt[b] = './.'
+                gt = '0/.' if b==ref_base.upper() else alt_gt[b]
+
+                samples.append(gt+':'+b+':'+strands[k]+':'+
+                               str(round(bt.qual_pvalue[k], 6)))
+            else:
+                samples.append('./.') ## 'N' base
+
+        # Strand bias by fisher exact test
+        # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
+        fs = self.strand_bias(ref_base, sample_base, strands)
 
         # base=>[AF, allele depth]
         af = {b:['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
