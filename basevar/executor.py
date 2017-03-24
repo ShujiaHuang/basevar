@@ -223,7 +223,7 @@ class Runner(object):
         with open(self.out_cvg_file, 'w') as CVG:
 
             CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth', 'FS'] +
-                                self.cmm.BASE) + ['Strand_cvg']+ '\n')
+                                self.cmm.BASE + ['Strand_cvg'])+ '\n')
 
             for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
