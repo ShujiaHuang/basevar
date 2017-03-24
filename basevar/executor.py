@@ -290,7 +290,7 @@ class Runner(object):
                             # mark '*' if the coverage is 0
                             ref_base = '*'
 
-                        fs = 0
+                        fs = [0]
                         if sample_base:
                             base_sorted = sorted(base_depth.items(),
                                                  lambda x, y: cmp(x[1], y[1]),
@@ -303,7 +303,7 @@ class Runner(object):
 
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base,
-                             str(sum(base_depth.values())), str(fs)] +
+                             str(sum(base_depth.values())), ','.join(map(str, fs))] +
                             [str(base_depth[b]) for b in self.cmm.BASE]) + '\n')
 
         self._close_tabix()
