@@ -295,9 +295,10 @@ class Runner(object):
                             base_sorted = sorted(base_depth.items(),
                                                  lambda x, y: cmp(x[1], y[1]),
                                                  reverse=True)
+
                             b1, b2 = base_sorted[0][0], base_sorted[1][0]
                             fs = self.strand_bias(ref_base,
-                                                  [b1 if b1 == ref_base.upper() else b2],
+                                                  [b1 if b1 != ref_base.upper() else b2],
                                                   sample_base, strands)
 
                         CVG.write('\t'.join(
