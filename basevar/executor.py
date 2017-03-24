@@ -222,8 +222,8 @@ class Runner(object):
 
         with open(self.out_cvg_file, 'w') as CVG:
 
-            CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth', 'FS'] +
-                                self.cmm.BASE + ['Strand_cvg'])+ '\n')
+            CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth'] +
+                                self.cmm.BASE + ['FS', 'Strand_cvg'])+ '\n')
 
             for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -302,10 +302,8 @@ class Runner(object):
                                 sample_base, strands)
 
                         CVG.write('\t'.join(
-                            [chrid, str(position), ref_base,
-                             str(sum(base_depth.values())),
-                             str(fs)] +
-                            [str(base_depth[b]) for b in self.cmm.BASE]) + '\t' +
+                            [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
+                            [str(base_depth[b]) for b in self.cmm.BASE]) + '\t' + str(fs) + '\t'
                             ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
 
         self._close_tabix()
