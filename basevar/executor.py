@@ -222,7 +222,7 @@ class Runner(object):
 
         with open(self.out_cvg_file, 'w') as CVG:
 
-            CVG.write('\t'.join(['#CHROM','POS', 'REF','Depth'] +
+            CVG.write('\t'.join(['#CHROM','POS', 'REF','Depth', 'FS'] +
                                 self.cmm.BASE) + '\n')
 
             for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
@@ -256,17 +256,21 @@ class Runner(object):
                                        if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
+                        sample_base_qual = []
                         sample_base = []
+                        strands = []
                         ref_base = ''
                         for i, sample_line in enumerate(sample_info):
 
-                            sample_info[i], ref_base_t, bs, _, _, go_iter[i] = (
+                            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = (
                                 mpileup.seek_position(position, sample_line,
                                                       len(self.sample_id[i]),
                                                       iter_tokes[i])
                             )
 
                             sample_base.extend(bs)
+                            strands.extend(strand)
+                            sample_base_qual.extend([ord(q) - 33 for q in qs])
 
                             if not ref_base:
                                 ref_base = ref_base_t
@@ -286,16 +290,26 @@ class Runner(object):
                             # mark '*' if the coverage is 0
                             ref_base = '*'
 
+                        fs = 0
+                        if sample_base:
+                            base_sorted = sorted(base_depth.items(),
+                                                 lambda x, y: cmp(x[1], y[1]),
+                                                 reverse=True)
+                            b1, b2 = base_sorted[0][0], base_sorted[1][0]
+                            fs = self.strand_bias(ref_base,
+                                                  [b1 if b1 == ref_base.upper() else b2],
+                                                  sample_base, strands)
+
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base,
-                             str(sum(base_depth.values()))] +
+                             str(sum(base_depth.values())), str(fs)] +
                             [str(base_depth[b]) for b in self.cmm.BASE]) + '\n')
 
         self._close_tabix()
 
         return
 
-    def strand_bias(self, ref_base, sample_base, strands):
+    def strand_bias(self, ref_base, alt_base, sample_base, strands):
 
         ref_fwd, ref_rev = 0, 0
         alt_fwd, alt_rev = 0, 0
@@ -306,19 +320,21 @@ class Runner(object):
             if strands[k] == '+':
                 if b == ref_base.upper():
                     ref_fwd += 1
-                else:
+                elif b in alt_base:
                     alt_fwd += 1
 
             elif strands[k] == '-':
                 if b == ref_base.upper():
                     ref_rev += 1
-                else:
+                elif b in alt_base:
                     alt_rev += 1
 
         # Strand bias by fisher exact test
         # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        return round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
-                                                  [alt_fwd, alt_rev]])[1]), 3)
+        fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
+                                                [alt_fwd, alt_rev]])[1]), 3)
+
+        return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
 
     def _out_vcf_line(self, chrid, position, ref_base, sample_base,
                       strands, bt, out_file_handle):
@@ -341,7 +357,8 @@ class Runner(object):
 
         # Strand bias by fisher exact test
         # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        fs = self.strand_bias(ref_base, sample_base, strands)
+        fs, ref_fwd, ref_rev, alt_fwd, alt_rev = self.strand_bias(
+            ref_base, bt.alt_bases(), sample_base, strands)
 
         # base=>[AF, allele depth]
         af = {b:['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
