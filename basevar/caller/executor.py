@@ -140,7 +140,7 @@ class Runner(object):
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
                                  'INFO\tFORMAT'] + self.total_sample) + '\n')
 
-            for chrid, regions in sorted(self.sites.items(), lambda x: x[0]):
+            for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
@@ -227,7 +227,7 @@ class Runner(object):
             CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth'] +
                                 self.cmm.BASE + ['FS', 'Strand_cvg'])+ '\n')
 
-            for chrid, regions in sorted(self.sites.items(), lambda x: x[0]):
+            for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
