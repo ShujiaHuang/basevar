@@ -16,6 +16,7 @@ from scipy.stats import fisher_exact
 from . import utils
 from . import mpileup
 from .variantcaller import BaseType
+from .algorithm import strand_bias
 
 class Runner(object):
 
@@ -138,7 +139,7 @@ class Runner(object):
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
                                  'INFO\tFORMAT'] + self.total_sample) + '\n')
 
-            for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
+            for chrid, regions in self.sites.items():
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
@@ -225,7 +226,7 @@ class Runner(object):
             CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth'] +
                                 self.cmm.BASE + ['FS', 'Strand_cvg'])+ '\n')
 
-            for chrid, regions in sorted(self.sites.items(), key = lambda x:x[0]):
+            for chrid, regions in self.sites.items():
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
@@ -297,7 +298,7 @@ class Runner(object):
                                                  reverse=True)
 
                             b1, b2 = base_sorted[0][0], base_sorted[1][0]
-                            fs,ref_fwd, ref_rev, alt_fwd, alt_rev = self.strand_bias(
+                            fs,ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
                                 ref_base, [b1 if b1 != ref_base.upper() else b2],
                                 sample_base, strands)
 
@@ -310,33 +311,6 @@ class Runner(object):
         self._close_tabix()
 
         return
-
-    def strand_bias(self, ref_base, alt_base, sample_base, strands):
-
-        ref_fwd, ref_rev = 0, 0
-        alt_fwd, alt_rev = 0, 0
-        for k, b in enumerate(sample_base):
-
-            # For strand bias
-            if b == 'N': continue
-            if strands[k] == '+':
-                if b == ref_base.upper():
-                    ref_fwd += 1
-                elif b in alt_base:
-                    alt_fwd += 1
-
-            elif strands[k] == '-':
-                if b == ref_base.upper():
-                    ref_rev += 1
-                elif b in alt_base:
-                    alt_rev += 1
-
-        # Strand bias by fisher exact test
-        # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        fs = round(-10 * np.log10(
-            fisher_exact([[ref_fwd, ref_rev], [alt_fwd, alt_rev]])[1]), 3)
-
-        return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
 
     def _out_vcf_line(self, chrid, position, ref_base, sample_base,
                       strands, bt, out_file_handle):
@@ -359,7 +333,7 @@ class Runner(object):
 
         # Strand bias by fisher exact test
         # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        fs, ref_fwd, ref_rev, alt_fwd, alt_rev = self.strand_bias(
+        fs, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
             ref_base, bt.alt_bases(), sample_base, strands)
 
         # base=>[AF, allele depth]
