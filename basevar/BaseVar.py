@@ -16,11 +16,6 @@ def basetype():
     bt.basetype()
 
 
-def bqprob():
-    from genotype import BQprob
-    BQprob()
-
-
 def coverage():
     from executor import Runner
     cvg = Runner()
@@ -29,8 +24,7 @@ def coverage():
 
 if __name__ == '__main__':
 
-    runner = {'bqprob': bqprob,
-              'basetype': basetype,
+    runner = {'basetype': basetype,
               'coverage': coverage}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
