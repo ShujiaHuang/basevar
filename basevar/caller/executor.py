@@ -10,8 +10,6 @@ the lord to rule them all, in a word, it's "The Ring".
 import sys
 import argparse
 import pysam
-import numpy as np
-from scipy.stats import fisher_exact
 
 from . import utils
 from . import mpileup
