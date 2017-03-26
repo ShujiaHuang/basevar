@@ -290,7 +290,7 @@ class Runner(object):
                             # mark '*' if the coverage is 0
                             ref_base = '*'
 
-                        fs = [0]
+                        fs = 0
                         if sample_base:
                             base_sorted = sorted(base_depth.items(),
                                                  lambda x, y: cmp(x[1], y[1]),
@@ -302,7 +302,8 @@ class Runner(object):
                                 sample_base, strands)
 
                         CVG.write('\t'.join(
-                            [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
+                            [chrid, str(position), ref_base,
+                             str(sum(base_depth.values()))] +
                             [str(base_depth[b]) for b in self.cmm.BASE]) + '\t' + str(fs) + '\t' +
                             ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
 
@@ -332,8 +333,8 @@ class Runner(object):
 
         # Strand bias by fisher exact test
         # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-        fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
-                                                [alt_fwd, alt_rev]])[1]), 3)
+        fs = round(-10 * np.log10(
+            fisher_exact([[ref_fwd, ref_rev], [alt_fwd, alt_rev]])[1]), 3)
 
         return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
 
