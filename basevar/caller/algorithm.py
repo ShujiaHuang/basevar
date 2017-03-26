@@ -23,7 +23,8 @@ def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
         The threshold of likelihood different for EM process. default 0.001
     """
     # ind_base_likelihood is a `n x 4` matrix. n is sample size
-    ind_base_likelihood, pop_likelihood = m_step(ind_base_likelihood)
+    ind_base_likelihood, pop_likelihood = m_step(prior_prob,
+                                                 ind_base_likelihood)
     log_pop_likelihood = np.log(pop_likelihood)
     for i in xrange(iter_num):
 
