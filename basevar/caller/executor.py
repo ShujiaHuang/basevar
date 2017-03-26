@@ -66,6 +66,7 @@ class Runner(object):
 
             _sites[chrid].append([reg[0], reg[1]])
 
+        # merge and sorted the regions
         self.sites = {k:utils.merge_region(v) for k, v in _sites.items()}
 
         # Load all the mpileup files
