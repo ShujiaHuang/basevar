@@ -7,7 +7,7 @@ import re
 import numpy as np
 import sys
 
-import utils
+from . import utils
 
 REOBJ_RM_START_END = re.compile('\^\S|\$')
 REOBJ_RM_INDEL = re.compile('[-+]\d+[ACGTacgtNn]+')

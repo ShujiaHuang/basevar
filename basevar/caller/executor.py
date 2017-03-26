@@ -13,9 +13,9 @@ import pysam
 import numpy as np
 from scipy.stats import fisher_exact
 
-import utils
-import mpileup
-from variantcaller import BaseType
+from . import utils
+from . import mpileup
+from .variantcaller import BaseType
 
 class Runner(object):
 
@@ -81,7 +81,7 @@ class Runner(object):
 
             samplefiles = []
             for r in I:
-                if r[0] == '#': continue
+                if r.startswith('#'): continue
                 samplefiles.append(r.strip().split()[0])
 
             for f in samplefiles:
@@ -97,7 +97,7 @@ class Runner(object):
             subsample = []
             with open(opt.subsample) as I:
                 for r in I:
-                    if r[0] == '#': continue
+                    if r.startswith('#'): continue
                     subsample.append(r.strip().split()[0])
 
             subsample = set(subsample)

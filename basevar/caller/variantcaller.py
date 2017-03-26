@@ -10,7 +10,7 @@ import itertools   # Use the combinations function
 import numpy as np
 from scipy.stats import chisqprob as sp_chisqprob
 
-from utils import CommonParameter
+from .utils import CommonParameter
 
 
 class BaseType(object):

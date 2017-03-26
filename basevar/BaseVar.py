@@ -10,14 +10,14 @@ import time
 
 
 def basetype():
-    from executor import Runner
+    from caller.executor import Runner
 
     bt = Runner()
     bt.basetype()
 
 
 def coverage():
-    from executor import Runner
+    from caller.executor import Runner
     cvg = Runner()
     cvg.coverage()
 
