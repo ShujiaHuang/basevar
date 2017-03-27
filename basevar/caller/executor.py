@@ -111,9 +111,6 @@ class Runner(object):
 
     def _fetch_data_by_position(self, position, sample_info, go_iter, iter_tokes):
 
-        sample_info = [mpileup.fetch_next(iter_tokes[i]) if g else sample_info[i]
-                       for i, g in enumerate(go_iter)]
-
         sample_base_qual = []
         sample_base = []
         strands = []
@@ -165,7 +162,6 @@ class Runner(object):
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
                                  'INFO\tFORMAT'] + self.total_sample) + '\n')
 
-            sample_info = []
             for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
@@ -176,6 +172,7 @@ class Runner(object):
 
                 start, end = tmp_region[0], tmp_region[-1]
                 iter_tokes = []
+                sample_info = []
                 for i, tb in enumerate(self.tb_files):
                     try:
                         iter_tokes.append(tb.fetch(chrid, start-1, end))
@@ -192,28 +189,10 @@ class Runner(object):
                 for start, end in regions:
                     for position in xrange(start, end+1):
 
-                        # sample_info = [mpileup.fetch_next(iter_tokes[i])
-                        #                if g else sample_info[i]
-                        #                for i, g in enumerate(go_iter)]
-                        #
-                        # sample_base_qual = []
-                        # sample_base = []
-                        # strands = []
-                        # ref_base = ''
-                        # for i, sample_line in enumerate(sample_info):
-                        #
-                        #     sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = (
-                        #         mpileup.seek_position(position, sample_line,
-                        #                               len(self.sample_id[i]),
-                        #                               iter_tokes[i])
-                        #     )
-                        #
-                        #     sample_base.extend(bs)
-                        #     strands.extend(strand)
-                        #     sample_base_qual.extend([ord(q) - 33 for q in qs])
-                        #
-                        #     if not ref_base:
-                        #         ref_base = ref_base_t
+                        sample_info = [mpileup.fetch_next(iter_tokes[i])
+                                       if g else sample_info[i]
+                                       for i, g in enumerate(go_iter)]
+
                         ref_base, sample_base, sample_base_qual, strands = (
                             self._fetch_data_by_position(position, sample_info,
                                                          go_iter, iter_tokes)
@@ -267,6 +246,7 @@ class Runner(object):
 
                 start, end = tmp_region[0], tmp_region[-1]
                 iter_tokes = []
+                sample_info = []
 
                 for i, tb in enumerate(self.tb_files):
                     try:
@@ -288,24 +268,10 @@ class Runner(object):
                                        if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
-                        sample_base_qual = []
-                        sample_base = []
-                        strands = []
-                        ref_base = ''
-                        for i, sample_line in enumerate(sample_info):
-
-                            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = (
-                                mpileup.seek_position(position, sample_line,
-                                                      len(self.sample_id[i]),
-                                                      iter_tokes[i])
-                            )
-
-                            sample_base.extend(bs)
-                            strands.extend(strand)
-                            sample_base_qual.extend([ord(q) - 33 for q in qs])
-
-                            if not ref_base:
-                                ref_base = ref_base_t
+                        ref_base, sample_base, sample_base_qual, strands = (
+                            self._fetch_data_by_position(position, sample_info,
+                                                         go_iter, iter_tokes)
+                        )
 
                         base_depth = {b: 0 for b in self.cmm.BASE}
                         for k, b in enumerate(sample_base):
