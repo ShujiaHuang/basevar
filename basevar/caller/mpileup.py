@@ -72,7 +72,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
             for i in xrange(sample_num):
                 try:
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
-                       strand[i], bases[i], quals[i] = best_base(
+                       strand[i], bases[i], quals[i] = first_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
 
                 except IndexError:
@@ -97,7 +97,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
                 go_iter_mark = 1
                 for i in xrange(sample_num):
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
-                        strand[i], bases[i], quals[i] = best_base(
+                        strand[i], bases[i], quals[i] = first_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
 
         else:
@@ -107,14 +107,28 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
     return sample_line, ref_base, bases, quals, strand, go_iter_mark
 
 
+def first_base(ref_base, bases, quality):
+    """Just get the best quality base for each sample.
+
+    ignore the indels, '^' or '$'
+    """
+    b = rmIndel(rmStartEnd(bases))
+    idx = 0
+
+    ret_base = ref_base if b[idx] in [',', '.'] else b[idx]
+
+    # Forwarstrand => +; reverseStrand => -.
+    strand = '-' if (b[idx] == ',' or b[idx].islower()) else '+'
+    return strand, ret_base.upper(), quality[idx]
+
+
 def best_base(ref_base, bases, quality):
     """Just get the best quality base for each sample.
 
     ignore the indels, '^' or '$'
     """
     b = rmIndel(rmStartEnd(bases))
-    #idx = np.argmax(quality, axis=0).eval() # get the best quality index
-    idx = 0
+    idx = np.argmax(quality, axis=0).eval() # get the best quality index
 
     ret_base = ref_base if b[idx] in [',', '.'] else b[idx]
 
@@ -125,7 +139,6 @@ def best_base(ref_base, bases, quality):
 
 def shuffle_base(ref_base, bases, quality):
     """
-
     ignore the indels, '^' or '$'
     """
     b = rmIndel(rmStartEnd(bases))
