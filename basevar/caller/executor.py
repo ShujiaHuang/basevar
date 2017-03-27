@@ -109,7 +109,7 @@ class Runner(object):
 
         return opt
 
-    def _fetch_data_by_position(self, position, sample_info, go_iter, iter_tokes):
+    def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes):
 
         sample_base_qual = []
         sample_base = []
@@ -194,7 +194,7 @@ class Runner(object):
                                        for i, g in enumerate(go_iter)]
 
                         ref_base, sample_base, sample_base_qual, strands = (
-                            self._fetch_data_by_position(position, sample_info,
+                            self._fetch_base_by_position(position, sample_info,
                                                          go_iter, iter_tokes)
                         )
 
@@ -243,8 +243,8 @@ class Runner(object):
                 tmp_region = []
                 for p in regions: tmp_region.extend(p)
                 tmp_region = sorted(tmp_region)
-
                 start, end = tmp_region[0], tmp_region[-1]
+
                 iter_tokes = []
                 sample_info = []
 
@@ -269,7 +269,7 @@ class Runner(object):
                                        for i, g in enumerate(go_iter)]
 
                         ref_base, sample_base, sample_base_qual, strands = (
-                            self._fetch_data_by_position(position, sample_info,
+                            self._fetch_base_by_position(position, sample_info,
                                                          go_iter, iter_tokes)
                         )
 
@@ -295,7 +295,7 @@ class Runner(object):
                                                  reverse=True)
 
                             b1, b2 = base_sorted[0][0], base_sorted[1][0]
-                            fs,ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
+                            fs, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
                                 ref_base, [b1 if b1 != ref_base.upper() else b2],
                                 sample_base, strands)
 
