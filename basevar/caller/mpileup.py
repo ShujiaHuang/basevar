@@ -9,8 +9,8 @@ import sys
 
 from . import utils
 
-REOBJ_RM_START_END = re.compile('\^\S|\$')
-REOBJ_RM_INDEL = re.compile('[-+]\d+[ACGTacgtNn]+')
+REOBJ_RE_START_END = re.compile('\^\S|\$')
+REOBJ_RE_INDEL = re.compile('[-+]\d+[ACGTacgtNn]+')
 
 def rmStartEnd(bases):
     """
@@ -22,11 +22,11 @@ def rmStartEnd(bases):
     Base example
 
     >>> import mpileup
-    >>> bases="...,$.$.$A,..A...,,,.,,...+5AGGC...-8GTCGG......,a,^F,^].^F,"
+    >>> bases="...,$.$.$A,..A...,,,.,,...+4AGGC...-5GTCGG......,a,^F,^].^F,"
     >>> mpileup.rmStartEnd(bases)
-    ... ...,..A,..A...,,,.,,...+5AGGC...-8GTCGG......,a,,.,
+    ... ...,..A,..A...,,,.,,...+4AGGC...-5GTCGG......,a,,.,
     """
-    return REOBJ_RM_START_END.sub('', bases)
+    return REOBJ_RE_START_END.sub('', bases)
 
 
 def rmIndel(bases):
@@ -37,12 +37,12 @@ def rmIndel(bases):
     --------
 
     >>> import mpileup
-    >>> bases="...,$.$.$A,..A...,,,.,,...+5AGGC...-8GTCGG......,a,^F,^].^F,"
+    >>> bases="...,$.$.$A,..A...,,,.,,...+4AGGC...-5GTCGG......,a,^F,^].^F,"
     >>> mpileup.removeIndel(bases)
     ... ...,$.$.$A,..A...,,,.,,............,a,^F,^].^F,
 
     """
-    return REOBJ_RM_INDEL.sub('', bases)
+    return REOBJ_RE_INDEL.sub('', bases)
 
 
 def fetch_next(iter_fh):
