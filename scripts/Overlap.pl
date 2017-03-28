@@ -1,5 +1,5 @@
 # Author : Shujia Huang
-# Date   : 2013-01-10
+# Date   : 2010-01-10
 
 #!/usr/bin/perl
 use strict;
@@ -150,9 +150,9 @@ sub LoadFileFromList {
 sub Usage {
 
 	die qq/
-Version : 0.0.1 ( 2012-01-10 )
+Version : 0.0.1 ( 2010-01-10 )
 Author  : Shujia Huang
-Last Modify : 2013-01-10
+Last Modify : 2010-01-10
 
     Usage : perl $0 -i [position file] -r [region file] > output
 
