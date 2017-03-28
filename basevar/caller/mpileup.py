@@ -53,12 +53,14 @@ def fetch_next(iter_fh):
     return utils.fetch_next(iter_fh)
 
 
-def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
+def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
+                  is_scan_indel=False):
 
     ref_base = ''
     bases = ['N' for i in xrange(sample_num)]
     quals = ['!' for i in xrange(sample_num)]
     strand = ['.' for i in xrange(sample_num)]
+    indels = []
 
     go_iter_mark = 0  # 1->iterate; 0->donot iterate or hit the end
     if sample_line:
@@ -72,8 +74,11 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
             for i in xrange(sample_num):
                 try:
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
-                       strand[i], bases[i], quals[i] = first_base(
-                            tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
+                       strand[i], bases[i], quals[i], indel = first_base(
+                           tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2],
+                           is_scan_indel=is_scan_indel)
+
+                       indels.extend(indel)
 
                 except IndexError:
                     print >> sys.stderr, "[WARNING] IndexError. SampleID:", i+1, sample_num, len(tmp)
@@ -97,21 +102,34 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter):
                 go_iter_mark = 1
                 for i in xrange(sample_num):
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
-                        strand[i], bases[i], quals[i] = first_base(
-                            tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2])
+                        strand[i], bases[i], quals[i], indel = first_base(
+                            tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2],
+                            is_scan_indel=is_scan_indel)
+
+                        indels.extend(indel)
 
         else:
             # pos > target_pos
             go_iter_mark = 0
 
-    return sample_line, ref_base, bases, quals, strand, go_iter_mark
+    return sample_line, ref_base, bases, quals, strand, go_iter_mark, indels
 
 
-def first_base(ref_base, bases, quality):
-    """Just get the best quality base for each sample.
-
-    ignore the indels, '^' or '$'
+def first_base(ref_base, bases, quality, is_scan_indel=False):
+    """Just get the first base for each sample.
     """
+
+    indel = []
+    search_pos = 0
+    while is_scan_indel and True:
+        match = REOBJ_RE_INDEL.search(bases, pos=search_pos)
+        if not match:
+            break
+
+        search_pos = match.end() # jump to next match start position
+        indel.append(match.group(0))  # catch indel
+
+    # ignore the indels, '^' or '$'
     b = rmIndel(rmStartEnd(bases))
     idx = 0
 
@@ -119,7 +137,7 @@ def first_base(ref_base, bases, quality):
 
     # Forwarstrand => +; reverseStrand => -.
     strand = '-' if (b[idx] == ',' or b[idx].islower()) else '+'
-    return strand, ret_base.upper(), quality[idx]
+    return strand, ret_base.upper(), quality[idx], indel
 
 
 def best_base(ref_base, bases, quality):

@@ -24,8 +24,7 @@ class Runner(object):
         self.cmm = cmm
 
     def _common_init(self, optp):
-        """
-        Common init function for getting positions and region.
+        """Common init function for getting positions and region.
 
         :param optp:
         :return:
@@ -41,7 +40,7 @@ class Runner(object):
         optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                           metavar='FILE', help='The sample list.')
         optp.add_argument('-S', '--subsample-list', dest='subsample', metavar='FILE',
-                          help='Skip samples not in subsample-list.')
+                          help='Skip samples not in subsample-list, one sample per row.')
 
         opt = optp.parse_args()
 
@@ -89,10 +88,13 @@ class Runner(object):
                     self.sample_id.append([s.strip().split()[0] for s in I])
 
         self.total_sample = []
-        _ = [self.total_sample.extend(s) for s in self.sample_id]
+        self.subsamcol = []
+        for s in self.sample_id:
+            self.total_sample.extend(s)
+            self.subsamcol.append(set()) ## initial
 
         # loading subsample if provide
-        self.subsamcol = []
+        self.total_subsamcol = []
         if opt.subsample:
             subsample = []
             with open(opt.subsample) as I:
@@ -103,35 +105,47 @@ class Runner(object):
             subsample = set(subsample)
             for i, s in enumerate(self.total_sample):
                 if s in subsample:
-                    self.subsamcol.append(i)
+                    self.total_subsamcol.append(i)
 
-            self.subsamcol = set(self.subsamcol)
+            for k, sample_ids in enumerate(self.sample_id):
+
+                sam_col = []
+                for i, s in enumerate(sample_ids):
+                    if s in subsample:
+                        sam_col.append(i)
+
+                self.subsamcol[k] = set(sam_col)
+
+            self.total_subsamcol = set(self.total_subsamcol)
 
         return opt
 
-    def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes):
+    def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes,
+                                is_scan_indel=False):
 
         sample_base_qual = []
         sample_base = []
         strands = []
+        indels = []
         ref_base = ''
         for i, sample_line in enumerate(sample_info):
 
-            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i] = (
+            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i], indel = (
                 mpileup.seek_position(position, sample_line,
                                       len(self.sample_id[i]),
-                                      iter_tokes[i])
+                                      iter_tokes[i],
+                                      is_scan_indel=is_scan_indel)
             )
 
             sample_base.extend(bs)
             strands.extend(strand)
             sample_base_qual.extend([ord(q) - 33 for q in qs])
+            indels.extend(indel)
 
             if not ref_base:
                 ref_base = ref_base_t
 
-        return ref_base, sample_base, sample_base_qual, strands
-
+        return ref_base, sample_base, sample_base_qual, strands, indels
 
     def basetype(self):
 
@@ -193,7 +207,7 @@ class Runner(object):
                                        if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
-                        ref_base, sample_base, sample_base_qual, strands = (
+                        ref_base, sample_base, sample_base_qual, strands, _ = (
                             self._fetch_base_by_position(position, sample_info,
                                                          go_iter, iter_tokes)
                         )
@@ -234,10 +248,10 @@ class Runner(object):
         with open(self.out_cvg_file, 'w') as CVG:
 
             CVG.write('\t'.join(['#CHROM','POS', 'REF', 'Depth'] +
-                                self.cmm.BASE + ['FS', 'Strand_cvg'])+ '\n')
+                                self.cmm.BASE + ['Indel', 'FS', 'Strand_cvg'])+ '\n')
 
             for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
-                # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+                # ``regions`` is a 2-D array: [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
                 tmp_region = []
@@ -268,15 +282,16 @@ class Runner(object):
                                        if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
-                        ref_base, sample_base, sample_base_qual, strands = (
+                        ref_base, sample_base, sample_base_qual, strands, indels = (
                             self._fetch_base_by_position(position, sample_info,
-                                                         go_iter, iter_tokes)
+                                                         go_iter, iter_tokes,
+                                                         is_scan_indel=True)
                         )
 
                         base_depth = {b: 0 for b in self.cmm.BASE}
                         for k, b in enumerate(sample_base):
 
-                            if self.subsamcol and k not in self.subsamcol:
+                            if self.total_subsamcol and k not in self.total_subsamcol:
                                 continue
 
                             # ignore all bases which not match ``cmm.BASE``
@@ -287,6 +302,15 @@ class Runner(object):
                         if not ref_base:
                             # mark '*' if the coverage is 0
                             ref_base = '*'
+
+                        # deal with indels
+                        # sequence in ``indels`` may contain some
+                        indel_dict = {}
+                        for ind in indels:
+                            indel_dict[ind] = indel_dict.get(ind, 0) + 1
+
+                        indel_string = ','.join([k+':'+str(v)
+                                                 for k, v in indel_dict.items()]) if indel_dict else '.'
 
                         fs = 0
                         if sample_base:
@@ -302,7 +326,8 @@ class Runner(object):
                         CVG.write('\t'.join(
                             [chrid, str(position), ref_base,
                              str(sum(base_depth.values()))] +
-                            [str(base_depth[b]) for b in self.cmm.BASE]) + '\t' + str(fs) + '\t' +
+                            [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) +
+                            '\t' + str(fs) + '\t' +
                             ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
 
         self._close_tabix()
