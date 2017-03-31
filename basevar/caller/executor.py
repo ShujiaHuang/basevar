@@ -91,7 +91,7 @@ class Runner(object):
         self.subsamcol = []
         for s in self.sample_id:
             self.total_sample.extend(s)
-            self.subsamcol.append(set()) ## initial
+            self.subsamcol.append((False, set())) ## initial
 
         # loading subsample if provide
         self.total_subsamcol = []
@@ -114,7 +114,8 @@ class Runner(object):
                     if s in subsample:
                         sam_col.append(i)
 
-                self.subsamcol[k] = set(sam_col)
+                # tuple
+                self.subsamcol[k] = (True, set(sam_col))
 
             self.total_subsamcol = set(self.total_subsamcol)
 

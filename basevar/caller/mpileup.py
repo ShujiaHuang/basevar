@@ -57,8 +57,8 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
                   subsamcol=None, is_scan_indel=False):
 
     ref_base = ''
-    bases, quals, strand = [], [], []
     indels = []
+    bases, quals, strand = [], [], []
 
     for _ in xrange(sample_num):
         bases.append('N')
@@ -76,7 +76,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
             go_iter_mark = 1  # keep iterate
             for i in xrange(sample_num):
 
-                if subsamcol and i not in subsamcol:
+                if subsamcol[0] and (i not in subsamcol[1]):
                     continue
 
                 try:
@@ -109,7 +109,7 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
                 go_iter_mark = 1
                 for i in xrange(sample_num):
 
-                    if subsamcol and i not in subsamcol:
+                    if subsamcol[0] and (i not in subsamcol[1]):
                         continue
 
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
