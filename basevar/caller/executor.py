@@ -88,10 +88,8 @@ class Runner(object):
                     self.sample_id.append([s.strip().split()[0] for s in I])
 
         self.total_sample = []
-        self.subsamcol = []
         for s in self.sample_id:
             self.total_sample.extend(s)
-            self.subsamcol.append((False, set())) ## initial
 
         # loading subsample if provide
         self.total_subsamcol = []
@@ -105,17 +103,7 @@ class Runner(object):
             subsample = set(subsample)
             for i, s in enumerate(self.total_sample):
                 if s in subsample:
-                    self.total_subsamcol.append(i)
-
-            for k, sample_ids in enumerate(self.sample_id):
-
-                sam_col = []
-                for i, s in enumerate(sample_ids):
-                    if s in subsample:
-                        sam_col.append(i)
-
-                # tuple
-                self.subsamcol[k] = (True, set(sam_col))
+                    self.total_subsamcol.append(i) # get index in total_sample
 
             self.total_subsamcol = set(self.total_subsamcol)
 
@@ -135,7 +123,6 @@ class Runner(object):
                 mpileup.seek_position(position, tb_sample_line,
                                       len(self.sample_id[i]),
                                       iter_tokes[i],
-                                      subsamcol=self.subsamcol[i],
                                       is_scan_indel=is_scan_indel)
             )
 
@@ -289,9 +276,10 @@ class Runner(object):
                         base_depth = {b: 0 for b in self.cmm.BASE}
                         for k, b in enumerate(sample_base):
 
-                            # if self.total_subsamcol and k not in self.total_subsamcol:
-                            #     sample_base[k] = 'N'  # set un-select bases to be 'N'
-                            #     continue
+                            if self.total_subsamcol and k not in self.total_subsamcol:
+                                # set un-select bases to be 'N' and it'll been filtered later
+                                sample_base[k] = 'N'
+                                continue
 
                             # ignore all bases which not match ``cmm.BASE``
                             if b in base_depth:
