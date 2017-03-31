@@ -325,8 +325,7 @@ class Runner(object):
                                 sample_base, strands)
 
                         CVG.write('\t'.join(
-                            [chrid, str(position), ref_base,
-                             str(sum(base_depth.values()))] +
+                            [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
                             [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) +
                             '\t' + str(fs) + '\t' +
                             ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')

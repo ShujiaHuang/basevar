@@ -120,6 +120,9 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
             elif b in alt_base:
                 alt_rev += 1
 
+        else:
+            raise ValueError ('[ERROR] Get strange strand symbol %s' % strands[k])
+
     # Strand bias by fisher exact test
     # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
     fs = round(-10 * np.log10(
