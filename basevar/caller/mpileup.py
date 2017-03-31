@@ -57,10 +57,13 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
                   subsamcol=None, is_scan_indel=False):
 
     ref_base = ''
-    bases = ['N' for i in xrange(sample_num)]
-    quals = ['!' for i in xrange(sample_num)]
-    strand = ['.' for i in xrange(sample_num)]
+    bases, quals, strand = [], [], []
     indels = []
+
+    for _ in xrange(sample_num):
+        bases.append('N')
+        quals.append('!')
+        strand.append('.')
 
     go_iter_mark = 0  # 1->iterate; 0->donot iterate or hit the end
     if sample_line:
@@ -123,19 +126,29 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
     return sample_line, ref_base, bases, quals, strand, go_iter_mark, indels
 
 
-def first_base(ref_base, bases, quality, is_scan_indel=False):
-    """Just get the first base for each sample.
-    """
+def scan_indel(bases):
+    """For scanning indel from ``bases`` info in mpileup column
 
+    :param bases:
+    :return: array-like. Indel
+    """
     indel = []
     search_pos = 0
-    while is_scan_indel and True:
+    while True:
         match = REOBJ_RE_INDEL.search(bases, pos=search_pos)
         if not match:
             break
 
-        search_pos = match.end() # jump to next match start position
+        search_pos = match.end()  # jump to next match start position
         indel.append(match.group(0))  # catch indel
+
+    return indel
+
+
+def first_base(ref_base, bases, quality, is_scan_indel=False):
+    """Just get the first base for each sample.
+    """
+    indel = scan_indel(bases) if is_scan_indel else []
 
     # ignore the indels, '^' or '$'
     b = rmIndel(rmStartEnd(bases))
@@ -148,11 +161,12 @@ def first_base(ref_base, bases, quality, is_scan_indel=False):
     return strand, ret_base.upper(), quality[idx], indel
 
 
-def best_base(ref_base, bases, quality):
+def best_base(ref_base, bases, quality, is_scan_indel=False):
     """Just get the best quality base for each sample.
-
-    ignore the indels, '^' or '$'
     """
+    indel = scan_indel(bases) if is_scan_indel else []
+
+    # ignore the indels, '^' or '$'
     b = rmIndel(rmStartEnd(bases))
     idx = np.argmax(quality, axis=0).eval() # get the best quality index
 
@@ -160,13 +174,15 @@ def best_base(ref_base, bases, quality):
 
     # Forwarstrand => +; reverseStrand => -.
     strand = '-' if (b[idx] == ',' or b[idx].islower()) else '+'
-    return strand, ret_base.upper(), quality[idx]
+    return strand, ret_base.upper(), quality[idx], indel
 
 
-def shuffle_base(ref_base, bases, quality):
+def shuffle_base(ref_base, bases, quality, is_scan_indel=False):
     """
-    ignore the indels, '^' or '$'
     """
+    indel = scan_indel(bases) if is_scan_indel else []
+
+    # ignore the indels, '^' or '$'
     b = rmIndel(rmStartEnd(bases))
     idx = range(len(b))
     np.random.shuffle(idx)  # shuffle the index
@@ -176,5 +192,5 @@ def shuffle_base(ref_base, bases, quality):
     # Forwarstrand => +; reverseStrand => -.
     strand = '-' if (b[idx[0]] == ',' or b[idx[0]].islower()) else '+'
 
-    return strand, ret_base.upper(), quality[idx[0]]
+    return strand, ret_base.upper(), quality[idx[0]], indel
 
