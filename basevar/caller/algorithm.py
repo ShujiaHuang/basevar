@@ -125,7 +125,7 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
 
     # Strand bias by fisher exact test
     # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-    fs = round(-10 * np.log10(
-        fisher_exact([[ref_fwd, ref_rev], [alt_fwd, alt_rev]])[1]), 3)
+    fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
+                                            [alt_fwd, alt_rev]])[1]), 3)
 
     return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
