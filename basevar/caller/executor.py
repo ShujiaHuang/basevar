@@ -156,10 +156,6 @@ class Runner(object):
         optp.add_argument('-o', '--outprefix', dest='outprefix',
                           metavar='FILE', default='out',
                           help='The prefix of output files. [out]')
-        # optp.add_argument('-q', '--basequality', dest='basequality',
-        #                   metavar='INT', default=5,
-        #                   help='The minine base quality threshold [5]')
-        # self.basequality_threshold = int(self.opt.basequality)
 
         self.opt = self._common_init(optp)
 
@@ -294,6 +290,7 @@ class Runner(object):
                         for k, b in enumerate(sample_base):
 
                             # if self.total_subsamcol and k not in self.total_subsamcol:
+                            #     sample_base[k] = 'N'  # set un-select bases to be 'N'
                             #     continue
 
                             # ignore all bases which not match ``cmm.BASE``
