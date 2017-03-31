@@ -54,7 +54,7 @@ def fetch_next(iter_fh):
 
 
 def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
-                  is_scan_indel=False):
+                  subsamcol=None, is_scan_indel=False):
 
     ref_base = ''
     bases = ['N' for i in xrange(sample_num)]
@@ -72,6 +72,10 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
             ref_base = tmp[2]
             go_iter_mark = 1  # keep iterate
             for i in xrange(sample_num):
+
+                if subsamcol and k not in subsamcol:
+                    continue
+
                 try:
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
                        strand[i], bases[i], quals[i], indel = first_base(
@@ -101,6 +105,10 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
                 ref_base = tmp[2]
                 go_iter_mark = 1
                 for i in xrange(sample_num):
+
+                    if subsamcol and k not in subsamcol:
+                        continue
+
                     if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
                         strand[i], bases[i], quals[i], indel = first_base(
                             tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2],

@@ -128,12 +128,13 @@ class Runner(object):
         strands = []
         indels = []
         ref_base = ''
-        for i, sample_line in enumerate(sample_info):
+        for i, tb_sample_line in enumerate(sample_info):
 
             sample_info[i], ref_base_t, bs, qs, strand, go_iter[i], indel = (
-                mpileup.seek_position(position, sample_line,
+                mpileup.seek_position(position, tb_sample_line,
                                       len(self.sample_id[i]),
                                       iter_tokes[i],
+                                      subsamcol=self.subsamcol[i],
                                       is_scan_indel=is_scan_indel)
             )
 
@@ -291,8 +292,8 @@ class Runner(object):
                         base_depth = {b: 0 for b in self.cmm.BASE}
                         for k, b in enumerate(sample_base):
 
-                            if self.total_subsamcol and k not in self.total_subsamcol:
-                                continue
+                            # if self.total_subsamcol and k not in self.total_subsamcol:
+                            #     continue
 
                             # ignore all bases which not match ``cmm.BASE``
                             if b in base_depth:
@@ -310,9 +311,9 @@ class Runner(object):
                             indel_dict[ind] = indel_dict.get(ind, 0) + 1
 
                         indel_string = ','.join([k+':'+str(v)
-                                                 for k, v in indel_dict.items()]) if indel_dict else '.'
+                            for k, v in indel_dict.items()]) if indel_dict else '.'
 
-                        fs = 0
+                        fs,ref_fwd, ref_rev, alt_fwd, alt_rev = 0, 0, 0, 0, 0
                         if sample_base:
                             base_sorted = sorted(base_depth.items(),
                                                  lambda x, y: cmp(x[1], y[1]),
