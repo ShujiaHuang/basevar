@@ -236,7 +236,7 @@ class Runner(object):
                                 self.cmm.BASE + ['Indel', 'FS', 'Strand_cvg'])+ '\n')
 
             for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
-                # ``regions`` is a 2-D array: [[start1,end1], [start2, end2], ...]
+                # ``regions`` is a 2-D array: [[start1,end1], [start2,end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
                 tmp_region = []
@@ -277,7 +277,7 @@ class Runner(object):
                         for k, b in enumerate(sample_base):
 
                             if self.total_subsamcol and k not in self.total_subsamcol:
-                                # set un-select bases to be 'N' and it'll been filtered later
+                                # set un-selected bases to be 'N' which will be filted later
                                 sample_base[k] = 'N'
                                 continue
 
@@ -285,13 +285,12 @@ class Runner(object):
                             if b in base_depth:
                                 base_depth[b] += 1
 
-                        # ACGT count and mark the refbase
+                        # ACGT count and mark refbase
                         if not ref_base:
                             # mark '*' if the coverage is 0
                             ref_base = '*'
 
                         # deal with indels
-                        # sequence in ``indels`` may contain some
                         indel_dict = {}
                         for ind in indels:
                             indel_dict[ind] = indel_dict.get(ind, 0) + 1

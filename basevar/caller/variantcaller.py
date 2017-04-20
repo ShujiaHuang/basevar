@@ -94,7 +94,7 @@ class BaseType(object):
 
     def _f(self, bases, n):
         """
-        Calculate the population likelihood for all bases combination
+        Calculate population likelihood for all bases combination
 
         Parameters
         ----------
