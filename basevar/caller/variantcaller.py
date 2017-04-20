@@ -152,16 +152,14 @@ class BaseType(object):
         bases = [b for b in self.cmm.BASE
                  if self.depth[b]/self.total_depth > self.cmm.MINAF]
 
-        # init likelihood as tetra-allelic
-        # bases = self.cmm.BASE
-        # bc4, lr_null, bp = self._f(self.cmm.BASE, 4)
+        # init
         _, lr_null, bp = self._f(bases, len(bases))
 
         base_frq = bp[0]
         lr_alt = lr_null[0]
 
         chi_sqrt_value = 0
-        for n in range(1,len(bases))[::-1]:
+        for n in range(1, len(bases))[::-1]:
 
             bc, lr_null, bp = self._f(bases, n)
             lrt_chivalue = 2.0 * (lr_alt - lr_null)
@@ -181,7 +179,8 @@ class BaseType(object):
         self.eaf = {b:'%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
                     for b in bases if b != self._ref_base}
 
-        ## calculate the variant quality
+        # calculate the variant quality
+        # Todo: improve the calculation method for var_qual
         if len(self._alt_bases):
 
             if len(bases) == 1 and self.depth[bases[0]] / self.total_depth > 0.5:
@@ -190,7 +189,8 @@ class BaseType(object):
 
             else:
                 chi_prob = sp_chisqprob(chi_sqrt_value, 1)
-                self._var_qual = round(-10 * np.log10(chi_prob), 2) if chi_prob else 10000
+                self._var_qual = round(-10 * np.log10(chi_prob), 2) \
+                    if chi_prob else 10000
 
         return
 
