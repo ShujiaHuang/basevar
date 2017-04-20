@@ -154,8 +154,8 @@ class Runner(object):
 
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
-            CVG.write('\t'.join(['#CHROM','POS', 'REF','Depth'] +
-                                self.cmm.BASE) + '\n')
+            CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] +
+                                self.cmm.BASE + ['Indel', 'FS', 'Strand_cvg']) + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
@@ -206,10 +206,6 @@ class Runner(object):
                         if not ref_base:
                             # mark '*' if the coverage is 0
                             ref_base = '*'
-
-                        # CVG.write('\t'.join(
-                        #     [chrid, str(position), ref_base, str(int(bt.total_depth))] +
-                        #     [str(bt.depth[b]) for b in self.cmm.BASE]) + '\n')
 
                         self._out_cvg_file(chrid, position, ref_base,
                                            sample_base, strands, indels, CVG)
