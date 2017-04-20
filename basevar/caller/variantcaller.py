@@ -75,7 +75,8 @@ class BaseType(object):
         return self._var_qual
 
     def debug(self):
-        print self.ref_base(), self.alt_bases(), self.var_qual(), self.depth, self.eaf
+        print(self.ref_base(), self.alt_bases(),
+              self.var_qual(), self.depth, self.eaf)
 
     def _set_base_likelihood(self, bases):
         """
@@ -100,15 +101,16 @@ class BaseType(object):
         ----------
 
         ``bases``: 1D array like
-            A list of bases in [A, C, G, T]
+            A list of bases from [A, C, G, T]
 
         ``n``: Integer
-            The combination number. n must less the length of ``bases``
+            The combination number. n must less or equal
+            the length of ``bases``
 
         Return
         ------
-        ``bc`` : base array of combination
-        ``lr`` : Likelihood of ``bc``
+        ``bc``: array=like, combination bases
+        ``lr``: Likelihood of ``bc``
 
         Example
         -------
@@ -140,18 +142,27 @@ class BaseType(object):
         return bc, lr, bp
 
     def lrt(self):
-        """likelihood ratio test.
+        """The main function.
+        likelihood ratio test.
         """
 
         if self.total_depth == 0: return
+
+        # get effective bases which count frequence > self.cmm.MINAF
+        bases = [b for b in self.cmm.BASE
+                 if self.depth[b]/self.total_depth > self.cmm.MINAF]
+
         # init likelihood as tetra-allelic
-        bc4, lr_null, bp = self._f(self.cmm.BASE, 4)
+        # bases = self.cmm.BASE
+        # bc4, lr_null, bp = self._f(self.cmm.BASE, 4)
+        _, lr_null, bp = self._f(bases, len(bases))
+
         base_frq = bp[0]
         lr_alt = lr_null[0]
-        bases = self.cmm.BASE
 
         chi_sqrt_value = 0
-        for n in (3,2,1):
+        #for n in (3,2,1):
+        for n in range(1,len(bases))[::-1]:
 
             bc, lr_null, bp = self._f(bases, n)
             lrt_chivalue = 2.0 * (lr_alt - lr_null)

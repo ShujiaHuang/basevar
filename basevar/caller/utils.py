@@ -13,6 +13,7 @@ class CommonParameter(object):
         self.BASE = ['A', 'C', 'G', 'T']
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
         self.debug = False
+        self.MINAF = 0.001  # The effective base freqence threshold for 140k sample size
 
 
 def vcf_header_define():
