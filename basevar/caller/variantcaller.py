@@ -161,7 +161,6 @@ class BaseType(object):
         lr_alt = lr_null[0]
 
         chi_sqrt_value = 0
-        #for n in (3,2,1):
         for n in range(1,len(bases))[::-1]:
 
             bc, lr_null, bp = self._f(bases, n)
