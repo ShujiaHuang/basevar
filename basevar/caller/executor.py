@@ -194,7 +194,8 @@ class Runner(object):
 
                         ref_base, sample_base, sample_base_qual, strands, indels = (
                             self._fetch_base_by_position(position, sample_info,
-                                                         go_iter, iter_tokes)
+                                                         go_iter, iter_tokes,
+                                                         is_scan_indel=True)
                         )
 
                         bt = BaseType(ref_base.upper(), sample_base,
@@ -283,43 +284,6 @@ class Runner(object):
 
                         self._out_cvg_file(chrid, position, ref_base,
                                            sample_base, strands, indels, CVG)
-
-                        # base_depth = {b: 0 for b in self.cmm.BASE}
-                        # for k, b in enumerate(sample_base):
-                        #
-                        #     if self.total_subsamcol and k not in self.total_subsamcol:
-                        #         # set un-selected bases to be 'N' which will be filted later
-                        #         sample_base[k] = 'N'
-                        #         continue
-                        #
-                        #     # ignore all bases which not match ``cmm.BASE``
-                        #     if b in base_depth:
-                        #         base_depth[b] += 1
-                        #
-                        # # deal with indels
-                        # indel_dict = {}
-                        # for ind in indels:
-                        #     indel_dict[ind] = indel_dict.get(ind, 0) + 1
-                        #
-                        # indel_string = ','.join([k+':'+str(v)
-                        #     for k, v in indel_dict.items()]) if indel_dict else '.'
-                        #
-                        # fs,ref_fwd, ref_rev, alt_fwd, alt_rev = 0, 0, 0, 0, 0
-                        # if sample_base:
-                        #     base_sorted = sorted(base_depth.items(),
-                        #                          lambda x, y: cmp(x[1], y[1]),
-                        #                          reverse=True)
-                        #
-                        #     b1, b2 = base_sorted[0][0], base_sorted[1][0]
-                        #     fs, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-                        #         ref_base, [b1 if b1 != ref_base.upper() else b2],
-                        #         sample_base, strands)
-                        #
-                        # CVG.write('\t'.join(
-                        #     [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                        #     [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) +
-                        #     '\t' + str(fs) + '\t' +
-                        #     ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
 
         self._close_tabix()
 
