@@ -198,6 +198,13 @@ class Runner(object):
                                                          is_scan_indel=True)
                         )
 
+                        if self.total_subsamcol:
+                            for k, b in enumerate(sample_base):
+                                if k not in self.total_subsamcol:
+                                    # set un-selected bases to be 'N' which
+                                    # will be filted later
+                                    sample_base[k] = 'N'
+
                         bt = BaseType(ref_base.upper(), sample_base,
                                       sample_base_qual)
                         bt.lrt()
