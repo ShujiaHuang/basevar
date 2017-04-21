@@ -95,17 +95,17 @@ class BaseType(object):
 
     def _f(self, bases, n):
         """
-        Calculate population likelihood for all bases combination
+        Calculate population likelihood for all the combination of bases
 
         Parameters
         ----------
 
-        ``bases``: 1D array like
+        ``bases``: 1d array like
             A list of bases from [A, C, G, T]
 
         ``n``: Integer
             The combination number. n must less or equal
-            the length of ``bases``
+            to the length of ``bases``
 
         Return
         ------
@@ -145,7 +145,6 @@ class BaseType(object):
         """The main function.
         likelihood ratio test.
         """
-
         if self.total_depth == 0: return
 
         # get effective bases which count frequence > self.cmm.MINAF

@@ -257,8 +257,7 @@ class Runner(object):
                                                   self.files[i])
                         iter_tokes.append('')
 
-                # Set iteration marker: 1->iterate; 0->donot
-                # iterate or hit the end
+                # Set iteration marker: 1->iterate; 0->hit the end
                 go_iter = [1] * len(iter_tokes)
                 for start, end in regions:
                     for position in xrange(start, end+1):
