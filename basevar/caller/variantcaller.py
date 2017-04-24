@@ -57,8 +57,9 @@ class BaseType(object):
                 self.prior_prob.append([self.qual_pvalue[i]
                                         if b == t else (1.0-self.qual_pvalue[i])/3
                                         for t in self.cmm.BASE])
+                # record depth for [ACGT]
                 if b in self.depth: # ignore '*'
-                    self.depth[b] += 1  # just calculate the depth of ACGT
+                    self.depth[b] += 1
 
         self.prior_prob = np.array(self.prior_prob)
         self.total_depth = float(sum(self.depth.values()))

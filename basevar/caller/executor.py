@@ -262,33 +262,6 @@ class Runner(object):
 
         return opt
 
-    # def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes,
-    #                             is_scan_indel=False):
-    #
-    #     sample_base_qual = []
-    #     sample_base = []
-    #     strands = []
-    #     indels = []
-    #     ref_base = ''
-    #     for i, tb_sample_line in enumerate(sample_info):
-    #
-    #         sample_info[i], ref_base_t, bs, qs, strand, go_iter[i], indel = (
-    #             mpileup.seek_position(position, tb_sample_line,
-    #                                   len(self.sample_id[i]),
-    #                                   iter_tokes[i],
-    #                                   is_scan_indel=is_scan_indel)
-    #         )
-    #
-    #         sample_base.extend(bs)
-    #         strands.extend(strand)
-    #         sample_base_qual.extend([ord(q) - 33 for q in qs])
-    #         indels.extend(indel)
-    #
-    #         if not ref_base:
-    #             ref_base = ref_base_t
-    #
-    #     return ref_base, sample_base, sample_base_qual, strands, indels
-
     def basetype(self):
 
         optp = argparse.ArgumentParser()
