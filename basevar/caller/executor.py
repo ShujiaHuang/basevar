@@ -8,13 +8,166 @@ the lord to rule them all, in a word, it's "The Ring".
 """
 
 import sys
+import os
 import argparse
+import heapq
 import pysam
 
 from . import utils
 from . import mpileup
 from .variantcaller import BaseType
 from .algorithm import strand_bias
+
+
+class FileForQueueing(object):
+    """
+    """
+    def __init__(self, the_file, line):
+        """
+        Store the file, and initialise the current value
+        """
+        self.the_file = the_file
+        self.finishedReadingFile = False
+        self.heap = []
+
+        line = line
+        cols = line.strip().split("\t")
+        chrom = cols[0]
+
+        # Where possible, convert chromosome names into
+        # integers for sorting. If not possible, use
+        # original names.
+        try:
+            chrom = int(chrom.upper().strip("CHR"))
+        except Exception:
+            pass
+
+        pos = int(cols[1])
+        heapq.heappush(self.heap, (chrom, pos, line))
+
+        while not self.finishedReadingFile and len(self.heap) < 100:
+
+            try:
+                line = self.the_file.next()
+                cols = line.strip().split("\t")
+                chrom = cols[0]
+
+                try:
+                    chrom = int(chrom.upper().strip("CHR"))
+                except Exception:
+                    pass
+
+                pos = int(cols[1])
+            except StopIteration:
+                self.finishedReadingFile = True
+                break
+
+            heapq.heappush(self.heap, (chrom, pos, line))
+
+        # Now take the top line
+        self.chrom, self.pos, self.line = heapq.heappop(self.heap)
+
+    def __cmp__(self, other):
+        """
+        Comparison function. Utilises the comparison function defined in
+        the AlignedRead class.
+        """
+        return cmp(self.chrom, other.chrom) or cmp(self.pos, other.pos)
+
+    def __del__(self):
+        """
+        Destructor
+        """
+        self.the_file.close()
+        os.remove(self.the_file.name)
+
+    def next(self):
+        """
+        Increment the iterator and yield the new value. Also, store the
+        current value for use in the comparison function.
+        """
+        if not self.finishedReadingFile:
+
+            try:
+                line = self.the_file.next()
+                #cols = line.strip().split('\t')
+                cols = line.strip().split()
+                chrom = cols[0]
+
+                # Where possible, convert chromosome names into
+                # integers for sorting. If not possible, use
+                # original names.
+                try:
+                    chrom = int(chrom.upper().strip("CHR"))
+                except Exception:
+                    pass
+
+                pos = int(cols[1])
+                heapq.heappush(self.heap, (chrom, pos, line))
+
+            except StopIteration:
+                self.finishedReadingFile = True
+
+        if len(self.heap) != 0:
+            # Now take the top line
+            self.chrom, self.pos, self.line = heapq.heappop(self.heap)
+        else:
+            raise StopIteration
+
+
+def mergeVCFFiles(temp_file_names, final_file_name, log):
+    """
+    """
+    log.info("Merging output VCF file(s) into final file %s" %(final_file_name))
+
+    # Final output file
+    if final_file_name == "-":
+        outputVCF = sys.stdout
+    else:
+        outputVCF = utils.Open(final_file_name, 'wb')
+    the_heap = []
+
+    # Initialise queue
+    for index, file_name in enumerate(temp_file_names):
+        the_file = utils.Open(file_name, 'rb')
+
+        for line in the_file:
+
+            # End of this file
+            if line[0] == "#":
+                if index == 0:
+                    outputVCF.write(line)
+            else:
+                the_file_for_queueing = FileForQueueing(the_file, line)
+                heapq.heappush(the_heap, the_file_for_queueing)
+                break
+
+        # If there are no calls in the temp file, we still want to
+        # remove it.
+        else:
+            the_file.close()
+            os.remove(file_name)
+
+    # Merge-sort the output using a priority queue
+    while len(the_heap) != 0:
+
+        # Get file from heap in right order
+        next_file = heapq.heappop(the_heap)
+        outputVCF.write(next_file.line)
+
+        # Put file back on heap
+        try:
+            next_file.next()
+            heapq.heappush(the_heap, next_file)
+        except StopIteration:
+            continue
+
+    # Close final output file
+    if final_file_name != "-":
+        outputVCF.close()
+
+    log.info("Finished merging VCF file(s)")
+
 
 class Runner(object):
 
@@ -109,59 +262,62 @@ class Runner(object):
 
         return opt
 
-    def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes,
-                                is_scan_indel=False):
-
-        sample_base_qual = []
-        sample_base = []
-        strands = []
-        indels = []
-        ref_base = ''
-        for i, tb_sample_line in enumerate(sample_info):
-
-            sample_info[i], ref_base_t, bs, qs, strand, go_iter[i], indel = (
-                mpileup.seek_position(position, tb_sample_line,
-                                      len(self.sample_id[i]),
-                                      iter_tokes[i],
-                                      is_scan_indel=is_scan_indel)
-            )
-
-            sample_base.extend(bs)
-            strands.extend(strand)
-            sample_base_qual.extend([ord(q) - 33 for q in qs])
-            indels.extend(indel)
-
-            if not ref_base:
-                ref_base = ref_base_t
-
-        return ref_base, sample_base, sample_base_qual, strands, indels
+    # def _fetch_base_by_position(self, position, sample_info, go_iter, iter_tokes,
+    #                             is_scan_indel=False):
+    #
+    #     sample_base_qual = []
+    #     sample_base = []
+    #     strands = []
+    #     indels = []
+    #     ref_base = ''
+    #     for i, tb_sample_line in enumerate(sample_info):
+    #
+    #         sample_info[i], ref_base_t, bs, qs, strand, go_iter[i], indel = (
+    #             mpileup.seek_position(position, tb_sample_line,
+    #                                   len(self.sample_id[i]),
+    #                                   iter_tokes[i],
+    #                                   is_scan_indel=is_scan_indel)
+    #         )
+    #
+    #         sample_base.extend(bs)
+    #         strands.extend(strand)
+    #         sample_base_qual.extend([ord(q) - 33 for q in qs])
+    #         indels.extend(indel)
+    #
+    #         if not ref_base:
+    #             ref_base = ref_base_t
+    #
+    #     return ref_base, sample_base, sample_base_qual, strands, indels
 
     def basetype(self):
 
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
+        optp.add_argument('-m', '--min_af', dest='min_af', type='float',
+                          metavar='MINAF', default=0.001,
+                          help='The effective base frequence threshold. [0.001]')
         optp.add_argument('-o', '--outprefix', dest='outprefix',
                           metavar='FILE', default='out',
                           help='The prefix of output files. [out]')
 
         self.opt = self._common_init(optp)
+        self.cmm.MINAF = self.opt.min_af
 
         # output file name
         self.out_vcf_file = self.opt.outprefix + '.vcf'
         self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
         vcf_header = utils.vcf_header_define()
-
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
-            CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] +
-                                self.cmm.BASE + ['Indel', 'FS', 'Strand_cvg']) + '\n')
+            CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
+                                ['Indel', 'FS', 'Strand_cvg']) + '\n')
 
             VCF.write('\n'.join(vcf_header) + '\n')
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
                                  'INFO\tFORMAT'] + self.total_sample) + '\n')
 
-            for chrid, regions in sorted(self.sites.items(), key=lambda x: x[0]):
+            for chrid, regions in sorted(self.sites.items(), key=lambda x:x[0]):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # fetch the position data from each mpileup files
                 # `iter_tokes` is a list of iterator for each sample's mpileup
@@ -193,9 +349,10 @@ class Runner(object):
                                        for i, g in enumerate(go_iter)]
 
                         ref_base, sample_base, sample_base_qual, strands, indels = (
-                            self._fetch_base_by_position(position, sample_info,
-                                                         go_iter, iter_tokes,
-                                                         is_scan_indel=True)
+                            mpileup.fetch_base_by_position(position, self.sample_id,
+                                                           sample_info, go_iter,
+                                                           iter_tokes,
+                                                           is_scan_indel=True)
                         )
 
                         if self.total_subsamcol:
@@ -205,13 +362,13 @@ class Runner(object):
                                     # will be filted later
                                     sample_base[k] = 'N'
 
-                        bt = BaseType(ref_base.upper(), sample_base,
-                                      sample_base_qual)
+                        bt = BaseType(ref_base.upper(), sample_base, sample_base_qual,
+                                      cmm=self.cmm)
                         bt.lrt()
 
                         # ACGT count and mark the refbase
                         if not ref_base:
-                            # mark '*' if the coverage is 0
+                            # mark '*' if coverage is 0
                             ref_base = '*'
 
                         self._out_cvg_file(chrid, position, ref_base,
@@ -274,9 +431,10 @@ class Runner(object):
                                        for i, g in enumerate(go_iter)]
 
                         ref_base, sample_base, sample_base_qual, strands, indels = (
-                            self._fetch_base_by_position(position, sample_info,
-                                                         go_iter, iter_tokes,
-                                                         is_scan_indel=True)
+                            mpileup.fetch_base_by_position(position, self.sample_id,
+                                                           sample_info, go_iter,
+                                                           iter_tokes,
+                                                           is_scan_indel=True)
                         )
 
                         # ACGT count and mark refbase
@@ -381,5 +539,6 @@ class Runner(object):
     def _close_tabix(self):
         for tb in self.tb_files:
             tb.close()
+
 
 

@@ -1,6 +1,9 @@
 """
 """
 import sys
+import os
+import gzip
+
 
 class CommonParameter(object):
     """
@@ -125,7 +128,9 @@ def merge_region(position_region, delta=1):
 
         prepos = s
 
-    if flag: m_region.append([start, end])
+    if flag:
+        m_region.append([start, end])
+
     return m_region
 
 
@@ -149,5 +154,28 @@ def get_minor_major(base):
 
     # minor and major
     return mi, mj, sorted_bc
+
+
+def expandedOpen(path, mode):
+    try:
+        return open(path, mode)
+    except IOError:
+        return open(os.path.expanduser(path), mode)
+
+
+def Open(fileName, mode, compressLevel=9):
+    """
+    Function that allows transparent usage of dictzip, gzip and
+    ordinary files
+    """
+    if fileName.endswith(".gz") or fileName.endswith(".GZ"):
+        fileDir = os.path.dirname(fileName)
+        if os.path.exists(fileDir):
+            return gzip.GzipFile(fileName, mode, compressLevel)
+        else:
+            return gzip.GzipFile(os.path.expanduser(fileName), mode,
+                                 compressLevel)
+    else:
+        return expandedOpen(fileName, mode)
 
 

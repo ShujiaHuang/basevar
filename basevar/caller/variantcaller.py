@@ -6,6 +6,8 @@ Date : 2016-12-16
 Update : 2017-01-03
 
 """
+import multiprocessing
+
 import itertools   # Use the combinations function
 import numpy as np
 from scipy.stats import chisqprob as sp_chisqprob
@@ -190,4 +192,20 @@ class BaseType(object):
 
         return
 
+
+###############################################################################
+class BaseVarSingleProcess(multiprocessing.Process):
+    """
+    simple class to repesent a single BaseVar process.
+    """
+    pass
+
+
+###############################################################################
+class BaseVarMultiProcess(multiprocessing.Process):
+    """
+    simple class to represent a single BaseVar process, which is run as part of
+    a multi-process job.
+    """
+    pass
 
