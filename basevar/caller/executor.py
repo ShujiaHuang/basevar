@@ -293,7 +293,7 @@ class Runner(object):
 
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
-        optp.add_argument('-m', '--min_af', dest='min_af', type='float',
+        optp.add_argument('-m', '--min_af', dest='min_af', type=float,
                           metavar='MINAF', default=0.001,
                           help='The effective base frequence threshold. [0.001]')
         optp.add_argument('-o', '--outprefix', dest='outprefix',
@@ -461,7 +461,7 @@ class Runner(object):
                 sample_base[k] = 'N'
                 continue
 
-            # ignore all bases which not match ``cmm.BASE``
+            # ignore all bases('*') which not match ``cmm.BASE``
             if b in base_depth:
                 base_depth[b] += 1
 
