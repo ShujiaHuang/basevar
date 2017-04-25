@@ -290,10 +290,10 @@ class Runner(object):
             p.join()
 
         # Final output file name
-        self.out_vcf_file = self.opt.outprefix + '.vcf'
-        self.out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
+        out_vcf_file = self.opt.outprefix + '.vcf'
+        out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
-        mergeVCFFiles(out_vcf_names, self.out_vcf_file)
+        mergeVCFFiles(out_vcf_names, out_vcf_file)
 
         return
 

@@ -221,9 +221,16 @@ class BaseVarSingleProcess(object):
         self.mpileup_files = mpileup_files
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
-        self.regions = regions
+        self.regions = {}
         self.options = options
         self.cmm = cmm
+
+        for chrid, start, end in regions:
+
+            if chrid not in self.regions:
+                self.regions[chrid] = []
+
+            self.regions[chrid].append([start, end])
 
         # reset threshold of init min allele frequence by read depth
         self.cmm.MINAF = self.options.min_af
