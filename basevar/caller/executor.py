@@ -246,6 +246,9 @@ class Runner(object):
 
         self.opt = self._common_init(optp)
 
+        # reset threshold of init min allele frequence by read depth
+        self.cmm.MINAF = self.opt.min_af
+
         processes = []
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
         for i, region in enumerate(self.regions):
@@ -264,7 +267,8 @@ class Runner(object):
                                                  sub_vcf_file,
                                                  sub_cvg_file,
                                                  regions_for_each_process[i],
-                                                 self.opt))
+                                                 self.opt,
+                                                 cmm=self.cmm))
 
         for p in processes:
             p.start()

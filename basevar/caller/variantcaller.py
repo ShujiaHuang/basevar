@@ -210,8 +210,8 @@ class BaseVarSingleProcess(object):
     total_samples = None
     total_subsamcol = None
 
-    def __int__(self, mpileup_files, out_vcf_file, out_cvg_file,
-                regions, options, cmm=utils.CommonParameter):
+    def __init__(self, mpileup_files, out_vcf_file, out_cvg_file,
+                regions, options, cmm=None):
         """
         Store input file, options and output file name.
 
@@ -459,16 +459,16 @@ class BaseVarMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __int__(self, mpileup_files, out_vcf_file, out_cvg_file,
-                regions, options):
+    def __init__(self, mpileup_files, out_vcf_file, out_cvg_file,
+                regions, options, cmm=None):
 
         """
         Constructor.
         """
-        #multiprocessing.Process.__init__(self)
-        super(BaseVarMultiProcess, self).__init__()
-        self.single_process = BaseVarSingleProcess(mpileup_files, out_vcf_file, out_cvg_file,
-                                                   regions, options)
+        multiprocessing.Process.__init__(self)
+        self.single_process = BaseVarSingleProcess(mpileup_files,
+                                                   out_vcf_file, out_cvg_file,
+                                                   regions, options, cmm=cmm)
 
     def run(self):
         """ Run the BaseVar process"""
