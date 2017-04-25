@@ -465,7 +465,8 @@ class BaseVarMultiProcess(multiprocessing.Process):
         """
         Constructor.
         """
-        multiprocessing.Process.__init__(self)
+        #multiprocessing.Process.__init__(self)
+        super(BaseVarMultiProcess, self).__init__()
         self.single_process = BaseVarSingleProcess(mpileup_files, out_vcf_file, out_cvg_file,
                                                    regions, options)
 
