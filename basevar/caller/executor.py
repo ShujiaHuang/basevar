@@ -294,6 +294,7 @@ class Runner(object):
         out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
         mergeVCFFiles(out_vcf_names, out_vcf_file)
+        mergeVCFFiles(out_cvg_names, out_cvg_file)
 
         return
 

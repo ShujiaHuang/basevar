@@ -225,6 +225,7 @@ class BaseVarSingleProcess(object):
         self.options = options
         self.cmm = cmm
 
+        # store the region into a dict
         for chrid, start, end in regions:
 
             if chrid not in self.regions:
