@@ -200,7 +200,7 @@ class BaseType(object):
 
 
 ###############################################################################
-class BaseVarSingleProcess(multiprocessing.Process):
+class BaseVarSingleProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
@@ -225,7 +225,6 @@ class BaseVarSingleProcess(multiprocessing.Process):
         self.options = options
         self.cmm = cmm
 
-
         # Cache a batch of mpileup file handle which index by tabix
         self.tb_files = [pysam.TabixFile(f) for f in self.mpileup_files]
 
@@ -237,8 +236,6 @@ class BaseVarSingleProcess(multiprocessing.Process):
             (BaseVarSingleProcess.samples_id,
              BaseVarSingleProcess.total_samples,
              BaseVarSingleProcess.total_subsamcol) = self._load_sample_name()
-
-        return
 
     def _load_sample_name(self):
         """
@@ -365,8 +362,6 @@ class BaseVarSingleProcess(multiprocessing.Process):
 
         self._close_tabix()
 
-        return
-
     def _out_cvg_file(self, chrid, position, ref_base, sample_base,
                       strands, indels, out_file_handle):
         # coverage info for each position
@@ -475,5 +470,4 @@ class BaseVarMultiProcess(multiprocessing.Process):
         """ Run the BaseVar process"""
         self.single_process.run()
 
-        return
 
