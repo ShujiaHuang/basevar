@@ -211,7 +211,7 @@ class BaseVarSingleProcess(object):
     total_subsamcol = None
 
     def __int__(self, mpileup_files, out_vcf_file, out_cvg_file,
-                regions, options, cmm):
+                regions, options, cmm=utils.CommonParameter):
         """
         Store input file, options and output file name.
 
@@ -224,6 +224,9 @@ class BaseVarSingleProcess(object):
         self.regions = regions
         self.options = options
         self.cmm = cmm
+
+        # reset threshold of init min allele frequence by read depth
+        self.cmm.MINAF = self.options.min_af
 
         # Cache a batch of mpileup file handle which index by tabix
         self.tb_files = [pysam.TabixFile(f) for f in self.mpileup_files]
@@ -457,14 +460,14 @@ class BaseVarMultiProcess(multiprocessing.Process):
     a multi-process job.
     """
     def __int__(self, mpileup_files, out_vcf_file, out_cvg_file,
-                regions, options, cmm):
+                regions, options):
 
         """
         Constructor.
         """
         multiprocessing.Process.__init__(self)
         self.single_process = BaseVarSingleProcess(mpileup_files, out_vcf_file, out_cvg_file,
-                                                   regions, options, cmm)
+                                                   regions, options)
 
     def run(self):
         """ Run the BaseVar process"""
