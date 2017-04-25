@@ -114,17 +114,17 @@ class FileForQueueing(object):
             raise StopIteration
 
 
-def mergeVCFFiles(temp_file_names, final_file_name):
+def merge_files(temp_file_names, final_file_name):
     """
-    Merging output VCF files into a final file
-    log.info("Merging output VCF file(s) into final file %s" %(final_file_name))
+    Merging output VCF/CVG files into a final file
+    log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
     """
 
     # Final output file
     if final_file_name == "-":
-        outputVCF = sys.stdout
+        output_file = sys.stdout
     else:
-        outputVCF = utils.Open(final_file_name, 'wb')
+        output_file = utils.Open(final_file_name, 'wb')
     the_heap = []
 
     # Initialise queue
@@ -136,7 +136,7 @@ def mergeVCFFiles(temp_file_names, final_file_name):
             # End of this file
             if line[0] == "#":
                 if index == 0:
-                    outputVCF.write(line)
+                    output_file.write(line)
             else:
                 the_file_for_queueing = FileForQueueing(the_file, line)
                 heapq.heappush(the_heap, the_file_for_queueing)
@@ -153,7 +153,7 @@ def mergeVCFFiles(temp_file_names, final_file_name):
 
         # Get file from heap in right order
         next_file = heapq.heappop(the_heap)
-        outputVCF.write(next_file.line)
+        output_file.write(next_file.line)
 
         # Put file back on heap
         try:
@@ -164,9 +164,9 @@ def mergeVCFFiles(temp_file_names, final_file_name):
 
     # Close final output file
     if final_file_name != "-":
-        outputVCF.close()
+        output_file.close()
 
-    #log.info("Finished merging VCF file(s)")
+    #log.info("Finished merging %s file(s)"%final_file_name)
     return
 
 
@@ -218,7 +218,6 @@ class Runner(object):
 
         # merge and sorted the regions
         # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
-        # self.regions = [utils.merge_region(k, v) for k, v in _sites.items()]
         self.regions = []
         for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
             for start, end in utils.merge_region(v):
@@ -293,8 +292,8 @@ class Runner(object):
         out_vcf_file = self.opt.outprefix + '.vcf'
         out_cvg_file = self.opt.outprefix + '.cvg.tsv' # position coverage
 
-        mergeVCFFiles(out_vcf_names, out_vcf_file)
-        mergeVCFFiles(out_cvg_names, out_cvg_file)
+        merge_files(out_vcf_names, out_vcf_file)
+        merge_files(out_cvg_names, out_cvg_file)
 
         return
 
