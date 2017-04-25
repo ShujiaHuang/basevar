@@ -269,7 +269,7 @@ class Runner(object):
                                                  sub_cvg_file,
                                                  regions_for_each_process[i],
                                                  self.opt,
-                                                 cmm=self.cmm))
+                                                 self.cmm))
 
         for p in processes:
             p.start()
