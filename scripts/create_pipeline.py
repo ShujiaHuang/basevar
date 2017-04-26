@@ -56,7 +56,7 @@ def creat_basetype_pipe():
     optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                       metavar='FILE', help='The sample list.')
     optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF', default=0.001,
-                      help='The effective base frequence threshold. [0.001]')
+                      help='By setting min AF to skip uneffective caller positions to accelerate program speed. [0.001]')
 
     opt = optp.parse_args()
     opt.delta = int(opt.delta)
