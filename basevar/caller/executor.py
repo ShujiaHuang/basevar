@@ -175,30 +175,34 @@ class Runner(object):
     def __init__(self, cmm=utils.CommonParameter()):
         """init function
         """
-        self.cmm = cmm
-
-    def _common_init(self, optp):
-        """Common init function for getting positions and region.
-        """
-        # common parameters
-        optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
-                          help='skip unlisted positions (chr pos)', default='')
-        optp.add_argument('-R', '--regions',
-                          metavar='chr:start-end', dest='regions',
-                          help='skip positions not in (chr:start-end)', default='')
+        optp = argparse.ArgumentParser()
+        optp.add_argument('basetype')
+        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE', default='out',
+                          help='The prefix of output files. [out]')
         optp.add_argument('-l', '--mpileup-list', dest='infilelist', metavar='FILE',
                           help='The input mpileup file list.', default='')
-        optp.add_argument('-s', '--sample-list', dest='samplelistfile',
-                          metavar='FILE', help='The sample list.')
+        optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
+                          help='skip unlisted positions (chr pos)', default='')
+        optp.add_argument('-R', '--regions', metavar='chr:start-end', dest='regions',
+                          help='skip positions not in (chr:start-end)', default='')
+        optp.add_argument('-s', '--sample-list', dest='samplelistfile', metavar='FILE',
+                          help='The sample list.')
         optp.add_argument('-S', '--subsample-list', dest='subsample', metavar='FILE',
                           help='Skip samples not in subsample-list, one sample per row.')
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
+        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF', default=0.001,
+                          help='The effective base frequence threshold. [0.001]')
 
         opt = optp.parse_args()
+        self.opt = opt
+
+        self.cmm = cmm
+        # reset threshold of init min allele frequence by read depth
+        self.cmm.MINAF = self.opt.min_af
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] At least one mpileup to input\n')
+            optp.error('[ERROR] At least input one mpileup file\n')
 
         if len(opt.samplelistfile) == 0:
             optp.error('[ERROR] Must input the sample\'s ID list file by (-s)')
@@ -228,26 +232,13 @@ class Runner(object):
         if opt.infilelist:
             self.mpileupfiles.extend(utils.load_file_list(opt.infilelist))
 
-        return opt
-
     def basetype(self):
         """
         Run variant caller
         """
-        optp = argparse.ArgumentParser()
-        optp.add_argument('basetype')
-        optp.add_argument('-m', '--min_af', dest='min_af', type=float,
-                          metavar='MINAF', default=0.001,
-                          help='The effective base frequence threshold. [0.001]')
-        optp.add_argument('-o', '--outprefix', dest='outprefix',
-                          metavar='FILE', default='out',
-                          help='The prefix of output files. [out]')
 
-        self.opt = self._common_init(optp)
-
-        # reset threshold of init min allele frequence by read depth
-        self.cmm.MINAF = self.opt.min_af
-
+        # Always create process manager even if nCPU==1, so that we can
+        # listen for signals from main thread
         processes = []
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
         for i, region in enumerate(self.regions):
@@ -284,7 +275,7 @@ class Runner(object):
 
                 sys.exit(1)
 
-        # make sure all process are finished successful
+        # make sure all process are finished
         for p in processes:
             p.join()
 

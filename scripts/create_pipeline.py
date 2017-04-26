@@ -29,17 +29,19 @@ def creat_basetype_pipe():
     exe_prog = pardir + '/basevar/BaseVar.py basetype'
 
     optp = argparse.ArgumentParser()
+    optp.add_argument('-o', '--outdir', metavar='STR', dest='outdir',
+                      help='The output directory', default='')
     optp.add_argument('-f', '--ref_fai', metavar='FILE', dest='ref_fai',
                       help='The reference fai file', default='')
     optp.add_argument('-r', '--regions', metavar='Region', dest='regions',
                       help='skip positions not in (chr:start-end)', default='')
     optp.add_argument('-d', '--delta', metavar='INT', dest='delta',
-                      help='Set the region size', default=100000)
+                      help='Set specific region size', default=100000)
     optp.add_argument('-c', '--chrom', metavar='STR', dest='chrom',
                       help='skip comma delimited unlisted chrom. e.g chr1,chr2',
                       default='')
-    optp.add_argument('-o', '--outdir', metavar='STR', dest='outdir',
-                      help='The output directory', default='')
+    optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
+                      help='Number of processer to use. [1]', default=1)
 
     optp.add_argument('-b', '--bgzip', metavar='STR', dest='bgzip',
                       help='The path of bgzip',
@@ -53,6 +55,8 @@ def creat_basetype_pipe():
                       help='The input mpileup file list.', default='')
     optp.add_argument('-s', '--sample-list', dest='samplelistfile',
                       metavar='FILE', help='The sample list.')
+    optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF', default=0.001,
+                      help='The effective base frequence threshold. [0.001]')
 
     opt = optp.parse_args()
     opt.delta = int(opt.delta)
@@ -79,6 +83,8 @@ def creat_basetype_pipe():
 
             outfile_prefix = chr_id + '_' + str(start) + '_' + str(end)
             print ' '.join(['time python '+ exe_prog,
+                            '--nCPU ' + str(opt.nCPU),
+                            '-m ' + str(opt.min_af),
                             '-R '+ reg,
                             '-l '+ opt.infilelist,
                             '-s '+ opt.samplelistfile,

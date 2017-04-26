@@ -216,7 +216,6 @@ class BaseVarSingleProcess(object):
         Store input file, options and output file name.
 
         Parameters
-        ==========
         """
         self.mpileup_files = mpileup_files
         self.out_vcf_file = out_vcf_file
@@ -233,14 +232,10 @@ class BaseVarSingleProcess(object):
 
             self.regions[chrid].append([start, end])
 
-        # reset threshold of init min allele frequence by read depth
-        self.cmm.MINAF = self.options.min_af
-
         # Cache a batch of mpileup file handle which index by tabix
         self.tb_files = [pysam.TabixFile(f) for f in self.mpileup_files]
 
-        # assignment sample id into the class variable:
-        # ``samples_id``, ``total_samples`` and ``total_subsamcol``
+        # assignment sample id to the class variable
         if not BaseVarSingleProcess.samples_id:
             # must be called in __init__ function!
 
@@ -352,7 +347,7 @@ class BaseVarSingleProcess(object):
                             for k, b in enumerate(sample_base):
                                 if k not in BaseVarSingleProcess.total_subsamcol:
                                     # set un-selected bases to be 'N' which
-                                    # will be filted later
+                                    # will be filted
                                     sample_base[k] = 'N'
 
                         # ACGT count and mark the refbase

@@ -16,16 +16,9 @@ def basetype():
     bt.basetype()
 
 
-def coverage():
-    from caller.executor import Runner
-    cvg = Runner()
-    cvg.coverage()
-
-
 if __name__ == '__main__':
 
-    runner = {'basetype': basetype,
-              'coverage': coverage}
+    runner = {'basetype': basetype}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         print >> sys.stderr, '[Usage] python [option] %s' % sys.argv[0]
