@@ -132,12 +132,17 @@ def seek_position(target_pos, sample_line, sample_num, sample_tb_iter,
                 go_iter_mark = 1
                 for i in xrange(sample_num):
 
-                    if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
-                        strand[i], bases[i], quals[i], indel = first_base(
-                            tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2],
-                            is_scan_indel=is_scan_indel)
+                    try:
+                        if tmp[3*(i+1)] != '0' and tmp[3*(i+1)+1] != '*':
+                            strand[i], bases[i], quals[i], indel = first_base(
+                                tmp[2], tmp[3*(i+1)+1], tmp[3*(i+1)+2],
+                                is_scan_indel=is_scan_indel)
 
-                        indels.extend(indel)
+                            indels.extend(indel)
+
+                    except IndexError:
+                        print >> sys.stderr, "[WARNING] IndexError. SampleID:", i + 1, sample_num, len(tmp)
+                        print >> sys.stderr, sample_line, "\n", tmp
 
         else:
             # pos > target_pos
