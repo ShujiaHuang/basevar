@@ -239,6 +239,7 @@ class Runner(object):
         Run variant caller
         """
 
+        print >> sys.stderr, '[INFO] Start call varaintis by BaseType ... %s'%time.asctime()
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
