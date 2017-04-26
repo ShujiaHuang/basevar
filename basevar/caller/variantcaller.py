@@ -242,6 +242,7 @@ class BaseVarSingleProcess(object):
             (BaseVarSingleProcess.samples_id,
              BaseVarSingleProcess.total_samples,
              BaseVarSingleProcess.total_subsamcol) = self._load_sample_name()
+            print >> sys.stderr, '[INFO] Finish loading sample name.'
 
     def _load_sample_name(self):
         """

@@ -232,6 +232,8 @@ class Runner(object):
         if opt.infilelist:
             self.mpileupfiles.extend(utils.load_file_list(opt.infilelist))
 
+        print >> sys.stderr, '[INFO] Finish loading parameters and mpileup list %s'%time.asctime()
+
     def basetype(self):
         """
         Run variant caller
@@ -239,14 +241,28 @@ class Runner(object):
 
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
-        processes = []
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
-        for i, region in enumerate(self.regions):
-            regions_for_each_process[i % self.opt.nCPU].append(region)
+        if len(self.regions) < self.opt.nCPU:
+            # We cut the region evenly to fit nCPU if regions < nCPU
+            for chrid, start, end in self.regions:
+                delta = int((end-start+1) / self.opt.nCPU)
+                if delta == 0:
+                    delta = 1
+
+                for i, pos in enumerate(xrange(start-1, end, delta)):
+                    s = pos + 1 if pos + 1 < end else end
+                    e = pos + delta if pos + delta < end else end
+
+                    regions_for_each_process[i % self.opt.nCPU].append([chrid, s, e])
+
+        else:
+            for i, region in enumerate(self.regions):
+                regions_for_each_process[i % self.opt.nCPU].append(region)
 
         out_vcf_names = set()
         out_cvg_names = set()
 
+        processes = []
         for i in range(self.opt.nCPU):
             sub_vcf_file = self.opt.outprefix + '_temp_%s'%i + '.vcf'
             sub_cvg_file = self.opt.outprefix + '_temp_%s'%i + '.cvg.tsv'
@@ -269,7 +285,7 @@ class Runner(object):
                 time.sleep(1)
 
             except KeyboardInterrupt:
-                print 'KeyboardInterrupt detected, terminating all processes...'
+                print >> sys.stderr, 'KeyboardInterrupt detected, terminating all processes...'
                 for p in processes:
                     p.terminate()
 
