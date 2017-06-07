@@ -16,9 +16,17 @@ def basetype():
     bt.run()
 
 
+def merge():
+    from caller.executor import MergeRunner
+
+    mg = MergeRunner()
+    mg.run()
+
+
 if __name__ == '__main__':
 
-    runner = {'basetype': basetype}
+    runner = {'basetype': basetype,
+              'merge': merge}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         print >> sys.stderr, '[Usage] python [option] %s' % sys.argv[0]
