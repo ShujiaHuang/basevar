@@ -10,10 +10,10 @@ import time
 
 
 def basetype():
-    from caller.executor import Runner
+    from caller.executor import BaseTypeRunner
 
-    bt = Runner()
-    bt.basetype()
+    bt = BaseTypeRunner()
+    bt.run()
 
 
 if __name__ == '__main__':
