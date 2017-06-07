@@ -56,7 +56,7 @@ class BaseType(object):
         quals = np.array(quals)
         self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
         for i, b in enumerate(bases):
-            ## Individual per row for [A, C, G, T] and the prior probability is
+            ## Individual per row for [A, C, G, T] and give a prior probability
             if b != 'N':  # ignore all the 'N' base sample
                 self.prior_prob.append([self.qual_pvalue[i]
                                         if b == t else (1.0-self.qual_pvalue[i])/3
@@ -180,7 +180,7 @@ class BaseType(object):
                 break
 
         self._alt_bases = [b for b in bases if b != self._ref_base]
-        self.eaf = {b:'%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
+        self.eaf = {b : '%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
                     for b in bases if b != self._ref_base}
 
         # calculate the variant quality
@@ -471,8 +471,11 @@ class BaseVarMultiProcess(multiprocessing.Process):
         """
         multiprocessing.Process.__init__(self)
         self.single_process = BaseVarSingleProcess(mpileup_files,
-                                                   out_vcf_file, out_cvg_file,
-                                                   regions, options, cmm=cmm)
+                                                   out_vcf_file,
+                                                   out_cvg_file,
+                                                   regions,
+                                                   options,
+                                                   cmm=cmm)
 
     def run(self):
         """ Run the BaseVar process"""
