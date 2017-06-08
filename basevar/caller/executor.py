@@ -159,7 +159,7 @@ class MergeRunner(object):
         optp = argparse.ArgumentParser()
         optp.add_argument('merge')
         optp.add_argument('-l', '--file-list', dest='infilelist', metavar='FILE',
-                          help='The input mpileup file list.', default='')
+                          help='The input files\' list.', default='')
         optp.add_argument('-o', '--outfile', dest='outfile', metavar='FILE', default='out',
                           help='The prefix of output files. [out]')
 
@@ -167,7 +167,7 @@ class MergeRunner(object):
         self.opt = opt
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] At least input one mpileup file\n')
+            optp.error('[ERROR] At least one input file.\n')
 
         # Load all files
         self.files = []
@@ -177,5 +177,4 @@ class MergeRunner(object):
 
     def run(self):
         utils.merge_files(self.files, self.opt.outfile)
-
         return
