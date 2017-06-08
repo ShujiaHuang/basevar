@@ -91,7 +91,7 @@ def merge_region(position_region, delta=1):
     Example
     -------
     ...
-    >>> from basevar import utils
+    >>> from basevar.caller import utils
     >>> utils.merge_region([[1,1], [2,3], [4,6], [4,5], [8, 20], [9, 12]])
     ... [[1, 6], [8, 20]]
 
