@@ -276,7 +276,7 @@ class FileForQueueing(object):
             raise StopIteration
 
 
-def merge_files(temp_file_names, final_file_name):
+def merge_files(temp_file_names, final_file_name, is_detle_raw_file=False):
     """
     Merging output VCF/CVG files into a final file
     log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
@@ -308,7 +308,9 @@ def merge_files(temp_file_names, final_file_name):
         # remove it.
         else:
             the_file.close()
-            os.remove(file_name)
+
+            if is_detle_raw_file:
+                os.remove(file_name)
 
     # Merge-sort the output using a priority queue
     while len(the_heap) != 0:
