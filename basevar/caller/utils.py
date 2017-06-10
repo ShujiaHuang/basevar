@@ -183,12 +183,13 @@ def Open(fileName, mode, compressLevel=9):
 class FileForQueueing(object):
     """
     """
-    def __init__(self, the_file, line):
+    def __init__(self, the_file, line, is_del_raw_file=False):
         """
         Store the file, and initialise the current value
         """
         self.the_file = the_file
         self.finishedReadingFile = False
+        self.is_del_raw_file = is_del_raw_file
         self.heap = []
 
         line = line
@@ -240,7 +241,9 @@ class FileForQueueing(object):
         Destructor
         """
         self.the_file.close()
-        os.remove(self.the_file.name)
+
+        if self.is_del_raw_file:
+            os.remove(self.the_file.name)
 
     def next(self):
         """
@@ -300,7 +303,8 @@ def merge_files(temp_file_names, final_file_name, is_detle_raw_file=False):
                 if index == 0:
                     output_file.write(line)
             else:
-                the_file_for_queueing = FileForQueueing(the_file, line)
+                the_file_for_queueing = FileForQueueing(the_file, line,
+                                                        is_detle_raw_file=is_detle_raw_file)
                 heapq.heappush(the_heap, the_file_for_queueing)
                 break
 
