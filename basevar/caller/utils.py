@@ -279,7 +279,7 @@ class FileForQueueing(object):
             raise StopIteration
 
 
-def merge_files(temp_file_names, final_file_name, is_detle_raw_file=False):
+def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     """
     Merging output VCF/CVG files into a final file
     log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
@@ -304,7 +304,7 @@ def merge_files(temp_file_names, final_file_name, is_detle_raw_file=False):
                     output_file.write(line)
             else:
                 the_file_for_queueing = FileForQueueing(the_file, line,
-                                                        is_detle_raw_file=is_detle_raw_file)
+                                                        is_del_raw_file=is_del_raw_file)
                 heapq.heappush(the_heap, the_file_for_queueing)
                 break
 
@@ -313,7 +313,7 @@ def merge_files(temp_file_names, final_file_name, is_detle_raw_file=False):
         else:
             the_file.close()
 
-            if is_detle_raw_file:
+            if is_del_raw_file:
                 os.remove(file_name)
 
     # Merge-sort the output using a priority queue
