@@ -146,8 +146,8 @@ class BaseTypeRunner(object):
         out_vcf_file = self.opt.outprefix + '.vcf'
         out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
 
-        utils.merge_files(out_vcf_names, out_vcf_file, is_detle_raw_file=True)
-        utils.merge_files(out_cvg_names, out_cvg_file, is_detle_raw_file=True)
+        utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
+        utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
 
         return
 
