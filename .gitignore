@@ -1,6 +1,7 @@
 *.py[cod]
 *.log
 *.sh
+*.pdf
 *.so
 .*.sw?
 *.egg
@@ -10,4 +11,3 @@
 .ipynb_checkpoints/
 .egg-info/
 trash/
-tests/
