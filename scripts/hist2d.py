@@ -49,8 +49,8 @@ def draw_hist2d(argv):
     im = ax.hist2d(x=np.log10(x), y=np.log10(y), bins=100,
                    norm=LogNorm(), cmap=plt.cm.hsv)
 
-    min_a = min([min(np.log10(x), min(np.log10(y)])
-    max_a = max([max(np.log10(x), max(np.log10(y)])
+    min_a = min([min(np.log10(x)), min(np.log10(y)]))
+    max_a = max([max(np.log10(x)), max(np.log10(y)]))
     ax.plot([min_a, min_a], [max_a, max_a], 'k--', linewidth=1)
 
     locs, labs = plt.xticks()
@@ -69,7 +69,7 @@ def draw_hist2d(argv):
     plt.tight_layout()
     plt.savefig(out_fig_file)
 
-    plt.show()
+    # plt.show()
 
 
 if __name__ == '__main__':
