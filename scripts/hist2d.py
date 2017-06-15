@@ -51,7 +51,7 @@ def draw_hist2d(argv):
 
     min_a = min([min(np.log10(x)), min(np.log10(y))])
     max_a = max([max(np.log10(x)), max(np.log10(y))])
-    ax.plot([min_a, min_a], [max_a, max_a], 'k--', linewidth=1)
+    ax.plot([min_a, max_a], [min_a, max_a], 'k--', linewidth=1)
 
     locs, labs = plt.xticks()
     # ax.set_xticklabels(['${10}^{%.1f}$'%i for i in locs])
