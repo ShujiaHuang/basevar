@@ -22,7 +22,7 @@ def scale_format(value):
         value = '%.1f' % value
 
     else:
-        value = '%.0f'% value
+        value = '%.0f' % value
 
     return value
 
@@ -43,10 +43,14 @@ def draw_hist2d(argv):
     x, y = data[labels[0]], data[labels[1]]
 
     # im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.hsv)
+    # ax.plot([min(x), max(x)], [min(y), max(y)], 'k--', linewidth=1)
     x[x == 0] = 0.0001
     y[y == 0] = 0.0001
     im = ax.hist2d(x=np.log10(x), y=np.log10(y), bins=100,
                    norm=LogNorm(), cmap=plt.cm.hsv)
+    ax.plot([min(np.log10(x)), max(np.log10(x))],
+            [min(np.log10(y)), max(np.log10(y))],
+            'k--', linewidth=1)
 
     locs, labs = plt.xticks()
     # ax.set_xticklabels(['${10}^{%.1f}$'%i for i in locs])
@@ -64,7 +68,7 @@ def draw_hist2d(argv):
     plt.tight_layout()
     plt.savefig(out_fig_file)
 
-    # plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
