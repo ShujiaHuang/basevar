@@ -43,25 +43,15 @@ LOCATION 'oss://oss-cn-beijing-internal.aliyuncs.com/huada-test/nifty/'
 USING 'mpileup-extractor-1.0.jar';
 ```
 
-# for debug
+## Expand OSS external table to a MaxCompute wide table
 
+add python resource file and create function:
 ```
-CREATE EXTERNAL TABLE IF NOT EXISTS oss_small
-(
-chrid string,
-pos string,
-base_ref string,
-sample_name string,
-c1 string,
-c2 string,
-c3 string
-)
-STORED BY 'com.aliyun.odps.poc.MpileupHandler'
-WITH SERDEPROPERTIES
-(
-'odps.properties.rolearn'='acs:ram::1817850323806830:role/aliyunodpsdefaultrole',
-'oss.user.defined.files.splits'='split_small.txt'
-)
-LOCATION 'oss://oss-cn-beijing-internal.aliyuncs.com/huada-test/nifty/'
-USING 'mpileup-extractor-1.0.jar';
+add py expand_udf.py;
+create function expand as expand_udf.Expand using expand_udf.py,all_names.txt;
+```
+
+create wide table:
+```
+create table nifty_expand as select chrid, pos, base_ref, expand(sample_name, c1, c2, c3) as one from nifty group by chrid, pos, base_ref;
 ```
