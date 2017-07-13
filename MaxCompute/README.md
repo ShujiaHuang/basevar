@@ -56,7 +56,7 @@ create wide table:
 create table nifty_expand as select chrid, pos, base_ref, expand(sample_name, c1, c2, c3) as one from nifty group by chrid, pos, base_ref;
 ```
 
-## Calculate Coverage
+## BaseVar Calculation
 
 prepare scipy environment for MaxCompute, download scipy whl package first
 `wget http://mirrors.aliyun.com/pypi/packages/ae/94/28ca6f9311e2351bb68da41ff8c1bc8f82bb82791f2ecd34efa953e60576/scipy-0.19.0-cp27-cp27m-manylinux1_x86_64.whl#md5=0e49f7fc8d31c1c79f0a4d63b29e8a1f`
@@ -66,10 +66,11 @@ add scipy whl package as a archive resource:
 
 create udf to for calculating BaseVar coverage:
 ```
-add py basevar_cvg.py;
+add py basevar.py;
+add py basetype.py;
 add py mpileup.py;
 add py algorithm.py;
-create function basevar_cvg as basevar_cvg.BaseVarCoverage using mpileup.py,basevar_cvg.py,algorithm.py,scipy.zip;
+create function basevar as basevar.BaseVar using mpileup.py,basevar.py,basetype.py,algorithm.py,scipy.zip;
 ```
 
 run query:
@@ -82,5 +83,7 @@ set odps.sql.preparse.odps2=lot;
 set odps.pypy.enabled=false;
 set odps.isolation.session.enable = true;
 
-create table nifty_cvg as select basevar_cvg(chrid, pos, base_ref, one) as cvg from nifty_expand;
+create table nifty_cvg as select basevar('coverage', chrid, pos, base_ref, one) as cvg from nifty_expand;
+
+create table nifty_vcf as select basevar('vcf', chrid, pos, base_ref, one) as vcf from nifty_expand;
 ```
