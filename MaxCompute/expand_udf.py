@@ -18,10 +18,10 @@ class Expand(BaseUDAF):
         self.total_name = i + 1
 
     def new_buffer(self):
-        return [""] * self.total_name
+        return [''] * self.total_name
 
     def iterate(self, buffer, sample_name, c1, c2, c3):
-        s = "\t".join([c1, c2, c3])
+        s = '\t'.join([c1, c2, c3])
         buffer[self.name_idx[sample_name]] = s
 
     def merge(self, buffer, pbuffer):
@@ -34,5 +34,5 @@ class Expand(BaseUDAF):
     def terminate(self, buffer):
         for i, s in enumerate(buffer):
             if not s:
-                buffer[i] = "N\t!\t." # default value
-        return "\t".join(buffer)
+                buffer[i] = 'N\t!\t.' # default value
+        return '\t'.join(buffer)
