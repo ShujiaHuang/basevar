@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #coding:utf-8
 from odps.udf import annotate
 from odps.udf import BaseUDTF
@@ -19,9 +21,10 @@ def include_package_path(res_name):
 @annotate("string,string,string,string,string->string")
 class BaseVar(BaseUDTF):
 
-    def __init__(self):
-        self.cmm = CommonParameter()
-        include_package_path('scipy.zip')
+    def __init__(self, cmm=CommonParameter()):
+        self.cmm = cmm
+        if not cmm.debug:
+            include_package_path('scipy.zip')
 
     def process(self, mode, chrid, pos, base_ref, one):
         print '%s processing %s %s %s' % (mode, chrid, pos, base_ref)
@@ -29,16 +32,40 @@ class BaseVar(BaseUDTF):
         quals = []
         strands = []
         indels = []
+        offset = 0
 
         for b, q, s in zip(*[iter(one.split('\t'))]*3):
+            if self.cmm.debug:
+                print 'pos %7d\t[%s] [%s] [%s]' % (offset, b, q, s),
+                offset += 1
+
+            base = 'N'
+            qual = '!'
+            strand = '.'
+            indel = []
+
             if b != '0' and q != '*':
-            # TODO hardcode is_scan_indel=False
-               strand, base, qual, indel = first_base(
-                   base_ref, q, s, is_scan_indel=self.cmm.scan_indel)
-               bases.append(base)
-               quals.append(ord(qual) - 33)
-               strands.append(strand)
-               indels.extend(indel)
+                strand, base, qual, indel = first_base(
+                    base_ref, q, s, is_scan_indel=self.cmm.scan_indel)
+            if self.cmm.debug:
+                print '\t->\t[%s] [%s] [%s]' % (base, qual, strand)
+
+            bases.append(base)
+            quals.append(ord(qual) - 33)
+            strands.append(strand)
+            indels.extend(indel)
+
+        # TODO: seems unnecessary
+        # if BaseVarSingleProcess.total_subsamcol:
+        #     for k, b in enumerate(bases):
+        #         if k not in BaseVarSingleProcess.total_subsamcol:
+        #             # set un-selected bases to be 'N' which
+        #             # will be filted
+        #             bases[k] = 'N'
+        # # ACGT count and mark the refbase
+        # if not base_ref:
+        #     # mark '*' if coverage is 0
+        #     base_ref = '*'
 
         if mode == 'coverage':
             self.forward(self._out_cvg_line(chrid, pos, base_ref, bases, strands, indels))
@@ -133,3 +160,21 @@ class BaseVar(BaseUDTF):
                          ';'.join([k+'='+v for k, v in sorted(
                             info.items(), key=lambda x:x[0])]),
                             'GT:AB:SO:BP'] + samples)
+
+# for local test
+if __name__ == '__main__':
+    import sys
+    sys.path.append('.')
+    if len(sys.argv) < 3:
+        print 'usage: %s vcf|coverage input_wide_table_file' % sys.argv[0]
+        sys.exit(1)
+
+    mode = sys.argv[1]
+    cmm = CommonParameter()
+    cmm.debug = True
+    basevar = BaseVar(cmm)
+    with open(sys.argv[2]) as f:
+        for l in f:
+            token = l.split(',', 3)
+            token[-1] = token[-1].rstrip('\n')
+            print basevar.process(mode, token[0], token[1], token[2], token[3])

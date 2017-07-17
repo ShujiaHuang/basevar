@@ -15,7 +15,7 @@ class CommonParameter(object):
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
         self.debug = False
         self.MINAF = 0.001  # The effective base freqence threshold for 140k sample size
-        self.scan_indel = False
+        self.scan_indel = True
 
 class BaseType(object):
 
