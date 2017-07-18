@@ -23,8 +23,6 @@ import com.aliyun.odps.udf.Extractor;
  */
 public class MpileupExtractor extends Extractor {
 
-  private static int GZIP_BUFFER_SIZE = 50 * 1024 * 1024; // due to a current bug of external table
-
   private InputStreamSet inputs;
   private DataAttributes attributes;
   private ArrayList<String> names;
@@ -82,7 +80,7 @@ public class MpileupExtractor extends Extractor {
       return false;
     }
     System.out.println("reading mpileup file: " + mis.getFileName());
-    mbr = new BufferedReader(new InputStreamReader(new GZIPInputStream(mis, GZIP_BUFFER_SIZE)));
+    mbr = new BufferedReader(new InputStreamReader(new GZIPInputStream(new AvailableInputStream(mis))));
     return true;
   }
 
