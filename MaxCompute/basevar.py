@@ -35,9 +35,9 @@ class BaseVar(BaseUDTF):
         offset = 0
 
         for b, q, s in zip(*[iter(one.split('\t'))]*3):
-            if self.cmm.debug:
-                print 'pos %7d\t[%s] [%s] [%s]' % (offset, b, q, s),
-                offset += 1
+            # if self.cmm.debug:
+            #     print 'pos %7d\t[%s] [%s] [%s]' % (offset, b, q, s),
+            #     offset += 1
 
             base = 'N'
             qual = '!'
@@ -47,8 +47,8 @@ class BaseVar(BaseUDTF):
             if b != '0' and q != '*':
                 strand, base, qual, indel = first_base(
                     base_ref, q, s, is_scan_indel=self.cmm.scan_indel)
-            if self.cmm.debug:
-                print '\t->\t[%s] [%s] [%s]' % (base, qual, strand)
+            # if self.cmm.debug:
+            #     print '\t->\t[%s] [%s] [%s]' % (base, qual, strand)
 
             bases.append(base)
             quals.append(ord(qual) - 33)
@@ -80,7 +80,6 @@ class BaseVar(BaseUDTF):
 
     def _out_cvg_line(self, chrid, position, ref_base, sample_base,
                       strands, indels):
-
         # TODO
         self.total_subsamcol = None
 
@@ -116,7 +115,7 @@ class BaseVar(BaseUDTF):
                 ref_base, [b1 if b1 != ref_base.upper() else b2],
                 sample_base, strands)
 
-        return '\t'.join([chrid, str(position), ref_base, str(sum(base_depth.values()))] + [str(base_depth[b]) for b in self.BASE] + [indel_string]) + '\t' + str(fs) + '\t' + ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))
+        return '\t'.join([chrid, str(position), ref_base, str(sum(base_depth.values()))] + [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) + '\t' + str(fs) + '\t' + ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))
 
     def _out_vcf_line(self, chrid, position, ref_base, sample_base,
                       strands, bt):
@@ -177,4 +176,4 @@ if __name__ == '__main__':
         for l in f:
             token = l.split(',', 3)
             token[-1] = token[-1].rstrip('\n')
-            print basevar.process(mode, token[0], token[1], token[2], token[3])
+            basevar.process(mode, token[0], token[1], token[2], token[3])

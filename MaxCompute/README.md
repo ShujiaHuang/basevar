@@ -83,6 +83,18 @@ set odps.sql.preparse.odps2=lot;
 set odps.pypy.enabled=false;
 set odps.isolation.session.enable = true;
 
+create table nifty_cvg (line string);
+create table nifty_vcf (line string);
+
+from nifty_expand
+insert overwrite table nifty_cvg
+select basevar('coverage', chrid, pos, base_ref, one) as line
+insert overwrite table nifty_vcf
+select basevar('vcf', chrid, pos, base_ref, one) as line;
+```
+
+or generate coverage/vcf table separately:
+```
 create table nifty_cvg as select basevar('coverage', chrid, pos, base_ref, one) as cvg from nifty_expand;
 
 create table nifty_vcf as select basevar('vcf', chrid, pos, base_ref, one) as vcf from nifty_expand;
