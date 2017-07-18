@@ -27,33 +27,35 @@ class BaseVar(BaseUDTF):
             include_package_path('scipy.zip')
 
     def process(self, mode, chrid, pos, base_ref, one):
-        print '%s processing %s %s %s' % (mode, chrid, pos, base_ref)
-        bases = []
-        quals = []
-        strands = []
+        tokens = one.split('\t')
+        sample_count = len(tokens) / 3
+        print '%s processing %s %s %s, %s samples' % (mode, chrid, pos, base_ref, sample_count)
+
+        bases = ['N'] * sample_count
+        quals = [ord('!') - 33] * sample_count
+        strands = ['.'] * sample_count
         indels = []
-        offset = 0
 
-        for b, q, s in zip(*[iter(one.split('\t'))]*3):
-            # if self.cmm.debug:
-            #     print 'pos %7d\t[%s] [%s] [%s]' % (offset, b, q, s),
-            #     offset += 1
-
-            base = 'N'
-            qual = '!'
-            strand = '.'
+        for i in xrange(0, sample_count):
+            b = tokens[i * 3]
+            q = tokens[i * 3 + 1]
+            s = tokens[i * 3 + 2]
             indel = []
+            # if self.cmm.verbose:
+            #     print 'sample %7d\t[%s] [%s] [%s]' % (i, b, q, s),
 
             if b != '0' and q != '*':
                 strand, base, qual, indel = first_base(
                     base_ref, q, s, is_scan_indel=self.cmm.scan_indel)
-            # if self.cmm.debug:
-            #     print '\t->\t[%s] [%s] [%s]' % (base, qual, strand)
-
-            bases.append(base)
-            quals.append(ord(qual) - 33)
-            strands.append(strand)
-            indels.extend(indel)
+                bases[i] = base
+                quals[i] = ord(qual) - 33
+                strands[i] = strand
+                indels.extend(indel)
+            #     if self.cmm.verbose:
+            #         print '\t->\t[%s] [%s] [%s]\tindel %s' % (base, qual, strand, str(indels))
+            # else:
+            #     if self.cmm.verbose:
+            #         print
 
         # TODO: seems unnecessary
         # if BaseVarSingleProcess.total_subsamcol:

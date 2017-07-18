@@ -93,7 +93,7 @@ insert overwrite table nifty_vcf
 select basevar('vcf', chrid, pos, base_ref, one) as line;
 ```
 
-or generate coverage/vcf table separately:
+since multi insert with 2 UDF in one query is executed serially, it is recommend to generate coverage/vcf table with 2 queries simultaneously to maximize the advantage of MaxCompute calculation power:
 ```
 create table nifty_cvg as select basevar('coverage', chrid, pos, base_ref, one) as cvg from nifty_expand;
 
