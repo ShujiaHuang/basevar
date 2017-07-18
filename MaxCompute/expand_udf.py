@@ -15,10 +15,10 @@ class Expand(BaseUDAF):
             i += 1
         res_file.close()
         self.name_idx = name_idx
-        self.total_name = i + 1
+        self.sample_count = i
 
     def new_buffer(self):
-        return [''] * self.total_name
+        return [''] * self.sample_count
 
     def iterate(self, buffer, sample_name, c1, c2, c3):
         s = '\t'.join([c1, c2, c3])
@@ -34,5 +34,5 @@ class Expand(BaseUDAF):
     def terminate(self, buffer):
         for i, s in enumerate(buffer):
             if not s:
-                buffer[i] = 'N\t!\t.' # default value
+                buffer[i] = '0\t*\t*' # default value
         return '\t'.join(buffer)
