@@ -20,7 +20,7 @@ def main(opt):
     traningSet = vdm.LoadTrainingSiteFromVCF(opt.trainData)
 
     # Identify the traning sites
-    hInfo, dataSet = vdm.LoadDataSet(opt.vcfInfile, traningSet, opt.pedfile)
+    hInfo, dataSet = vdm.LoadDataSet(opt.vcfInfile, traningSet)
 
     # init VariantRecalibrator object
     vr = vror.VariantRecalibrator()
@@ -130,7 +130,7 @@ def main(opt):
 
     ## Output Summary
     sys.stderr.write('\n[Summmary] Here is the summary information:\n')
-    for k, v in sorted(good.items(), key = lambda k:k[0]): 
+    for k, v in sorted(good.items(), key = lambda k:k[0]):
         sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f' %
             (k, v, v*100/tot)))
 
@@ -140,7 +140,7 @@ def main(opt):
 
 def cmdopts():
     """
-    The command line parameters for VQSR 
+    The command line parameters for VQSR
     """
     # usage = ('\nUsage: %prog VQSR [--Train Training data set] '
     #          '[-i SampleVcfInfile] > Output')
@@ -161,9 +161,11 @@ def cmdopts():
     if len(opt.trainData) == 0:
         optp.error('Required[-T trainData. VCFFormat]\n')
 
-    sys.stderr.write(('[INFO] Parameters: python', sys.argv[0], 'VQSR',
-                          '\n\t-i', opt.vcfInfile, 
-                          '\n\t-T', opt.trainData, 
-                          '\n\t-f', opt.figure))
+    sys.stderr.write('[INFO] Parameters: python %s VQSR'
+                      '\n\t-i %s'
+                      '\n\t-T %s'
+                      '\n\t-f %s' % (
+                              sys.argv[0], opt.vcfInfile,
+                              opt.trainData, opt.figure))
     return opt
 

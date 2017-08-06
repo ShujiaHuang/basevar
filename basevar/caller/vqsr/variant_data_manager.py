@@ -34,38 +34,42 @@ class VariantDataManager(object):
 
         self.data = [] # list <VariantDatum>
         if data: # data is not None
-            if not isinstance(data[0],vd.VariantDatum): 
+            if not isinstance(data[0],vd.VariantDatum):
                 raise ValueError('[ERROR] The data type should be '
                                  '"VariantDatum" in VariantDataMa-'
                                  'nager(),but found %s'% str(type(data[0])))
             self.data = data
-            for i, d in enumerate(self.data): 
+            for i, d in enumerate(self.data):
                 self.data[i].annotations = np.array(self.data[i].annotations)
 
     def SetData(self, data):
 
-        if not isinstance(data[0], vd.VariantDatum): 
+        if not isinstance(data[0], vd.VariantDatum):
             raise ValueError('[ERROR] The data type should be "VariantDatum" '
-                             'in VariantDataManager(),but found %s' % 
+                             'in VariantDataManager(),but found %s' %
                              str(type(data[0])))
         self.data = data
-        for i, d in enumerate(self.data): 
+        for i, d in enumerate(self.data):
             self.data[i].annotations = np.array(d.annotations)
 
     def NormalizeData(self):
 
         data = np.array([d.annotations for d in self.data], dtype=float)
-        mean = data.mean(axis=0); self.annotationMean = mean
-        std  = data.std(axis=0) ; self.annotationSTD  = std
+        mean = data.mean(axis=0)
+        self.annotationMean = mean
+
+        std  = data.std(axis=0)
+        self.annotationSTD  = std
 
         # foundZeroVarianceAnnotation
-        if any(std < 1e-5): 
+        if any(std < 1e-5):
             raise ValueError('[ERROR] Found annotations with zero variance. '
                              'They must be excluded before proceeding.')
-        
-        # Each data now is (x - mean)/sd
+
+        # Each data now is (x - mean)/std
         for i, d in enumerate(data):
-            self.data[i].annotations = (d - mean) / std 
+
+            self.data[i].annotations = (d - mean) / std
             # trim data by standard deviation threshold and mark failing data 
             # for exclusion later
             self.data[i].failingSTDThreshold = False
@@ -74,7 +78,7 @@ class VariantDataManager(object):
 
     def GetTrainingData(self):
 
-        trainingData = [d for d in self.data if ((not d.failingSTDThreshold) 
+        trainingData = [d for d in self.data if ((not d.failingSTDThreshold)
                                                  and d.atTrainingSite)]
         sys.stderr.write(('[INFO] Training with %d variants after standard '
                           'deviation thresholding.' % len(trainingData)))
@@ -144,17 +148,17 @@ def LoadTrainingSiteFromVCF(vcffile):
     Just record the training site positions
     """
 
-    if vcffile.endseith('.gz'):
+    if vcffile.endswith('.gz'):
         I = os.popen('gzip -dc %s' % vcffile)
     else:
         I = open(vcffile)
 
-    sys.stderr.write('\n[INFO] Loading Training site from VCF', time.asctime())
+    sys.stderr.write('\n[INFO] Loading Training site from VCF %s\n' % time.asctime())
     n, dataSet =0, set()
     for line in I:
         n += 1
         if n % 100000 == 0:
-            sys.stderr.write('** Loading lines %d %s' % (n, time.asctime()))
+            sys.stderr.write('** Loading lines %d %s\n' % (n, time.asctime()))
 
         if re.search(r'^#', line):
             continue
@@ -163,7 +167,7 @@ def LoadTrainingSiteFromVCF(vcffile):
         dataSet.add(col[0] + ':' + col[1])  # just get the positions
 
     I.close()
-    sys.stderr.write('[INFO] Finish loading training set %d lines. %s' %
+    sys.stderr.write('[INFO] Finish loading training set %d lines. %s\n' %
                      (n, time.asctime()))
 
     return dataSet
@@ -177,20 +181,20 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
     # if pedFile is None, return {}
     pedigree = vcfutils.loadPedigree(pedFile)
 
-    if len(traningSet) == 0: 
+    if len(traningSet) == 0:
         raise ValueError('[ERROR] No Training Data found')
 
     if vcfInfile.endswith('.gz'):
         I = os.popen('gzip -dc %s' % vcfInfile)
     else:
-        I = open(vcfInfile) 
+        I = open(vcfInfile)
 
-    sys.stderr.write('\n[INFO] Loading data set from VCF', time.asctime())
+    sys.stderr.write('\n[INFO] Loading data set from VCF %s\n' % time.asctime())
     n, data, hInfo = 0, [], vcfutils.Header()
     for line in I: # VCF format
         n += 1
         if n % 100 == 0:
-            sys.stderr.write('** Loading lines %d %s' % (n, time.asctime()))
+            sys.stderr.write('** Loading lines %d %s\n' % (n, time.asctime()))
 
         col = line.strip().split()
         if re.search(r'^#CHROM', line):
@@ -211,12 +215,12 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         if not dp or not fs:
             continue
 
-        fs = round(float(fs.group(1)), 2)
+        fs = round(float(fs.group(1)), 3)
         dp = round(float(dp.group(1)), 2)
 
         datum = vd.VariantDatum()
         datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
-        datum.annotations = [qual, dp, fs]
+        datum.annotations = [qual, dp, fs if fs != 0.0 else 0]
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
             datum.atTrainingSite = True
