@@ -13,8 +13,8 @@ import argparse
 import time
 
 from . import utils
-from .variantcaller import BaseVarMultiProcess
-
+from .basetype import BaseVarMultiProcess
+from .vqsr import vqsr
 
 class BaseTypeRunner(object):
 
@@ -23,8 +23,8 @@ class BaseTypeRunner(object):
         """
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
-        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE', default='out',
-                          help='The prefix of output files. [out]')
+        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE',
+                          default='out', help='The prefix of output files. [out]')
         optp.add_argument('-l', '--mpileup-list', dest='infilelist', metavar='FILE',
                           help='The input mpileup file list.', default='')
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
@@ -37,8 +37,10 @@ class BaseTypeRunner(object):
                           help='Skip samples not in subsample-list, one sample per row.')
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
-        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF', default=0.001,
-                          help='By setting min AF to skip uneffective caller positions to accelerate program speed. [0.001]')
+        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
+                          default=0.001, help='By setting min AF to skip uneffective '
+                                              'caller positions to accelerate program '
+                                              'speed. [0.001]')
 
         opt = optp.parse_args()
         self.opt = opt
@@ -78,14 +80,16 @@ class BaseTypeRunner(object):
         if opt.infilelist:
             self.mpileupfiles.extend(utils.load_file_list(opt.infilelist))
 
-        print >> sys.stderr, '[INFO] Finish loading parameters and mpileup list %s'%time.asctime()
+        sys.stderr.write('[INFO] Finish loading parameters and mpileup '
+                         'list %s'%time.asctime())
 
     def run(self):
         """
         Run variant caller
         """
 
-        print >> sys.stderr, '[INFO] Start call varaintis by BaseType ... %s'%time.asctime()
+        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s' %
+                         time.asctime())
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
@@ -132,7 +136,8 @@ class BaseTypeRunner(object):
                 time.sleep(1)
 
             except KeyboardInterrupt:
-                print >> sys.stderr, 'KeyboardInterrupt detected, terminating all processes...'
+                sys.stderr.write('KeyboardInterrupt detected, terminating '
+                                 'all processes...')
                 for p in processes:
                     p.terminate()
 
@@ -148,6 +153,19 @@ class BaseTypeRunner(object):
 
         utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
         utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
+
+        return
+
+
+class VQSRRuner(object):
+    """Runner for VQSR"""
+    def __init__(self):
+        """Init function"""
+        self.vqsr = vqsr
+        return
+
+    def run(self):
+        self.vqsr.main(self.vqsr.cmdopts())
 
         return
 
