@@ -16,6 +16,12 @@ def basetype():
     bt.run()
 
 
+def vqsr():
+    from caller.executor import VQSRRuner
+    vq = VQSRRuner()
+    vq.run()
+
+
 def merge():
     from caller.executor import MergeRunner
 
@@ -26,15 +32,16 @@ def merge():
 if __name__ == '__main__':
 
     runner = {'basetype': basetype,
-              'merge': merge}
+              'merge': merge,
+              'VQSR': vqsr}
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
-        print >> sys.stderr, '[Usage] python [option] %s' % sys.argv[0]
-        print >> sys.stderr, '\n\t'.join(['Option:'] + runner.keys())
+        sys.stderr.write('[Usage] python %s [option]\n\n' % sys.argv[0])
+        sys.stderr.write('\n\t'.join(['Option:'] + runner.keys()))
         sys.exit(1)
 
     command = sys.argv[1]
     runner[command]()
 
-    print >> sys.stderr, '** %s ALL DONE %s **' % (command, time.asctime())
-    print >> sys.stderr, '>> For the flowers bloom in the desert <<'
+    sys.stderr.write('** %s ALL DONE %s **' % (command, time.asctime()))
+    sys.stderr.write('>> For the flowers bloom in the desert <<')
