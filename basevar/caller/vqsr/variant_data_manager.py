@@ -219,8 +219,11 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         dp = round(float(dp.group(1)), 2)
 
         datum = vd.VariantDatum()
-        datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
-        datum.annotations = [qual, dp, fs if fs != 0.0 else 0]
+        # datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
+        # datum.annotations = [qual, dp, fs if fs != 0.0 else 0]
+
+        datum.raw_annotations = dict(QUAL=qual, DP=dp)
+        datum.annotations = [qual, dp]
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
             datum.atTrainingSite = True
