@@ -128,4 +128,7 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
     fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
                                             [alt_fwd, alt_rev]])[1]), 3)
 
+    if fs == np.inf:
+        fs = 10000.0
+
     return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
