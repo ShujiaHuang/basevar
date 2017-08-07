@@ -5,7 +5,7 @@ Learn form scikit-learn
 ================================================
 
 Author: Shujia Huang
-Date  : 2014-01-06 14:33:45
+Date: 2017-08-02
 
 """
 import sys
@@ -81,17 +81,17 @@ class VariantDataManager(object):
         trainingData = [d for d in self.data if ((not d.failingSTDThreshold)
                                                  and d.atTrainingSite)]
         sys.stderr.write(('[INFO] Training with %d variants after standard '
-                          'deviation thresholding.' % len(trainingData)))
+                          'deviation thresholding.\n' % len(trainingData)))
 
         if len(trainingData) < self.VRAC.MIN_NUM_BAD_VARIANTS:
             sys.stderr.write(('[WARNING] Training with very few variant '
                               'sites! Please check the model reporting '
                               'PDF to ensure the quality of the model is '
-                              'reliable.'))
+                              'reliable.\n'))
 
         if len(trainingData) > self.VRAC.MAX_NUM_TRAINING_DATA:
             sys.stderr.write(('[WARING] Very large training set detected. '
-                              'Downsampling to %d training variants.' %
+                              'Downsampling to %d training variants.\n' %
                               self.VRAC.MAX_NUM_TRAINING_DATA))
 
             np.random.shuffle(trainingData) # Random shuffling
@@ -110,12 +110,14 @@ class VariantDataManager(object):
                 self.data[i].atAntiTrainingSite = True
 
         sys.stderr.write('[INFO] Training with worst %d scoring variants '
-                         '--> variants with LOD < %.2f.' % (len(trainingData), badLod))
+                         '--> variants with LOD < %.2f.\n' %
+                         (len(trainingData), badLod))
 
         if len(trainingData) > self.VRAC.MAX_NUM_TRAINING_DATA:
             sys.stderr.write('[WARING] Very large training set detected.'
-                             'Downsampling to %d training variants.' %
+                             'Downsampling to %d training variants.\n' %
                              self.VRAC.MAX_NUM_TRAINING_DATA)
+
             np.random.shuffle(trainingData) # Random shuffling
             return list(trainingData[i] for i in range(self.VRAC.MAX_NUM_TRAINING_DATA))
 
@@ -147,12 +149,7 @@ def LoadTrainingSiteFromVCF(vcffile):
     """
     Just record the training site positions
     """
-
-    if vcffile.endswith('.gz'):
-        I = os.popen('gzip -dc %s' % vcffile)
-    else:
-        I = open(vcffile)
-
+    I = os.popen('gzip -dc %s' % vcffile) if vcffile.endswith('.gz') else open(vcffile)
     sys.stderr.write('\n[INFO] Loading Training site from VCF %s\n' % time.asctime())
     n, dataSet =0, set()
     for line in I:
@@ -179,15 +176,12 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
     """
     # Return a dict: [sample-id] => [parent1, parent2]
     # if pedFile is None, return {}
-    pedigree = vcfutils.loadPedigree(pedFile)
+    # pedigree = vcfutils.loadPedigree(pedFile)
 
     if len(traningSet) == 0:
         raise ValueError('[ERROR] No Training Data found')
 
-    if vcfInfile.endswith('.gz'):
-        I = os.popen('gzip -dc %s' % vcfInfile)
-    else:
-        I = open(vcfInfile)
+    I = os.popen('gzip -dc %s' % vcfInfile) if vcfInfile.endswith('.gz') else open(vcfInfile)
 
     sys.stderr.write('\n[INFO] Loading data set from VCF %s\n' % time.asctime())
     n, data, hInfo = 0, [], vcfutils.Header()
@@ -196,34 +190,39 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         if n % 100 == 0:
             sys.stderr.write('** Loading lines %d %s\n' % (n, time.asctime()))
 
-        col = line.strip().split()
-        if re.search(r'^#CHROM', line):
-            sam2col = {sam: i + 9 for i, sam in enumerate(col[9:])}
-
         # Record the header information
         if re.search(r'^#', line):
             hInfo.record(line.strip())
             continue
 
+        col = line.strip().split()
+
         qual = float(col[5])
-        if qual == 5000 or qual == 10000:
-            # do not use outline quality variants
-            continue
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
         fs = re.search(r';?FS=([^;]+)', col[7])
+
         if not dp or not fs:
             continue
 
-        fs = round(float(fs.group(1)), 3)
         dp = round(float(dp.group(1)), 2)
+        fs = round(float(fs.group(1)), 3)
+
+        if fs >= 10000.0:
+            fs = 10000.0
+            # continue
+
+        # if qual == 5000 or qual == 10000:
+        #     # do not use outline quality variants
+        #     continue
 
         datum = vd.VariantDatum()
-        # datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
-        # datum.annotations = [qual, dp, fs if fs != 0.0 else 0]
+        datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
+        datum.annotations = [qual, dp, fs]
 
-        datum.raw_annotations = dict(QUAL=qual, DP=dp)
-        datum.annotations = [qual, dp]
+        # datum.raw_annotations = dict(QUAL=qual, DP=dp)
+        # datum.annotations = [qual, dp]
+
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
             datum.atTrainingSite = True
@@ -232,7 +231,7 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
 
     I.close()
 
-    sys.stderr.write('[INFO] Finish loading data set %d lines. %s' %
+    sys.stderr.write('[INFO] Finish loading data set %d lines. %s\n' %
                      (n, time.asctime()))
 
     return hInfo, np.array(data)

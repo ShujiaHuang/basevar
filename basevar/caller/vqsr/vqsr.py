@@ -47,15 +47,11 @@ def main(opt):
     culprit, good, tot = {}, {}, 0.0
     annoTexts = [d[0] for d in vr.dataManager.annoTexts]
 
-    for k, v in sorted(hInfo.header.items(), key = lambda d: d[0]):
-        print (v)
+    for k, h in sorted(hInfo.header.items(), key = lambda d: d[0]):
+        print (h)
 
-    if opt.vcfInfile[-3:] == '.gz':
-        I = os.popen('gzip -dc %s' % opt.vcfInfile)
-    else:
-        I = open(opt.vcfInfile)
-
-    sys.stderr.write('\n[INFO] Outputting ...', time.asctime())
+    sys.stderr.write('\n[INFO] Outputting ...\n', time.asctime())
+    I = os.popen('gzip -dc %s' % opt.vcfInfile) if opt.vcfInfile[-3:] == '.gz' else open(opt.vcfInfile)
 
     n, j, monitor = 0, 0, True
     for line in I:
@@ -64,8 +60,8 @@ def main(opt):
             sys.stderr.write('** Output lines %d %s' % (n, time.asctime()))
 
         if re.search(r'^#', line): continue
-        col = line.strip().split()
 
+        col = line.strip().split()
         # qual = float(col[5])
         # if qual == 5000 or qual == 10000:
         #     # do not use outline quality variants

@@ -31,16 +31,14 @@ class VariantRecalibrator(object):
         # Generate the positive model using the training data and evaluate 
         # each variant
         positiveTrainingData = self.dataManager.GetTrainingData()
-        sys.stderr.write('[INFO] Training the goodModel ...')
+        sys.stderr.write('[INFO] Training the goodModel ...\n')
         goodModel = self.engine.GenerateModel(positiveTrainingData, 
                                               self.VRAC.MAX_GAUSSIANS)
 
         sys.stderr.write('[INFO] The converged information of goodModel '
-                         'is:', goodModel.converged_)
-        sys.stderr.write('[INFO] The means of gaussion of goodModel is:\n',
-                         goodModel.means_)
-        sys.stderr.write('[INFO] The covariance of gaussion of goodModel '
-                         'is:\n', goodModel.covars_, '\n')
+                         'is: %s \n' % goodModel.converged_)
+        sys.stderr.write('[INFO] The means of gaussion of goodModel '
+                         'is:\n%s \n' % goodModel.means_)
 
         self.engine.EvaluateData(self.dataManager.data, goodModel, False)
 
@@ -48,7 +46,7 @@ class VariantRecalibrator(object):
 
         # Generate the negative model using the worst performing data and 
         # evaluate each variant contrastively
-        sys.stderr.write('[INFO] Training the badModel ...')
+        sys.stderr.write('[INFO] Training the badModel ...\n')
         negativeTrainingData = self.dataManager.SelectWorstVariants(self.badLodCutoff)
         badModel = self.engine.GenerateModel(
             negativeTrainingData, 
@@ -56,11 +54,9 @@ class VariantRecalibrator(object):
                 self.VRAC.MAX_GAUSSIANS))
 
         sys.stderr.write('\n[INFO] The converged information of badModel '
-                              'is:' , badModel.converged_)
+                         'is: %s\n' % badModel.converged_)
         sys.stderr.write('[INFO] The means of gaussion of badModel '
-                         'is:\n', badModel.means_)
-        sys.stderr.write('[INFO] The covariance of gaussion of badModel '
-                         'is:\n', badModel.covars_, '\n')
+                         'is:\n%s\n' % badModel.means_)
         self.engine.EvaluateData(self.dataManager.data, badModel, True)
 
         if (not goodModel.converged_) or (not badModel.converged_): 
@@ -81,8 +77,8 @@ class VariantRecalibrator(object):
         fig = plt.figure()
         plt.title('LOD VS Positive training set', fontsize = 14)
         plt.plot(self.LodCumInTrain[:,0], self.LodCumInTrain[:,1], 'r-')
-        #plt.scatter(self.LodCumInTrain[:,0], self.LodCumInTrain[:,1], c='r', 
-        #            marker='.', linewidth = 0, alpha = 0.5)
+        plt.scatter(self.LodCumInTrain[:,0], self.LodCumInTrain[:,1], c='r',
+                   marker='.', linewidth = 0, alpha = 0.5)
         plt.plot([self.badLodCutoff, self.badLodCutoff], [0,1], 'g--')
         plt.ylim(0, 1.0)
         plt.xlim(-10, 10)

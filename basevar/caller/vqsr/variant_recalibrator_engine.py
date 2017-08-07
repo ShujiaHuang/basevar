@@ -6,7 +6,9 @@ Date  : 2014-05-20 08:50:06
 """
 import sys
 import numpy as np
-from sklearn import mixture
+# from sklearn.mixture import GMM
+from sklearn.mixture.gaussian_mixture import GaussianMixture as GMM
+from sklearn.mixture import BayesianGaussianMixture as BGMM
 from sklearn.utils.extmath import logsumexp
 
 # My own class
@@ -48,46 +50,54 @@ class VariantRecalibratorEngine(object):
     def GenerateModel(self, data, maxGaussians):
 
         if len(data) == 0: 
-            raise ValueError ('[ERROR] No data found. The size is %d' % len(data))
+            raise ValueError ('[ERROR] No data found. The size is %d\n' % len(data))
 
         if not isinstance(data[0], vd.VariantDatum): 
             raise ValueError ('[ERROR] The data type should be "VariantDatum" '
                               'in GenerateModel() of class VariantRecalibrato-'
-                              'rEngine(), but found %s'% str(type(data[0])))
+                              'rEngine(), but found %s\n'% str(type(data[0])))
 
         if maxGaussians <= 0: 
             raise ValueError ('[ERROR] maxGaussians must be a positive integer '
-                              'but found: %d' % maxGaussians)
+                              'but found: %d\n' % maxGaussians)
 
-        gmms = [mixture.GMM(n_components = n + 1,
-                            covariance_type = 'full',
-                            tol = self.MIN_PROB_CONVERGENCE,
-                            n_iter = self.VRAC.NITER,
-                            n_init = self.VRAC.NINIT,
-                            params = 'wmc',
-                            init_params = 'wmc') for n in range(maxGaussians)]
+        gmms = [GMM(n_components = n + 1,
+                    covariance_type = 'full',
+                    tol = self.MIN_PROB_CONVERGENCE,
+                    max_iter = self.VRAC.NITER,
+                    n_init = self.VRAC.NINIT) for n in range(maxGaussians)]
+
+        # gmms = [BGMM(n_components=n + 1,
+        #              covariance_type='full',
+        #              tol=self.MIN_PROB_CONVERGENCE,
+        #              max_iter=self.VRAC.NITER,
+        #              n_init=self.VRAC.NINIT) for n in range(maxGaussians)]
 
         trainingData = np.array([d.annotations for d in data])
 
         #np.random.shuffle(trainingData) # Random shuffling
         #trainSetIdx, cvSetIdx, testSetIdx = self.ClassifyData(len(trainingData))
 
+        # find a best components for GMM model
         minBIC, bics = np.inf, []
         for g in gmms: 
             sys.stderr.write('[INFO] Trying %d gaussian in GMM process '
-                             'training ...' % g.n_components)
+                             'training ...\n' % g.n_components)
 
-            g.fit(trainingData); bic = g.bic(trainingData)
+            g.fit(trainingData)
+
+            bic = g.bic(trainingData)
             bics.append(bic)
+
             if bic == float('inf') or (bic < minBIC and g.converged_): 
                 bestgmm, minBIC = g, bic
 
             sys.stderr.write('  -- Converge infomation of training '
-                             'process:', g.converged_)
+                             'process: %s\n' % g.converged_)
 
-        sys.stderr.write('[INFO] All the BIC:', bics)
+        sys.stderr.write('[INFO] All the BIC: %s\n' % bics)
         sys.stderr.write('[INFO] Model Training Done. And take the model '
-                         'with %d gaussiones which with BIC %f.' %
+                         'with %d gaussiones which with BIC %f.\n' %
                          (len(bestgmm.means_), minBIC))
         
         return bestgmm
@@ -97,15 +107,14 @@ class VariantRecalibratorEngine(object):
         if not isinstance(data[0], vd.VariantDatum): 
             raise ValueError ('[ERROR] The data type should be "VariantDatum" '
                               'in EvaluateData() of class VariantRecalibrator-'
-                              'Engine(), but found %s'% str(type(data[0])))
+                              'Engine(), but found %s\n'% str(type(data[0])))
 
-        sys.stderr.write('[INFO] Evaluating full set of %d variants ...' % len(data))
+        sys.stderr.write('[INFO] Evaluating full set of %d variants ...\n' % len(data))
 
         for i,_ in enumerate(data): 
 
             # log likelihood and the base is 10
             thisLod = gmm.score(data[i].annotations[np.newaxis,:]) / np.log(10)
-            thisLod = thisLod[0]
             if np.math.isnan(thisLod):
                 gmm.converged_ = False
                 return
@@ -151,7 +160,7 @@ def NormalDistributionLoge(mu, sigma, x):
 
     if sigma <= 0: 
         raise ValueError ('[ERROR] sd: Standard deviation of normal must '
-                          'be > 0 but found: %f' % sigma)
+                          'be > 0 but found: %f\n' % sigma)
     if (mu == float('inf') or mu == float('-inf') or 
         sigma == float('inf') or sigma == float('-inf') or 
         x == float('inf') or x  == float('-inf')):
