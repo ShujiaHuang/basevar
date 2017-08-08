@@ -50,7 +50,7 @@ def main(opt):
     for k, h in sorted(hInfo.header.items(), key = lambda d: d[0]):
         print (h)
 
-    sys.stderr.write('\n[INFO] Outputting ...\n', time.asctime())
+    sys.stderr.write('\n[INFO] Outputting %s ...\n' % time.asctime())
     I = os.popen('gzip -dc %s' % opt.vcfInfile) if opt.vcfInfile[-3:] == '.gz' else open(opt.vcfInfile)
 
     n, j, monitor = 0, 0, True

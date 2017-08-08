@@ -6,8 +6,8 @@ Date  : 2014-05-20 08:50:06
 """
 import sys
 import numpy as np
-# from sklearn.mixture import GMM
-from sklearn.mixture.gaussian_mixture import GaussianMixture as GMM
+from sklearn.mixture import GMM
+#from sklearn.mixture.gaussian_mixture import GaussianMixture as GMM
 from sklearn.mixture import BayesianGaussianMixture as BGMM
 from sklearn.utils.extmath import logsumexp
 
@@ -46,7 +46,7 @@ class VariantRecalibratorEngine(object):
         testSetIdx  = range(cvSetSize + testSetSize, dataSize)
 
         return trainSetIdx, cvSetIdx, testSetIdx
-        
+
     def GenerateModel(self, data, maxGaussians):
 
         if len(data) == 0: 
@@ -64,7 +64,7 @@ class VariantRecalibratorEngine(object):
         gmms = [GMM(n_components = n + 1,
                     covariance_type = 'full',
                     tol = self.MIN_PROB_CONVERGENCE,
-                    max_iter = self.VRAC.NITER,
+                    n_iter = self.VRAC.NITER,
                     n_init = self.VRAC.NINIT) for n in range(maxGaussians)]
 
         # gmms = [BGMM(n_components=n + 1,
@@ -99,19 +99,19 @@ class VariantRecalibratorEngine(object):
         sys.stderr.write('[INFO] Model Training Done. And take the model '
                          'with %d gaussiones which with BIC %f.\n' %
                          (len(bestgmm.means_), minBIC))
-        
+
         return bestgmm
 
     def EvaluateData(self, data, gmm, evaluateContrastively=False):
 
-        if not isinstance(data[0], vd.VariantDatum): 
+        if not isinstance(data[0], vd.VariantDatum):
             raise ValueError ('[ERROR] The data type should be "VariantDatum" '
                               'in EvaluateData() of class VariantRecalibrator-'
                               'Engine(), but found %s\n'% str(type(data[0])))
 
         sys.stderr.write('[INFO] Evaluating full set of %d variants ...\n' % len(data))
 
-        for i,_ in enumerate(data): 
+        for i,_ in enumerate(data):
 
             # log likelihood and the base is 10
             thisLod = gmm.score(data[i].annotations[np.newaxis,:]) / np.log(10)
@@ -119,12 +119,12 @@ class VariantRecalibratorEngine(object):
                 gmm.converged_ = False
                 return
 
-            if evaluateContrastively: 
+            if evaluateContrastively:
                 # data[i].lod must has been assigned by good model or something 
                 # like that
                 # contrastive evaluation: (prior + positive model - negative model)
                 data[i].lod =  data[i].prior + data[i].lod - thisLod
-                if thisLod  == float('inf'): 
+                if thisLod  == float('inf'):
                     data[i].lod = self.MIN_ACCEPTABLE_LOD_SCORE * \
                                   (1.0 + np.random.rand(1)[0])
             else:
@@ -133,12 +133,12 @@ class VariantRecalibratorEngine(object):
 
         return self
 
-    def CalculateWorstPerformingAnnotation(self, data, goodModel, badModel): 
+    def CalculateWorstPerformingAnnotation(self, data, goodModel, badModel):
 
         for i, d in enumerate(data):
 
-            probDiff = [self.EvaluateDatumInOneDimension(goodModel, d, k) - 
-                        self.EvaluateDatumInOneDimension(badModel, d, k) 
+            probDiff = [self.EvaluateDatumInOneDimension(goodModel, d, k) -
+                        self.EvaluateDatumInOneDimension(badModel, d, k)
                         for k in range(len(d.annotations))]
 
             # Get the index of the worst annotations
@@ -148,21 +148,31 @@ class VariantRecalibratorEngine(object):
 
     def EvaluateDatumInOneDimension(self, gmm, datum, iii):
 
-        pVarInGaussianLogE = [np.log(w) + 
-                              NormalDistributionLoge(gmm.means_[k][iii], 
-                                                     gmm.covars_[k][iii][iii], 
-                                                     datum.annotations[iii]) 
-                              for k,w in enumerate(gmm.weights_)]
+        # pVarInGaussianLogE = [
+        #         np.log(w) + NormalDistributionLoge(
+        #                 gmm.means_[k][iii],
+        #                 gmm.covars_[k][iii][iii],
+        #                datum.annotations[iii])
+        #        for k, w in enumerate(gmm.weights_)
+        # ]
+        pVarInGaussianLogE = [
+                np.log(w) + NormalDistributionLoge(
+                        gmm.means_[k][iii],
+                        gmm.covars_[k][iii][iii],
+                        datum.annotations[iii])
+                for k, w in enumerate(gmm.weights_)
+        ]
+
         # np.log10(Sum(pi_k * p(v|n,k)))
         return logsumexp(np.array(pVarInGaussianLogE)) / np.log(10)
 
 def NormalDistributionLoge(mu, sigma, x):
 
-    if sigma <= 0: 
+    if sigma <= 0:
         raise ValueError ('[ERROR] sd: Standard deviation of normal must '
                           'be > 0 but found: %f\n' % sigma)
-    if (mu == float('inf') or mu == float('-inf') or 
-        sigma == float('inf') or sigma == float('-inf') or 
+    if (mu == float('inf') or mu == float('-inf') or
+        sigma == float('inf') or sigma == float('-inf') or
         x == float('inf') or x  == float('-inf')):
         raise ValueError ('[ERROR] mean, sd, or, x: Normal parameters must '
                           'be well formatted (non-INF, non-NAN)')
