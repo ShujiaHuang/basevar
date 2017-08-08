@@ -132,7 +132,7 @@ def main(opt):
             (k, v, v*100/tot)))
 
     for k, v in sorted(culprit.items(), key = lambda k:k[0]):
-        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f' %
+        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f\n' %
             (k, v, v*100.0/tot)))
 
 def cmdopts():
