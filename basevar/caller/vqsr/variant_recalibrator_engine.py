@@ -25,7 +25,7 @@ class VariantRecalibratorEngine(object):
             self.VRAC = vrac
 
         self.MIN_PROB_CONVERGENCE = 2e-3
-        self.MIN_ACCEPTABLE_LOD_SCORE = -20000.0
+        self.MIN_ACCEPTABLE_LOD_SCORE = -2000.0
 
     def ClassifyData(self, dataSize): 
         """

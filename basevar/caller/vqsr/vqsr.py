@@ -95,7 +95,8 @@ def main(opt):
         culprit[annoTexts[d.worstAnnotation]] = culprit.get(
             annoTexts[d.worstAnnotation], 0.0) + 1.0  # For summary
 
-        d.lod = round(d.lod, 2)
+        # d.lod = round(d.lod, 2)
+        d.lod = round(d.lod * 10, 2)
         for lod in [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50]:
             if d.lod >= lod:
                 good[lod] = good.get(lod, 0.0) + 1.0

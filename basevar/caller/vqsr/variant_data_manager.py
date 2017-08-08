@@ -27,7 +27,7 @@ class VariantDataManager(object):
         self.VRAC = VRAC.VariantRecalibratorArgumentCollection()
         self.annotationMean = None
         self.annotationSTD  = None
-        self.annoTexts      = [['QUAL', 'Float', 'Variant Quality'],
+        self.annoTexts      = [['QUAL', 'Float', 'Raw variant quality before VQSR process'],
                                ['DP', 'Integer', 'Total depth of this variant'],
                                ['FS', 'Float', 'Phred-scaled p-value using '
                                 'Fisher\'s exact test to detect strand bias']]
@@ -182,8 +182,8 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         raise ValueError('[ERROR] No Training Data found')
 
     I = os.popen('gzip -dc %s' % vcfInfile) if vcfInfile.endswith('.gz') else open(vcfInfile)
-
     sys.stderr.write('\n[INFO] Loading data set from VCF %s\n' % time.asctime())
+
     n, data, hInfo = 0, [], vcfutils.Header()
     for line in I: # VCF format
         n += 1
@@ -210,7 +210,6 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
 
         if fs >= 10000.0:
             fs = 10000.0
-            # continue
 
         # if qual == 5000 or qual == 10000:
         #     # do not use outline quality variants
