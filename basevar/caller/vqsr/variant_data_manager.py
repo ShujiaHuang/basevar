@@ -27,8 +27,8 @@ class VariantDataManager(object):
         self.VRAC = VRAC.VariantRecalibratorArgumentCollection()
         self.annotationMean = None
         self.annotationSTD  = None
-        self.annoTexts      = [['NR', 'Float', 'N ratio of ALT sequence'],
-                               ['HR', 'Integer', 'Homozygous run'],
+        self.annoTexts      = [['QUAL', 'Float', 'Variant Quality'],
+                               ['DP', 'Integer', 'Total depth of this variant'],
                                ['FS', 'Float', 'Phred-scaled p-value using '
                                 'Fisher\'s exact test to detect strand bias']]
 

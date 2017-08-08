@@ -127,7 +127,7 @@ def main(opt):
     ## Output Summary
     sys.stderr.write('\n[Summmary] Here is the summary information:\n')
     for k, v in sorted(good.items(), key = lambda k:k[0]):
-        sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f' %
+        sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f\n' %
             (k, v, v*100/tot)))
 
     for k, v in sorted(culprit.items(), key = lambda k:k[0]):
