@@ -196,7 +196,6 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
             continue
 
         col = line.strip().split()
-
         qual = float(col[5])
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
@@ -211,16 +210,9 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         if fs >= 10000.0:
             fs = 10000.0
 
-        # if qual == 5000 or qual == 10000:
-        #     # do not use outline quality variants
-        #     continue
-
         datum = vd.VariantDatum()
         datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
         datum.annotations = [qual, dp, fs]
-
-        # datum.raw_annotations = dict(QUAL=qual, DP=dp)
-        # datum.annotations = [qual, dp]
 
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
