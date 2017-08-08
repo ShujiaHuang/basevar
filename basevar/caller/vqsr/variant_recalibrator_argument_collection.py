@@ -18,6 +18,6 @@ class VariantRecalibratorArgumentCollection(object):
         self.TEST_SIZE_RATE        = 0.2 # The ratio of test data set
         self.MAX_GAUSSIANS         = 6
         # The threshold that the positive trainingset -> negative
-        self.POSITIVE_TO_NEGATIVE_RATE = 0.01
+        self.POSITIVE_TO_NEGATIVE_RATE = 0.05
         self.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL = 4
 
