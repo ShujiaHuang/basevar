@@ -57,7 +57,7 @@ def main(opt):
     for line in I:
         n += 1
         if n % 100000 == 0:
-            sys.stderr.write('** Output lines %d %s' % (n, time.asctime()))
+            sys.stderr.write('** Output lines %d %s\n' % (n, time.asctime()))
 
         if re.search(r'^#', line): continue
 
@@ -87,7 +87,7 @@ def main(opt):
             if monitor and k in vcfinfo:
                 monitor = False
                 sys.stderr.write(('[WARNING] The tag: %s double hits in '
-                                  'the INFO column at %s' %
+                                  'the INFO column at %s\n' %
                                   (k, opt.vcfInfile)))
             vcfinfo[k] = info
 
