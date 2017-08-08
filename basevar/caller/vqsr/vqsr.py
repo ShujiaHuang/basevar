@@ -123,7 +123,7 @@ def main(opt):
 
     I.close()
 
-    sys.stderr.write('[INFO] Finish Outputting %d lines. %s' % (n, time.asctime()))
+    sys.stderr.write('[INFO] Finish Outputting %d lines. %s\n' % (n, time.asctime()))
 
     ## Output Summary
     sys.stderr.write('\n[Summmary] Here is the summary information:\n')
