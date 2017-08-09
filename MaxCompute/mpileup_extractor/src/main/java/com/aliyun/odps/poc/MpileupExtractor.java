@@ -118,17 +118,23 @@ public class MpileupExtractor extends Extractor {
       firstRead = false;
     }
 
-    if (line == null || nameIdx == names.size()) {
-      if (!moveToNextLine()) {
-        return null;
+    String sampleName, c1, c2, c3;
+    do {
+      if (line == null || nameIdx == names.size()) {
+        if (!moveToNextLine()) {
+          return null;
+        }
       }
-    }
-
-    record.setString("sample_name", names.get(nameIdx++));
-    int tokenIdx = nameIdx * 3; // tricky number game here
-    record.setString("c1", tokens[tokenIdx++]);
-    record.setString("c2", tokens[tokenIdx++]);
-    record.setString("c3", tokens[tokenIdx]);
+      int tokenIdx = (nameIdx + 1) * 3; // tricky number game here
+      sampleName = names.get(nameIdx++);
+      c1 = tokens[tokenIdx++];
+      c2 = tokens[tokenIdx++];
+      c3 = tokens[tokenIdx];
+    } while (c1.equalsIgnoreCase("0") && c2.equalsIgnoreCase("*") && c3.equalsIgnoreCase("*")); // Ignore "0 * *"
+    record.setString("sample_name", sampleName);
+    record.setString("c1", c1);
+    record.setString("c2", c2);
+    record.setString("c3", c3);
     return record;
   }
 
