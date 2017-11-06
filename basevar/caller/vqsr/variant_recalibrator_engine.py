@@ -35,8 +35,8 @@ class VariantRecalibratorEngine(object):
         Call in GenerateModel
         """
         trainSetSize = int (np.round(self.VRAC.TRAIN_SIZE_RATE * dataSize))
-        cvSetSize    = int (np.round(self.VRAC.CV_SIZE_RATE * dataSize)   )
-        testSetSize  = int (np.round(self.VRAC.TEST_SIZE_RATE * dataSize) )
+        cvSetSize    = int (np.round(self.VRAC.CV_SIZE_RATE * dataSize))
+        testSetSize  = int (np.round(self.VRAC.TEST_SIZE_RATE * dataSize))
 
         # The index array of training data
         trainSetIdx = range(trainSetSize)

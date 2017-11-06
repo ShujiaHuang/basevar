@@ -14,6 +14,8 @@ import argparse
 from . import variant_data_manager as vdm
 from . import variant_recalibrator as vror
 
+from .. import utils
+
 def main(opt):
 
     # Just record the sites of training data 
@@ -51,7 +53,7 @@ def main(opt):
         print (h)
 
     sys.stderr.write('\n[INFO] Outputting %s ...\n' % time.asctime())
-    I = os.popen('gzip -dc %s' % opt.vcfInfile) if opt.vcfInfile[-3:] == '.gz' else open(opt.vcfInfile)
+    I = utils.Open(opt.vcfInfile, 'r')
 
     n, j, monitor = 0, 0, True
     for line in I:
@@ -59,7 +61,7 @@ def main(opt):
         if n % 100000 == 0:
             sys.stderr.write('** Output lines %d %s\n' % (n, time.asctime()))
 
-        if re.search(r'^#', line): continue
+        if line.startswith('#'): continue
 
         col = line.strip().split()
         # qual = float(col[5])

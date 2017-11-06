@@ -19,6 +19,7 @@ from sklearn.metrics import roc_curve
 from . import variant_recalibrator_argument_collection as VRAC
 from . import variant_datum as vd
 from .. import vcfutils
+from .. import utils
 
 
 class VariantDataManager(object):
@@ -62,7 +63,7 @@ class VariantDataManager(object):
         self.annotationSTD  = std
 
         # foundZeroVarianceAnnotation
-        if any(std < 1e-5):
+        if any([std < 1e-5]):
             raise ValueError('[ERROR] Found annotations with zero variance. '
                              'They must be excluded before proceeding.')
 
@@ -73,7 +74,7 @@ class VariantDataManager(object):
             # trim data by standard deviation threshold and mark failing data 
             # for exclusion later
             self.data[i].failingSTDThreshold = False
-            if any(np.abs(self.data[i].annotations) > self.VRAC.STD_THRESHOLD):
+            if any([np.abs(self.data[i].annotations) > self.VRAC.STD_THRESHOLD]):
                 self.data[i].failingSTDThreshold = True
 
     def GetTrainingData(self):
@@ -149,7 +150,7 @@ def LoadTrainingSiteFromVCF(vcffile):
     """
     Just record the training site positions
     """
-    I = os.popen('gzip -dc %s' % vcffile) if vcffile.endswith('.gz') else open(vcffile)
+    I = utils.Open(vcffile, 'r')
     sys.stderr.write('\n[INFO] Loading Training site from VCF %s\n' % time.asctime())
     n, dataSet =0, set()
     for line in I:
@@ -181,7 +182,7 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
     if len(traningSet) == 0:
         raise ValueError('[ERROR] No Training Data found')
 
-    I = os.popen('gzip -dc %s' % vcfInfile) if vcfInfile.endswith('.gz') else open(vcfInfile)
+    I = utils.Open(vcfInfile, 'r')
     sys.stderr.write('\n[INFO] Loading data set from VCF %s\n' % time.asctime())
 
     n, data, hInfo = 0, [], vcfutils.Header()
@@ -221,7 +222,6 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         data.append(datum)
 
     I.close()
-
     sys.stderr.write('[INFO] Finish loading data set %d lines. %s\n' %
                      (n, time.asctime()))
 
