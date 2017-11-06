@@ -87,9 +87,9 @@ class BaseTypeRunner(object):
         """
         Run variant caller
         """
-
         sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s' %
                          time.asctime())
+
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
@@ -197,3 +197,41 @@ class MergeRunner(object):
         utils.merge_files(self.files, self.opt.outfile)
 
         return
+
+
+class NearbyIndelRunner(object):
+
+    def __init__(self):
+        """init function"""
+        optp = argparse.ArgumentParser()
+        optp.add_argument('nearbyindel')
+        optp.add_argument('-i', '--in-vcf-file', dest='in_vcf_file', metavar='FILE',
+                          help='The input vcf files', default='')
+        optp.add_argument('-c', '--in-cvg-file', dest='in_cvg_file', metavar='FILE',
+                          help='Input coverage file which has indel information',
+                          default='')
+        optp.add_argument('-d', '--nearby-distance-around-indel',
+                          dest='nearby_dis_around_indel',
+                          help='The distance around indel. [16]', default=16)
+
+        opt = optp.parse_args()
+        opt.nearby_dis_around_indel = int(opt.nearby_dis_around_indel)
+        self.opt = opt
+
+        if len(sys.argv) == 2 and (len(opt.in_vcf_file) == 0 or len(opt.in_cvg_file) == 0):
+            optp.error('[ERROR] At least one input file.\n')
+
+    def run(self):
+
+        from .other import NearbyIndel
+
+        nbi = NearbyIndel(self.opt.in_vcf_file,
+                          self.opt.in_cvg_file,
+                          nearby_distance=self.opt.nearby_dis_around_indel)
+        nbi.run()
+
+        return
+
+
+
+

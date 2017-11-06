@@ -120,11 +120,11 @@ class BaseType(object):
         Example
         -------
 
-            >>> import itertools
-            >>> bases = ['A', 'C', 'G', 'T']
-            >>> bc=[i for i in itertools.combinations(bases,3)]
-            >>> bc
-            ... [('A', 'C', 'G'), ('A', 'C', 'T'), ('A', 'G', 'T'), ('C', 'G', 'T')]
+        >>> import itertools
+        >>> bases = ['A', 'C', 'G', 'T']
+        >>> bc=[i for i in itertools.combinations(bases,3)]
+        >>> bc
+        ... [('A', 'C', 'G'), ('A', 'C', 'T'), ('A', 'G', 'T'), ('C', 'G', 'T')]
 
         """
         bc = []
@@ -242,7 +242,7 @@ class BaseVarSingleProcess(object):
             (BaseVarSingleProcess.samples_id,
              BaseVarSingleProcess.total_samples,
              BaseVarSingleProcess.total_subsamcol) = self._load_sample_name()
-            print >> sys.stderr, '[INFO] Finish loading sample name.'
+            sys.stderr.write('[INFO] Finish loading sample name.\n')
 
     def _load_sample_name(self):
         """
@@ -396,13 +396,16 @@ class BaseVarSingleProcess(object):
         fs, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, 0, 0, 0, 0
         if sample_base:
             base_sorted = sorted(base_depth.items(),
-                                 lambda x, y: cmp(x[1], y[1]),
+                                 key=lambda x, y: cmp(x[1], y[1]),
                                  reverse=True)
 
             b1, b2 = base_sorted[0][0], base_sorted[1][0]
             fs, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-                ref_base, [b1 if b1 != ref_base.upper() else b2],
-                sample_base, strands)
+                ref_base,
+                [b1 if b1 != ref_base.upper() else b2],
+                sample_base,
+                strands
+            )
 
         out_file_handle.write('\t'.join(
             [chrid, str(position), ref_base, str(sum(base_depth.values()))] +

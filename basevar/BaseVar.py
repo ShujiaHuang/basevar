@@ -15,11 +15,24 @@ def basetype():
     bt = BaseTypeRunner()
     bt.run()
 
+    return
+
 
 def vqsr():
     from caller.executor import VQSRRuner
     vq = VQSRRuner()
     vq.run()
+
+    return
+
+
+def nearby_indel():
+
+    from caller.executor import NearbyIndelRunner
+    nbi = NearbyIndelRunner()
+    nbi.run()
+
+    return
 
 
 def merge():
@@ -28,12 +41,16 @@ def merge():
     mg = MergeRunner()
     mg.run()
 
+    return
+
 
 if __name__ == '__main__':
 
     runner = {'basetype': basetype,
               'merge': merge,
-              'VQSR': vqsr}
+              'nbi': nearby_indel,
+              'VQSR': vqsr
+              }
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         sys.stderr.write('[Usage] python %s [option]\n\n' % sys.argv[0])
@@ -44,4 +61,4 @@ if __name__ == '__main__':
     runner[command]()
 
     sys.stderr.write('** %s ALL DONE %s **' % (command, time.asctime()))
-    sys.stderr.write('>> For the flowers bloom in the desert <<')
+    sys.stderr.write('\n>> For the flowers bloom in the desert <<\n')
