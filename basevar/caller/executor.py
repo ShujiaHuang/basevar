@@ -221,10 +221,10 @@ class NearbyIndelRunner(object):
         if len(sys.argv) == 2 and (len(opt.in_vcf_file) == 0 or len(opt.in_cvg_file) == 0):
             optp.error('[ERROR] At least one input file.\n')
 
-        sys.stderr.write('[INFO] Parameters: python %s nbi' %
+        sys.stderr.write('[INFO] Parameters: python %s nbi' 
                          '\n\t-i %s'
                          '\n\t-c %s'
-                         '\n\t-d %s' % (sys.argv[0],
+                         '\n\t-d %d' % (sys.argv[0],
                                         opt.in_vcf_file,
                                         opt.in_cvg_file,
                                         opt.nearby_dis_around_indel)

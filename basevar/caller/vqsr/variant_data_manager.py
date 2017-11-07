@@ -31,7 +31,11 @@ class VariantDataManager(object):
         self.annoTexts      = [['QUAL', 'Float', 'Raw variant quality before VQSR process'],
                                ['DP', 'Integer', 'Total depth of this variant'],
                                ['FS', 'Float', 'Phred-scaled p-value using '
-                                'Fisher\'s exact test to detect strand bias']]
+                                               'Fisher\'s exact test to detect strand bias'],
+                               ['Indel_SP', 'Integer', 'Indel species around this position.'
+                                                       'The less the better.'],
+                               ['Indel_TOT', 'Integer', 'Number of Indel around this position.'
+                                                       'The less the better.']]
 
         self.data = [] # list <VariantDatum>
         if data: # data is not None
@@ -170,14 +174,9 @@ def LoadTrainingSiteFromVCF(vcffile):
 
     return dataSet
 
-def LoadDataSet(vcfInfile, traningSet, pedFile=None):
+def LoadDataSet(vcfInfile, traningSet):
     """
-    Args:
-        'pedFile': The .PED file
     """
-    # Return a dict: [sample-id] => [parent1, parent2]
-    # if pedFile is None, return {}
-    # pedigree = vcfutils.loadPedigree(pedFile)
 
     if len(traningSet) == 0:
         raise ValueError('[ERROR] No Training Data found')
@@ -197,23 +196,34 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
             continue
 
         col = line.strip().split()
+        if col[3] in ['N', 'n']:
+            continue
+
         qual = float(col[5])
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
         fs = re.search(r';?FS=([^;]+)', col[7])
-
-        if not dp or not fs:
+        indel_sp = re.search(r';?Indel_SP=([^;]+)', col[7])
+        indel_tot = re.search(r';?Indel_TOT=([^;]+)', col[7])
+        if any([not dp, not fs, not indel_sp, not indel_tot]):
             continue
 
         dp = round(float(dp.group(1)), 2)
         fs = round(float(fs.group(1)), 3)
+        indel_sp = float(indel_sp.group(1))
+        indel_tot = float(indel_tot.group(1))
 
         if fs >= 10000.0:
             fs = 10000.0
 
         datum = vd.VariantDatum()
-        datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
-        datum.annotations = [qual, dp, fs]
+        datum.raw_annotations = dict(QUAL=qual,
+                                     DP=dp,
+                                     FS=fs,
+                                     Indel_SP=indel_sp,
+                                     Indel_TOT=indel_tot)
+
+        datum.annotations = [qual, dp, fs, indel_sp, indel_tot]
 
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
