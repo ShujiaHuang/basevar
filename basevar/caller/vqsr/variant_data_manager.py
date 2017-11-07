@@ -67,7 +67,7 @@ class VariantDataManager(object):
         self.annotationSTD  = std
 
         # foundZeroVarianceAnnotation
-        if std < 1e-5:
+        if any(std < 1e-5):
             raise ValueError('[ERROR] Found annotations with zero variance. '
                              'They must be excluded before proceeding.')
 
@@ -78,7 +78,7 @@ class VariantDataManager(object):
             # trim data by standard deviation threshold and mark failing data 
             # for exclusion later
             self.data[i].failingSTDThreshold = False
-            if np.abs(self.data[i].annotations) > self.VRAC.STD_THRESHOLD:
+            if any(np.abs(self.data[i].annotations) > self.VRAC.STD_THRESHOLD):
                 self.data[i].failingSTDThreshold = True
 
     def GetTrainingData(self):
