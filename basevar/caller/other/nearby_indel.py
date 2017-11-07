@@ -26,12 +26,11 @@ class NearbyIndel(object):
     def _close_input_file(self):
         self.in_cvg_tb.close()
 
-    def region_indel_sdi(self, chr_id, start, end):
+    def _region_indel_sdi(self, chr_id, start, end):
         """
         Calculate the diversity of indel by Shannon's diversity index
         https://zh.wikipedia.org/wiki/%E5%A4%9A%E6%A0%B7%E6%80%A7%E6%8C%87%E6%95%B0
         """
-
         total_indel_num, indel_type = 0, {}
         for r in self.in_cvg_tb.fetch(chr_id, start=start-1, end=end):
             # chrM    30      T       16150   5       8       2       16135   +1c:1   -0.0    7302,8833,4,4
@@ -100,7 +99,7 @@ class NearbyIndel(object):
                 start = pos - self.nearby_indel_dis if pos > self.nearby_indel_dis else 1
                 end = pos + self.nearby_indel_dis
 
-                indel_sp, indel_tot, indel_sdi = self.region_indel_sdi(col[0], start, end)
+                indel_sp, indel_tot, indel_sdi = self._region_indel_sdi(col[0], start, end)
                 vcfinfo['Indel_SDI'] = 'Indel_SDI=' + str(indel_sdi)
                 vcfinfo['Indel_SP'] = 'Indel_SP=' + str(indel_sp)
                 vcfinfo['Indel_TOT'] = 'Indel_TOT=' + str(indel_tot)
@@ -111,8 +110,3 @@ class NearbyIndel(object):
         self._close_input_file()
 
         return self
-
-
-
-
-
