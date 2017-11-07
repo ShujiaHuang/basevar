@@ -51,8 +51,6 @@ class NearbyIndel(object):
         sdi = np.sum([-1.0*(float(v)/total_indel_num) * np.log2(float(v)/total_indel_num)
                       for k, v in indel_type.iteritems()]) if indel_type else 0.0
 
-        # print "# ", i_sp, total_indel_num, sdi, \
-        # [(k, v, total_indel_num) for k, v in indel_type.iteritems()]
         return i_sp, total_indel_num, round(sdi, 3)
 
     def run(self):
