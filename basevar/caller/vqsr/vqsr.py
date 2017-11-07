@@ -6,7 +6,6 @@ Author: Shujia Huang & Siyang Liu
 Date  : 2014-05-23 11:21:53
 """
 import re
-import os
 import sys
 import time
 import argparse
