@@ -132,8 +132,7 @@ class VariantDataManager(object):
 
         lodThreshold, lodCum = None, []
         if len(self.data) > 0:
-
-            lodDist = np.array([[d.atTrainingSite, d.lod] 
+            lodDist = np.array([[d.atTrainingSite, d.lod]
                                 for d in self.data if(not d.failingSTDThreshold)])
 
             # I just use the 'roc_curve' function to calculate the worst 
