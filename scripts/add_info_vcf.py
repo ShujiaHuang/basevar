@@ -17,7 +17,6 @@ def main(argv):
         # scan the file
         for r in I:
             # chr   pos   value
-
             if r.startswith('#'): continue
 
             col = r.strip().split()
