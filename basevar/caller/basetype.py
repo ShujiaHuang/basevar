@@ -344,17 +344,16 @@ class BaseVarSingleProcess(object):
                                 is_scan_indel=True)
                         )
 
+                        # ignore positions if coverage=0 or ref base is 'N' base
+                        if not ref_base or ref_base in ['N', 'n']:
+                            continue
+
                         if BaseVarSingleProcess.total_subsamcol:
                             for k, b in enumerate(sample_base):
                                 if k not in BaseVarSingleProcess.total_subsamcol:
                                     # set un-selected bases to be 'N' which
                                     # will be filted
                                     sample_base[k] = 'N'
-
-                        # ACGT count and mark the refbase
-                        if not ref_base:
-                            # mark '*' if coverage is 0
-                            ref_base = '*'
 
                         self._out_cvg_file(chrid, position, ref_base, sample_base,
                                            strands, indels, CVG)
@@ -390,8 +389,8 @@ class BaseVarSingleProcess(object):
         for ind in indels:
             indel_dict[ind] = indel_dict.get(ind, 0) + 1
 
-        indel_string = ','.join([k + ':' + str(v)
-                                 for k, v in indel_dict.items()]) if indel_dict else '.'
+        indel_string = ','.join(
+            [k + ':' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
 
         fs, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, 0, 0, 0, 0
         if sample_base:
