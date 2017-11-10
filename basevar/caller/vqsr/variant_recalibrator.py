@@ -86,4 +86,3 @@ class VariantRecalibrator(object):
         plt.ylabel('Rate of Positive->Negative', fontsize = 16)
 
         fig.savefig(figName + '.png')
-        fig.savefig(figName + '.pdf')

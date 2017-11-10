@@ -28,7 +28,7 @@ def main(opt):
 
     # Traning modul and calculate the VQ for all dataSet
     vr.OnTraversalDone(dataSet)
-    vr.VisualizationLodVStrainingSet(opt.figure + '.BadLodSelectInTraining')
+    # vr.VisualizationLodVStrainingSet(opt.figure + '.BadLodSelectInTraining')
 
     # For Record the Annnotations' values
     for d in vr.dataManager.annoTexts: 
@@ -65,11 +65,6 @@ def main(opt):
         col = line.strip().split()
         if col[3] in ['N', 'n']:
             continue
-
-        # qual = float(col[5])
-        # if qual == 5000 or qual == 10000:
-        #     # do not use outline quality variants
-        #     continue
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
         fs = re.search(r';?FS=([^;]+)', col[7])

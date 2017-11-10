@@ -10,7 +10,6 @@ Date: 2017-08-02
 """
 import sys
 import re
-import os
 import time
 
 import numpy as np
