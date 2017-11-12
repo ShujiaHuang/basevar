@@ -94,7 +94,7 @@ def calculate_significant(nbf_data, have_fisher_test_res):
             if depth:
                 # User FisherExact to do Fisher exact test for mxn contingency table
                 m = R_MATRIX(R_IntVector(north + centr + south), nrow=2)
-                pvalue = R_Fisher_Test(m, workspace=5e8)[0][0]
+                pvalue = R_Fisher_Test(m, workspace=1e6)[0][0]
 
                 have_fisher_test_res[pos_key] = pvalue
             else:
