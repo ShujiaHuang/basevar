@@ -6,6 +6,8 @@ Date: 2017-11-10
 """
 from __future__ import division
 
+import sys
+import time
 import gzip
 import argparse
 
@@ -121,6 +123,8 @@ def get_rank(data, pos_key):
 
 if __name__ == '__main__':
 
+    sys.stderr.write('[INFO] Program starting .. %s\n' % time.asctime())
+
     # program's parameters
     optp = argparse.ArgumentParser()
     optp.add_argument('-i', '--in_vcf_file', dest='in_file', metavar='FILE',
@@ -183,8 +187,16 @@ if __name__ == '__main__':
                      'Percentile:Rank','North(REF:ALT:AF)', 'Central(REF:ALT:AF)',
                      'South(REF:ALT:AF)'])
 
+    sys.stderr.write('[INFO] ** Data is all loaded .. %s\n' % time.asctime())
+
+    num = 0
     for d in data:
         # loop frequence from lowest to highest
+
+        if num % 100000 == 0:
+            sys.stderr.write('[INFO] ** Dealing lines %d %s\n' % (num, time.asctime()))
+
+        num += 1
 
         pk, freq, alt = d[0:3]
         if pk not in target_sites:
@@ -207,6 +219,10 @@ if __name__ == '__main__':
 
         out_res.append(target_sites[pk][:4] + [alt, target_sites[pk][4]] +
                        [freq, pvalue, percentile_pvalue, percentile_pos] + d[3:])
+
+
+    sys.stderr.write('[INFO] ** All lines %d done and outputting result .. %s\n' %
+                     (num, time.asctime()))
 
     out_res.sort(key=lambda x: (x[0], x[1]))
 
