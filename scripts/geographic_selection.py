@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
     print '\t'.join(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'DISEASE', 'ALT_freq',
                      'FisherExactTest:p-value', 'Percentile:p-value',
-                     'Percentile:Position','North(REF:ALT)', 'Central(REF:ALT)',
+                     'Percentile:Rank','North(REF:ALT)', 'Central(REF:ALT)',
                      'South(REF:ALT)'])
 
     for d in data:
