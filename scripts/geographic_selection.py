@@ -84,9 +84,9 @@ def calculate_significant(nbf_data, have_fisher_test_res):
     for pos_key, _, _, n, c, s in nbf_data:
 
         if pos_key not in have_fisher_test_res:
-            north = map(int, map(float, n.split(':')))  # first element is REF base
-            centr = map(int, map(float, c.split(':')))  # first element is REF base
-            south = map(int, map(float, s.split(':')))  # first element is REF base
+            north = map(int, map(float, n.split(':')[:2]))  # first element is REF base
+            centr = map(int, map(float, c.split(':')[:2]))  # first element is REF base
+            south = map(int, map(float, s.split(':')[:2]))  # first element is REF base
 
             depth = sum(north + centr + south)
             if depth:
@@ -155,9 +155,9 @@ if __name__ == '__main__':
 
             alt_base = tok[3].split(',')
             alt_freq = map(float, tok[4].split(','))
-            cent_alt = map(str, map(int, map(float, tok[5].split(':'))))  # fist one is REF base
-            north_alt = map(str, map(int, map(float, tok[6].split(':')))) # fist one is REF base
-            south_alt = map(str, map(int, map(float, tok[7].split(':')))) # fist one is REF base
+            centr = map(int, map(float, tok[5].split(':')))  # fist one is REF base
+            north = map(int, map(float, tok[6].split(':'))) # fist one is REF base
+            south = map(int, map(float, tok[7].split(':'))) # fist one is REF base
 
             for i, (alt_f, alt_b) in enumerate(zip(alt_freq, alt_base)):
 
@@ -165,9 +165,9 @@ if __name__ == '__main__':
                 data.append([pos_key,
                              alt_f,
                              alt_b.upper(),
-                             north_alt[0] + ':' + north_alt[i+1],
-                             cent_alt[0] + ':' + cent_alt[i+1],
-                             south_alt[0] + ':' + south_alt[i+1]])
+                             str(north[0]) + ':' + str(north[i+1]) + ':' + str(round(float(north[1])/sum(north), 5)) if sum(north)>0 else 'NA',
+                             str(centr[0]) + ':' + str(centr[i+1]) + ':' + str(round(float(centr[1])/sum(centr), 5)) if sum(centr)>0 else 'NA',
+                             str(south[0]) + ':' + str(south[i+1]) + ':' + str(round(float(south[1])/sum(south), 5)) if sum(south)>0 else 'NA'])
 
     # sorted the whole array data from lowest to highest by allele_frequence
     data.sort(key=lambda x:x[1])
@@ -180,8 +180,8 @@ if __name__ == '__main__':
 
     print '\t'.join(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'DISEASE', 'ALT_freq',
                      'FisherExactTest:p-value', 'Percentile:p-value',
-                     'Percentile:Rank','North(REF:ALT)', 'Central(REF:ALT)',
-                     'South(REF:ALT)'])
+                     'Percentile:Rank','North(REF:ALT:AF)', 'Central(REF:ALT:AF)',
+                     'South(REF:ALT:AF)'])
 
     for d in data:
         # loop frequence from lowest to highest
