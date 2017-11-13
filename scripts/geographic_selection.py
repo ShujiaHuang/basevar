@@ -22,6 +22,16 @@ R_IntVector = robjects.IntVector
 R_MATRIX = robjects.r['matrix']
 R_Fisher_Test = robjects.r['fisher.test']
 
+def get_pass_positon(in_file):
+
+    sites = set()
+    with open (in_file) as I:
+        for r in I:
+            tok = r.strip().split()
+            sites.add(tok[0]+':'+tok[1])
+
+    return sites
+
 def get_list_position(in_site_file):
 
     sites = {}
@@ -145,6 +155,8 @@ if __name__ == '__main__':
                       help='Max number of allleles in one block', default=100000)
     optp.add_argument('-l', '--positions', metavar='FILE', dest='positions',
                       help='skip unlisted positions (chr pos)', default='')
+    optp.add_argument('-p', '--pass_pos', metavar='FILE', dest='pass_pos',
+                      help='skip all the position unlist here', default='')
 
     opt = optp.parse_args()
 
@@ -157,11 +169,13 @@ if __name__ == '__main__':
     sys.stderr.write('[INFO] Parameters: python %s '
                      '\n\t-i %s'
                      '\n\t-n %d'
+                     '\n\t-p %s'
                      '\n\t-l %s\n\n' % (
-                         sys.argv[0], opt.in_file,
-                         opt.num, opt.positions))
+                         sys.argv[0], opt.in_file, opt.num,
+                         opt.pass_pos, opt.positions))
 
     target_sites = get_list_position(opt.positions)
+    pass_sites = get_pass_positon(opt.pass_pos)
 
     # main function
     data = []
@@ -174,7 +188,13 @@ if __name__ == '__main__':
             if r.startswith('#'): continue
             tok = r.strip().split()
 
+            if len(tok) != 9:
+                sys.stderr.write('[ValueError] %s\n' % '\t'.join(tok))
+                continue
+
             pos_key = tok[0] + ':' + tok[1]
+            if pos_key not in pass_sites:
+                continue
 
             alt_base = tok[3].split(',')
             alt_freq = map(float, tok[4].split(','))
