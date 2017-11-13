@@ -15,6 +15,7 @@ import numpy as np
 
 
 from rpy2 import robjects
+from rpy2 import rinterface
 
 
 R_IntVector = robjects.IntVector
@@ -94,9 +95,15 @@ def calculate_significant(nbf_data, have_fisher_test_res):
             if depth:
                 # User FisherExact to do Fisher exact test for mxn contingency table
                 m = R_MATRIX(R_IntVector(north + centr + south), nrow=2)
-                pvalue = R_Fisher_Test(m, workspace=1e6)[0][0]
 
-                have_fisher_test_res[pos_key] = pvalue
+                try:
+                    pvalue = R_Fisher_Test(m, workspace=2e7)[0][0]
+                    have_fisher_test_res[pos_key] = pvalue
+                except rinterface.RRuntimeError:
+                    sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
+                                      '\t'.join([pos_key]+map(str, north + centr + south)))
+                    continue
+
             else:
                 have_fisher_test_res[pos_key] = 1.0
 
@@ -106,6 +113,10 @@ def calculate_significant(nbf_data, have_fisher_test_res):
 
 
 def get_rank(data, pos_key):
+
+
+    if not data:
+        return 'NA', 'NA', 'NA'
 
     # sorted by pvalue
     data.sort(key=lambda x: x[1])
@@ -117,8 +128,8 @@ def get_rank(data, pos_key):
             n = i + 1
             break
 
+    # pvalue, percentile_pvalue, percentile_position
     return data[n-1][1], float(n)/len(data), "%d/%d" % (n, len(data))
-
 
 
 if __name__ == '__main__':
