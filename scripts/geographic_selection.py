@@ -129,7 +129,7 @@ def get_rank(data, pos_key, alt_base):
         return 'NA', 'NA', 'NA'
 
     # sorted by pvalue
-    data.sort(key=lambda x: x[1])
+    data.sort(key=lambda x: x[2])
 
     n = 1
     for i, d in enumerate(data):
