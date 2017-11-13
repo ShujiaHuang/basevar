@@ -153,6 +153,13 @@ if __name__ == '__main__':
     if not opt.positions:
         optp.error('[ERROR] The list of position (-l) is required.\n')
 
+    sys.stderr.write('[INFO] Parameters: python %s '
+                     '\n\t-i %s'
+                     '\n\t-n %d'
+                     '\n\t-l %s\n\n' % (
+                         sys.argv[0], opt.in_file,
+                         opt.num, opt.positions))
+
     target_sites = get_list_position(opt.positions)
 
     # main function
