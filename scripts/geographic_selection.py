@@ -48,7 +48,8 @@ def get_list_position(in_site_file):
 
             tok[1] = int(tok[1])
             tok[4] = tok[4].upper()  # convert allele to upper
-            sites[pk] = tok[:4] + [tok[5]]
+
+            sites[pk] = tok
 
     return sites
 
@@ -108,7 +109,6 @@ def calculate_significant(nbf_data, have_fisher_test_res):
 
                 try:
                     pvalue = R_Fisher_Test(m, workspace=2e6)[0][0]
-                    # pvalue = R_Fisher_Test(m, workspace=2e7)[0][0]
                     have_fisher_test_res[pos_key] = pvalue
                 except rinterface.RRuntimeError:
                     sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
@@ -139,7 +139,7 @@ def get_rank(data, pos_key, alt_base):
             n = i + 1
             break
 
-    # pvalue, percentile_pvalue, percentile_position
+    # pvalue, percentile_pvalue, percentile_rank
     return data[n-1][-1], round(float(n)/len(data), 6), "%d/%d" % (n, len(data))
 
 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
         chr_id, pos = pk.split(':')
         pos = int(pos)
 
-        out_res.append(target_sites[pk][:4] + [alt, target_sites[pk][4]] +
+        out_res.append(target_sites[pk][:4] + [alt, target_sites[pk][5]] +
                        [freq, pvalue, percentile_pvalue, percentile_pos] + d[3:])
 
         sys.stderr.write('[OUT] %s\n' % '\t'.join(map(str, out_res[-1])))
