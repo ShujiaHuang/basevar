@@ -108,7 +108,8 @@ def calculate_significant(nbf_data, have_fisher_test_res):
                 m = R_MATRIX(R_IntVector(north + centr + south), nrow=2)
 
                 try:
-                    pvalue = R_Fisher_Test(m, workspace=2e6)[0][0]
+                    # pvalue = R_Fisher_Test(m, workspace=2e6)[0][0]
+                    pvalue = R_Fisher_Test(m, simulate_p_value=True, B=2000)[0][0]
                     have_fisher_test_res[pos_key] = pvalue
                 except rinterface.RRuntimeError:
                     sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
@@ -215,18 +216,17 @@ if __name__ == '__main__':
     # sorted the whole array data from lowest to highest by allele_frequence
     data.sort(key=lambda x:x[1])
 
-    # Now we search all our target position by frequence data
-    g_idx = 0
-    nbf_slide_window = []
-
-    out_res = []
-
     print '\t'.join(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'DISEASE', 'ALT_freq',
                      'FisherExactTest:p-value', 'Percentile:p-value',
                      'Percentile:Rank','North(REF:ALT:AF)', 'Central(REF:ALT:AF)',
                      'South(REF:ALT:AF)'])
 
     sys.stderr.write('[INFO] ** Data is all loaded .. %s\n' % time.asctime())
+
+    # Now we search all our target position by frequence data
+    out_res = []
+    g_idx = 0
+    nbf_slide_window = []
 
     num = 0
     for d in data:
