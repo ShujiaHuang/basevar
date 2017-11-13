@@ -84,7 +84,7 @@ def calculate_significant(nbf_data, have_fisher_test_res):
     """
 
     res = []
-    for pos_key, _, _, n, c, s in nbf_data:
+    for pos_key, f, alt_b, n, c, s in nbf_data:
 
         if pos_key not in have_fisher_test_res:
             north = map(int, map(float, n.split(':')[:2]))  # first element is REF base
@@ -107,13 +107,12 @@ def calculate_significant(nbf_data, have_fisher_test_res):
             else:
                 have_fisher_test_res[pos_key] = 1.0
 
-        res.append([pos_key, have_fisher_test_res[pos_key]])
+        res.append([pos_key, alt_b, have_fisher_test_res[pos_key]])
 
     return res
 
 
-def get_rank(data, pos_key):
-
+def get_rank(data, pos_key, alt_base):
 
     if not data:
         return 'NA', 'NA', 'NA'
@@ -124,12 +123,13 @@ def get_rank(data, pos_key):
     n = 1
     for i, d in enumerate(data):
 
-        if d[0] == pos_key:
+        # avoid multiple allele problem
+        if d[0] == pos_key and d[1] == alt_base:
             n = i + 1
             break
 
     # pvalue, percentile_pvalue, percentile_position
-    return data[n-1][1], float(n)/len(data), "%d/%d" % (n, len(data))
+    return data[n-1][-1], round(float(n)/len(data), 6), "%d/%d" % (n, len(data))
 
 
 if __name__ == '__main__':
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         )
 
         pdata = calculate_significant(nbf, have_fisher_test_res)
-        pvalue, percentile_pvalue, percentile_pos = get_rank(pdata, pk)
+        pvalue, percentile_pvalue, percentile_pos = get_rank(pdata, pk, alt)
 
         chr_id, pos = pk.split(':')
         pos = int(pos)
