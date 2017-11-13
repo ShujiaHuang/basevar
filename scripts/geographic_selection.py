@@ -97,7 +97,8 @@ def calculate_significant(nbf_data, have_fisher_test_res):
                 m = R_MATRIX(R_IntVector(north + centr + south), nrow=2)
 
                 try:
-                    pvalue = R_Fisher_Test(m, workspace=2e7)[0][0]
+                    pvalue = R_Fisher_Test(m, workspace=2e6)[0][0]
+                    # pvalue = R_Fisher_Test(m, workspace=2e7)[0][0]
                     have_fisher_test_res[pos_key] = pvalue
                 except rinterface.RRuntimeError:
                     sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
@@ -177,7 +178,7 @@ if __name__ == '__main__':
 
             alt_base = tok[3].split(',')
             alt_freq = map(float, tok[4].split(','))
-            centr = map(int, map(float, tok[5].split(':')))  # fist one is REF base
+            centr = map(int, map(float, tok[5].split(':'))) # fist one is REF base
             north = map(int, map(float, tok[6].split(':'))) # fist one is REF base
             south = map(int, map(float, tok[7].split(':'))) # fist one is REF base
 
@@ -238,6 +239,7 @@ if __name__ == '__main__':
         out_res.append(target_sites[pk][:4] + [alt, target_sites[pk][4]] +
                        [freq, pvalue, percentile_pvalue, percentile_pos] + d[3:])
 
+        sys.stderr.write('[OUT] %s\n' % '\t'.join(map(str, out_res[-1])))
 
     sys.stderr.write('[INFO] ** All lines %d done and outputting result .. %s\n' %
                      (num, time.asctime()))
