@@ -11,7 +11,7 @@ import multiprocessing
 
 import itertools   # Use the combinations function
 import numpy as np
-from scipy.stats import chisqprob as sp_chisqprob
+from scipy.stats.distributions import chi2
 
 import pysam
 
@@ -192,7 +192,7 @@ class BaseType(object):
                 self._var_qual = 5000
 
             else:
-                chi_prob = sp_chisqprob(chi_sqrt_value, 1)
+                chi_prob = chi2.sf(chi_sqrt_value, 1)
                 self._var_qual = round(-10 * np.log10(chi_prob), 2) \
                     if chi_prob else 10000
 
