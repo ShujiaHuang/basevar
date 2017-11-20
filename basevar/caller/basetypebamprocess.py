@@ -85,7 +85,9 @@ class BaseVarSingleProcess(object):
                 # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
                 # ``iter_tokes`` is a list of iterator for each sample's input file
                 tmp_region = []
-                for p in regions: tmp_region.extend(p)  # covert to 1d-array
+                for p in regions:  # covert to 1d-array
+                    tmp_region.extend(p)
+
                 tmp_region = sorted(tmp_region)
 
                 start, end = tmp_region[0], tmp_region[-1]
@@ -103,7 +105,7 @@ class BaseVarSingleProcess(object):
                                                   self.aligne_files[i])
                         iter_tokes.append('')
 
-                ## get all the reference sequence of chrid
+                # get all the reference sequence of chrid
                 fa = self.ref_file_hd.fetch(chrid)
 
                 # Set iteration marker: 1->iterate; 0->do not
@@ -203,7 +205,7 @@ class BaseVarSingleProcess(object):
     def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs,
                       read_pos_rank, sample_base_qual, strands, bt, out_file_handle):
 
-        alt_gt = {b:'./'+str(k+1) for k,b in enumerate(bt.alt_bases())}
+        alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
         samples = []
 
         for k, b in enumerate(sample_base):
@@ -211,13 +213,15 @@ class BaseVarSingleProcess(object):
             # For sample FORMAT
             if b != 'N':
                 # For the base which not in bt.alt_bases()
-                if b not in alt_gt: alt_gt[b] = './.'
-                gt = '0/.' if b==ref_base.upper() else alt_gt[b]
+                if b not in alt_gt:
+                    alt_gt[b] = './.'
 
-                samples.append(gt+':'+b+':'+strands[k]+':'+
+                gt = '0/.' if b == ref_base.upper() else alt_gt[b]
+
+                samples.append(gt + ':' + b + ':' + strands[k] + ':' +
                                str(round(bt.qual_pvalue[k], 6)))
             else:
-                samples.append('./.') ## 'N' base
+                samples.append('./.')  # 'N' base
 
         # Rank Sum Test for mapping qualities of REF versus ALT reads
         mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
@@ -242,8 +246,8 @@ class BaseVarSingleProcess(object):
             ref_base.upper(), bt.alt_bases(), sample_base, strands)
 
         # base=>[AF, allele depth]
-        af = {b:['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
-                 bt.depth[b]] for b in bt.alt_bases()}
+        af = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
+                  bt.depth[b]] for b in bt.alt_bases()}
 
         info = {'CM_DP': str(int(bt.total_depth)),
                 'CM_AC': ','.join(map(str, [af[b][1] for b in bt.alt_bases()])),
@@ -259,11 +263,11 @@ class BaseVarSingleProcess(object):
                 'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
 
         out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                         ','.join(bt.alt_bases()), str(bt.var_qual()),
-                         '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
-                         ';'.join([k+'='+v for k, v in sorted(
-                            info.items(), key=lambda x:x[0])]),
-                            'GT:AB:SO:BP'] + samples) + '\n')
+                              ','.join(bt.alt_bases()), str(bt.var_qual()),
+                              '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
+                              ';'.join([k+'='+v for k, v in sorted(
+                                  info.items(), key=lambda x:x[0])]),
+                                  'GT:AB:SO:BP'] + samples) + '\n')
         return self
 
 
@@ -274,7 +278,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
     a multi-process job.
     """
     def __init__(self, ref_in_file, aligne_files, out_vcf_file, out_cvg_file,
-                regions, cmm=None):
+                 regions, cmm=None):
         """
         Constructor.
 
@@ -316,5 +320,3 @@ class BaseVarMultiProcess(multiprocessing.Process):
     def run(self):
         """ Run the BaseVar process"""
         self.single_process.run()
-
-
