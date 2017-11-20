@@ -1,8 +1,14 @@
 """
 This module contain some main algorithms of BaseVar
 """
+import sys
+
 import numpy as np
-from scipy.stats import fisher_exact
+# from scipy.stats import fisher_exact
+from rpy2 import robjects
+from rpy2 import rinterface
+
+R = robjects.r
 
 
 def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
@@ -83,6 +89,41 @@ def m_step(prior_prob, ind_base_likelihood):
     return ind_base_likelihood, pop_likelihood
 
 
+def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
+    """Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
+
+    ``data`` : A 2-D list,
+             A tuple content pair-data for sample_base with other.
+             e.g: zip(sample_base, mapq)
+    """
+    ref, alt = [], []
+    for b, d in data:
+
+        if b == 'N':
+            continue
+
+        if b == ref_base:
+            ref.append(d)
+
+        elif b in alt_base:
+            alt.append(d)
+
+    ref = robjects.FloatVector(ref)
+    alt = robjects.FloatVector(alt)
+
+    try:
+        pvalue = R['wilcox.test'](ref, alt)[2][0]
+        phred_scale_value = round(-10 * np.log10(pvalue), 3)
+
+    except rinterface.RRuntimeError:
+        sys.stderr.write('[WARNING] The array number is too samll for '
+                         'wilcox.test and set phred_scale_value = 0 :\n'
+                         '%s\n%s\n' % (ref, alt))
+        phred_scale_value = 0
+
+    return phred_scale_value
+
+
 def strand_bias(ref_base, alt_base, sample_base, strands):
     """
     A method for calculating the strand bias of REF_BASE and ALT_BASE
@@ -94,7 +135,7 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
         A list of alt bases.
 
     :param sample_base: array-like, required
-        A list of bases which cover this position
+        A list of bases cover this position
 
     :param strands: array-like, equired
         '+' or '-' strand for each base in ``sample_base``
@@ -104,31 +145,45 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
     """
     ref_fwd, ref_rev = 0, 0
     alt_fwd, alt_rev = 0, 0
-    for k, b in enumerate(sample_base):
+
+    for s, b in zip(strands, sample_base):
 
         # For strand bias
-        if b == 'N': continue
-        if strands[k] == '+':
-            if b == ref_base.upper():
+        if b == 'N':
+            continue
+
+        if s == '+':
+            if b == ref_base:
                 ref_fwd += 1
             elif b in alt_base:
                 alt_fwd += 1
 
-        elif strands[k] == '-':
-            if b == ref_base.upper():
+        elif s == '-':
+            if b == ref_base:
                 ref_rev += 1
             elif b in alt_base:
                 alt_rev += 1
 
         else:
-            raise ValueError ('[ERROR] Get strange strand symbol %s' % strands[k])
+            raise ValueError('[ERROR] Get strange strand symbol %s' % s)
 
-    # Strand bias by fisher exact test
+    # Use R to calculate the strand bias by fisher exact test instand of scipy
     # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-    fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
-                                            [alt_fwd, alt_rev]])[1]), 3)
+    m = R['matrix'](robjects.IntVector([ref_fwd, alt_fwd,
+                                        ref_rev, alt_rev]), nrow=2)
+    pvalue = R['fisher.test'](m)[0][0]
+    fs = round(-10 * np.log10(pvalue), 3)
+
+    # May be too slow!
+    # fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
+    #                                         [alt_fwd, alt_rev]])[1]), 3)
 
     if fs == np.inf:
         fs = 10000.0
 
-    return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
+    # Strand bias estimated by the Symmetric Odds Ratio test
+    # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php
+    sor = round(float(ref_fwd * alt_rev) / (ref_rev * alt_fwd), 3) \
+        if ref_rev * alt_fwd > 0 else 10000.0
+
+    return fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev

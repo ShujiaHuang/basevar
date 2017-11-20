@@ -27,11 +27,16 @@ def vcf_header_define():
              'comma delimited list of Expectation Maxmization Estimated allele frequency">'),
             ('##INFO=<ID=CM_AF,Number=.,Type=Float,Description='
             '"An ordered, comma delimited list of allele frequencies base on read count">'),
+            '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
             '##INFO=<ID=CM_AC,Number=.,Type=Float,Description="An ordered, comma delimited allele depth in CMDB">',
             '##INFO=<ID=CM_DP,Number=.,Type=Float,Description="Total Depth in CMDB">',
             '##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher\'s exact test to detect strand bias">',
             '##INFO=<ID=SB_REF,Number=.,Type=Integer,Description="Read number support REF: Forward,Reverse">',
-            '##INFO=<ID=SB_ALT,Number=.,Type=Integer,Description="Read number support ALT: Forward,Reverse">']
+            '##INFO=<ID=SB_ALT,Number=.,Type=Integer,Description="Read number support ALT: Forward,Reverse">',
+            '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
+            '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
+            '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
+            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence/Quality by Depth">']
     header.append('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
     header.append('##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">')
     header.append('##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">')
@@ -42,8 +47,8 @@ def vcf_header_define():
 
 def fetch_next(iter_fh):
     """
-    re-define the next funtion in fetch function of pysam TabixFile()
-    prevent throunghing the 'StopIteration'
+    re-define the next funtion of fetching info from pysam
+    prevent throunghing the 'StopIteration' exception.
     """
 
     if iter_fh == '': return ''

@@ -10,6 +10,15 @@ import time
 
 
 def basetype():
+    from caller.executor import BaseTypeBamRunner
+
+    bt = BaseTypeBamRunner()
+    bt.run()
+
+    return
+
+
+def basetype_mpileup():
     from caller.executor import BaseTypeRunner
 
     bt = BaseTypeRunner()
@@ -54,11 +63,11 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         sys.stderr.write('[Usage] python %s [option]\n\n' % sys.argv[0])
-        sys.stderr.write('\n\t'.join(['Option:'] + runner.keys()))
+        sys.stderr.write('\n\t'.join(['Option:'] + runner.keys()) + '\n\n')
         sys.exit(1)
 
     command = sys.argv[1]
     runner[command]()
 
-    sys.stderr.write('** %s ALL DONE %s **' % (command, time.asctime()))
-    sys.stderr.write('\n>> For the flowers bloom in the desert <<\n')
+    sys.stderr.write('** %s ALL DONE %s **\n' % (command, time.asctime()))
+    sys.stderr.write('>> For the flowers bloom in the desert <<\n')
