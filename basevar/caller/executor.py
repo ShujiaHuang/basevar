@@ -17,6 +17,7 @@ from pysam import FastaFile
 from . import utils
 from .basetypeprocess import BaseVarMultiProcess
 from .basetypebamprocess import BaseVarMultiProcess as BamBaseVarMultiProcess
+from .coverageprocess import BaseVarMultiProcess as CvgBaseVarMultiProcess
 from .vqsr import vqsr
 
 
@@ -46,6 +47,11 @@ class BaseTypeBamRunner(object):
                                               'caller positions to accelerate program '
                                               'speed. [0.001]')
 
+        ## special parameter to limit the function of BaseType
+        optp.add_argument('--justdepth', dest='justdepth', type=bool,
+                          help='Just calculate the depth distribution [False]',
+                          default=False)
+
         opt = optp.parse_args()
         self.opt = opt
         self.cmm = cmm
@@ -54,7 +60,7 @@ class BaseTypeBamRunner(object):
         self.cmm.MINAF = self.opt.min_af
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] At least input one mpileup file\n')
+            optp.error('[ERROR] At least input one mpileup file.\n')
 
         if len(opt.referencefile) == 0:
             optp.error('[ERROR] Missing reference fasta file.\n')
@@ -87,7 +93,7 @@ class BaseTypeBamRunner(object):
             for start, end in utils.merge_region(v):
                 regions.append([chrid, start, end])
 
-        # load all the genome if no position and regions provide
+        # load all the genome if no position or regions provide
         if not regions:
 
             sys.stderr.write('[WARNINGS] Program will load all the genome cause '
@@ -143,7 +149,6 @@ class BaseTypeBamRunner(object):
                                                     regions_for_each_process[i],
                                                     cmm=self.cmm))
 
-        print '********', regions_for_each_process
         for p in processes:
             p.start()
 
@@ -328,6 +333,145 @@ class VQSRRuner(object):
 
     def run(self):
         self.vqsr.main(self.vqsr.cmdopts())
+
+        return
+
+
+class CoverageRunner(object):
+
+    def __init__(self, cmm=utils.CommonParameter()):
+        """init function
+        """
+        optp = argparse.ArgumentParser()
+        optp.add_argument('coverage')
+        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE',
+                          default='out', help='The prefix of output files. [out]')
+        optp.add_argument('-l', '--aligne-file-list', dest='infilelist', metavar='FILE',
+                          help='Input alignmernt file list.', default='')
+        optp.add_argument('-r', '--reference', dest='referencefile', metavar='FILE',
+                          help='Input reference fasta file.', default='')
+
+        optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
+                          help='skip unlisted positions (chr pos)', default='')
+        optp.add_argument('-R', '--regions', metavar='chr:start-end', dest='regions',
+                          help='skip positions not in (chr:start-end)', default='')
+
+        optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
+                          help='Number of processer to use. [1]', default=1)
+
+        opt = optp.parse_args()
+        self.opt = opt
+        self.cmm = cmm
+
+        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
+            optp.error('[ERROR] At least input one mpileup file.\n')
+
+        if len(opt.referencefile) == 0:
+            optp.error('[ERROR] Missing reference fasta file.\n')
+
+        # Loading positions if not provid we'll load all the genome
+        self.regions = self._loading_position(opt.positions, opt.regions)
+
+        # Get all the input alignement files
+        self.alignefiles = utils.load_file_list(opt.infilelist)
+        sys.stderr.write('[INFO] Finish loading parameters and input file '
+                         'list %s\n' % time.asctime())
+
+    def _loading_position(self, position, region):
+
+        # Loading positions
+        _sites = utils.get_list_position(position) if position else {}
+
+        if len(region):
+            chrid, reg = region.strip().split(':')
+            reg = map(int, reg.split('-'))
+            if chrid not in _sites:
+                _sites[chrid] = []
+
+            _sites[chrid].append([reg[0], reg[1]])
+
+        # merge and sorted the regions
+        # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
+        regions = []
+        for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
+            for start, end in utils.merge_region(v):
+                regions.append([chrid, start, end])
+
+        # load all the genome if no position or regions provide
+        if not regions:
+
+            sys.stderr.write('[WARNINGS] Program will load all the genome cause '
+                             'there is not any positions and regions provided.\n')
+            fa = FastaFile(self.opt.referencefile)
+            regions = [[ci, 1, fa.get_reference_length(ci)]
+                       for ci in fa.references]
+            fa.close()
+
+        return regions
+
+    def run(self):
+        """
+        Run variant caller
+        """
+        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' %
+                         time.asctime())
+
+        # Always create process manager even if nCPU==1, so that we can
+        # listen for signals from main thread
+        regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
+        if len(self.regions) < self.opt.nCPU:
+            # We cut the region evenly to fit nCPU if regions < nCPU
+            for chrid, start, end in self.regions:
+                delta = int((end-start+1) / self.opt.nCPU)
+                if delta == 0:
+                    delta = 1
+
+                for i, pos in enumerate(xrange(start-1, end, delta)):
+                    s = pos + 1 if pos + 1 < end else end
+                    e = pos + delta if pos + delta < end else end
+
+                    regions_for_each_process[i % self.opt.nCPU].append([chrid, s, e])
+
+        else:
+            for i, region in enumerate(self.regions):
+                regions_for_each_process[i % self.opt.nCPU].append(region)
+
+        out_cvg_names = set()
+        processes = []
+        for i in range(self.opt.nCPU):
+            sub_cvg_file = self.opt.outprefix + '_temp_%s' % i + '.cvg.tsv'
+
+            out_cvg_names.add(sub_cvg_file)
+            processes.append(CvgBaseVarMultiProcess(self.opt.referencefile,
+                                                    self.alignefiles,
+                                                    sub_cvg_file,
+                                                    regions_for_each_process[i],
+                                                    cmm=self.cmm))
+
+        for p in processes:
+            p.start()
+
+        # listen for signal while any process is alive
+        while True in [p.is_alive() for p in processes]:
+            try:
+                time.sleep(1)
+
+            except KeyboardInterrupt:
+                sys.stderr.write('KeyboardInterrupt detected, terminating '
+                                 'all processes...\n')
+                for p in processes:
+                    p.terminate()
+
+                sys.exit(1)
+
+        # make sure all process are finished
+        for p in processes:
+            p.join()
+
+        # Final output file name
+        out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
+
+        utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
 
         return
 
