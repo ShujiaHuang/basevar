@@ -52,11 +52,17 @@ def merge():
 
     return
 
+def coverage():
+    from caller.executor import CoverageRunner
+    cvg = CoverageRunner()
+    cvg.run()
+
 
 if __name__ == '__main__':
 
     runner = {'basetype': basetype,
               'merge': merge,
+              'coverage': coverage,
               'nbi': nearby_indel,
               'VQSR': vqsr
               }
