@@ -1,5 +1,5 @@
 """
-This is a Process module for BaseType
+This is a Process module for BaseType by BAM/CRAM
 
 """
 import sys
@@ -120,7 +120,7 @@ class BaseVarSingleProcess(object):
                                              (n, chrid, position, time.asctime()))
                         n += 1
 
-                        sample_info = [bam.fetch_next(iter_tokes[i]) if g else sample_info[i]
+                        sample_info = [utils.fetch_next(iter_tokes[i]) if g else sample_info[i]
                                        for i, g in enumerate(go_iter)]
 
                         # sample_base, sample_base_qual, strands, mapqs and

@@ -8,14 +8,6 @@ import sys
 from . import utils
 
 
-def fetch_next(iter_fh):
-    """
-    re-define the next funtion in fetch function of pysam TabixFile()
-    prevent throunghing the 'StopIteration'
-    """
-    return utils.fetch_next(iter_fh)
-
-
 def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
                            is_scan_indel=False):
     """
