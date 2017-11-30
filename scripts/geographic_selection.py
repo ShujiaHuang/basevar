@@ -17,9 +17,11 @@ from rpy2 import robjects
 from rpy2 import rinterface
 
 
+R = robjects.r
+
 R_IntVector = robjects.IntVector
-R_MATRIX = robjects.r['matrix']
-R_Fisher_Test = robjects.r['fisher.test']
+R_MATRIX = R['matrix']
+R_Fisher_Test = R['fisher.test']
 
 
 def get_pass_positon(in_file):
@@ -128,7 +130,7 @@ def lookup_frequence_nearby_allele(freq, g_idx, nbf_slide_window, data,
     return g_idx, nbf, tmp_nbf_ale
 
 
-def calculate_significant(nbf_data, have_fisher_test_res):
+def fisher_calculate_significant(nbf_data, have_test_res):
     """
     Fisher Exact test of nearby frequence positions
     """
@@ -136,7 +138,7 @@ def calculate_significant(nbf_data, have_fisher_test_res):
     res = []
     for pos_key, f, alt_b, n, c, s in nbf_data:
 
-        if pos_key not in have_fisher_test_res:
+        if pos_key not in have_test_res:
 
             # first value is for REF base in each array blow
             north = map(int, map(float, n.split(':')[:2]))
@@ -151,16 +153,53 @@ def calculate_significant(nbf_data, have_fisher_test_res):
                 try:
                     pvalue = R_Fisher_Test(m, workspace=2e6)[0][0]
                     # pvalue = R_Fisher_Test(m, simulate_p_value=True, B=2000)[0][0]
-                    have_fisher_test_res[pos_key] = pvalue
+                    have_test_res[pos_key] = pvalue
                 except rinterface.RRuntimeError:
                     sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
                                       '\t'.join([pos_key]+map(str, north + centr + south)))
                     continue
 
             else:
-                have_fisher_test_res[pos_key] = 1.0
+                have_test_res[pos_key] = 1.0
 
-        res.append([pos_key, alt_b, have_fisher_test_res[pos_key]])
+        res.append([pos_key, alt_b, have_test_res[pos_key]])
+
+    return res
+
+
+def calcu_prop_trend_test(nbf_data, have_test_res):
+    """
+    Fisher Exact test of nearby frequence positions
+    """
+
+    res = []
+    for pos_key, f, alt_b, n, c, s in nbf_data:
+
+        if pos_key not in have_test_res:
+
+            # first value is for REF base in each array blow
+            north = map(int, map(float, n.split(':')[:2]))
+            centr = map(int, map(float, c.split(':')[:2]))
+            south = map(int, map(float, s.split(':')[:2]))
+
+            depth = sum(north + centr + south)
+            if depth:
+                # Use FisherExact of R for 2x3 contingency table
+                x = robjects.FloatVector([north[1], centr[1], south[1]])
+                n = robjects.FloatVector([sum(north), sum(centr), sum(south)])
+
+                try:
+                    pvalue = R['prop.trend.test'](x, n)[2][0]
+                    have_test_res[pos_key] = pvalue
+                except rinterface.RRuntimeError:
+                    sys.stderr.write('[SKIP] [workspace not enough(N:C:S)] %s\n' %
+                                      '\t'.join([pos_key]+map(str, north + centr + south)))
+                    have_test_res[pos_key] = 1.0
+
+            else:
+                have_test_res[pos_key] = 1.0
+
+        res.append([pos_key, alt_b, have_test_res[pos_key]])
 
     return res
 
@@ -234,7 +273,7 @@ if __name__ == '__main__':
     out_res = []
     g_idx = 0
     nbf_slide_window = []
-    have_fisher_test_res = {}
+    have_test_res = {}
 
     num = 0
     for d in data:
@@ -258,7 +297,8 @@ if __name__ == '__main__':
             freq, g_idx, nbf_slide_window, data, max_size=opt.num
         )
 
-        pdata = calculate_significant(nbf, have_fisher_test_res)
+        # pdata = fisher_calculate_significant(nbf, have_test_res)
+        pdata = calcu_prop_trend_test(nbf, have_test_res)
         pvalue, percentile_pvalue, percentile_pos = get_rank(pdata, pk, alt)
 
         chr_id, pos = pk.split(':')
