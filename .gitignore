@@ -2,6 +2,7 @@
 *.log
 *.sh
 *.pdf
+*.png
 *.so
 .*.sw?
 *.egg
