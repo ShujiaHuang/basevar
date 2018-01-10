@@ -170,7 +170,7 @@ def first_base(sample_pos_line, is_scan_indel=None):
             rpr = read.query_position + 1
             strand = '-' if read.alignment.is_reverse else '+'
 
-        # Just get info in the first loop!
-        break
+            # Just get info in the first loop!
+            break
 
     return base, strand, qual, mapq, rpr, indel

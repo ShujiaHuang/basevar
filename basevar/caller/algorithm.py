@@ -4,11 +4,12 @@ This module contain some main algorithms of BaseVar
 import sys
 
 import numpy as np
-# from scipy.stats import fisher_exact
-from rpy2 import robjects
-from rpy2 import rinterface
+from scipy.stats import fisher_exact
+from scipy.stats import ranksums
 
-R = robjects.r
+# from rpy2 import robjects
+# from rpy2 import rinterface
+# R = robjects.r
 
 
 def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
@@ -95,6 +96,10 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
     ``data`` : A 2-D list,
              A tuple content pair-data for sample_base with other.
              e.g: zip(sample_base, mapq)
+
+    ``Note`` : There's some difference between scipy.stats.ranksums
+               with R's wilcox.test
+               https://stackoverflow.com/questions/12797658/pythons-scipy-stats-ranksums-vs-rs-wilcox-test
     """
     ref, alt = [], []
     for b, d in data:
@@ -108,18 +113,23 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
         elif b in alt_base:
             alt.append(d)
 
-    ref = robjects.FloatVector(ref)
-    alt = robjects.FloatVector(alt)
+    # ref = robjects.FloatVector(ref)
+    # alt = robjects.FloatVector(alt)
+    #
+    # try:
+    #     pvalue = R['wilcox.test'](ref, alt)[2][0]
+    #     phred_scale_value = round(-10 * np.log10(pvalue), 3)
+    #
+    # except rinterface.RRuntimeError:
+    #     sys.stderr.write('[WARNING] The array number is too samll for '
+    #                      'wilcox.test and set phred_scale_value = 0 :\n'
+    #                      '%s\n%s\n' % (ref, alt))
+    #     phred_scale_value = 0
 
-    try:
-        pvalue = R['wilcox.test'](ref, alt)[2][0]
-        phred_scale_value = round(-10 * np.log10(pvalue), 3)
-
-    except rinterface.RRuntimeError:
-        sys.stderr.write('[WARNING] The array number is too samll for '
-                         'wilcox.test and set phred_scale_value = 0 :\n'
-                         '%s\n%s\n' % (ref, alt))
-        phred_scale_value = 0
+    _, pvalue = ranksums(ref, alt)
+    phred_scale_value = round(-10 * np.log10(pvalue), 3)
+    if phred_scale_value == np.inf:
+        phred_scale_value = 10000.0
 
     return phred_scale_value
 
@@ -169,14 +179,13 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
 
     # Use R to calculate the strand bias by fisher exact test instand of scipy
     # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
-    m = R['matrix'](robjects.IntVector([ref_fwd, alt_fwd,
-                                        ref_rev, alt_rev]), nrow=2)
-    pvalue = R['fisher.test'](m)[0][0]
-    fs = round(-10 * np.log10(pvalue), 3)
+    # m = R['matrix'](robjects.IntVector([ref_fwd, alt_fwd,
+    #                                     ref_rev, alt_rev]), nrow=2)
+    # pvalue = R['fisher.test'](m)[0][0]
+    # fs = round(-10 * np.log10(pvalue), 3)
 
-    # May be too slow!
-    # fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
-    #                                         [alt_fwd, alt_rev]])[1]), 3)
+    # May be too slow?
+    fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],[alt_fwd, alt_rev]])[1]), 3)
 
     if fs == np.inf:
         fs = 10000.0

@@ -27,7 +27,7 @@ class BaseVarSingleProcess(object):
         ===========
 
             samples: list like
-                    A list of sample id
+                A list of sample id
         """
         self.ref_file_hd = pysam.FastaFile(ref_file)
         self.aligne_files = aligne_files
@@ -146,6 +146,7 @@ class BaseVarSingleProcess(object):
                         bt = BaseType(ref_base.upper(), sample_base,
                                       sample_base_qual, cmm=self.cmm)
                         bt.lrt()
+
                         if len(bt.alt_bases()) > 0:
                             self._out_vcf_line(chrid,
                                                position,
