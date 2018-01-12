@@ -198,7 +198,7 @@ class FileForQueueing(object):
         self.heap = []
 
         line = line
-        cols = line.strip().split("\t")
+        cols = line.strip().split()
         chrom = cols[0]
 
         # Where possible, convert chromosome names into
@@ -216,7 +216,7 @@ class FileForQueueing(object):
 
             try:
                 line = self.the_file.next()
-                cols = line.strip().split("\t")
+                cols = line.strip().split()
                 chrom = cols[0]
 
                 try:
@@ -259,7 +259,6 @@ class FileForQueueing(object):
 
             try:
                 line = self.the_file.next()
-                #cols = line.strip().split('\t')
                 cols = line.strip().split()
                 chrom = cols[0]
 
@@ -295,6 +294,7 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
         output_file = sys.stdout
     else:
         output_file = Open(final_file_name, 'wb')
+
     the_heap = []
 
     # Initialise queue
@@ -339,6 +339,5 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     if final_file_name != "-":
         output_file.close()
 
-    #log.info("Finished merging %s file(s)"%final_file_name)
     return
 
