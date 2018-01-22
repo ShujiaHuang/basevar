@@ -1,7 +1,10 @@
+"""
+This module contain functions of EM algorithm and Base genotype.
+"""
 import itertools   # Use the combinations function
 import numpy as np
 
-from algorithm import EM, strand_bias
+from algorithm import EM
 
 class CommonParameter(object):
     """
@@ -14,9 +17,8 @@ class CommonParameter(object):
         self.BASE = ['A', 'C', 'G', 'T']
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
         self.debug = False
-        self.verbose = False
         self.MINAF = 0.001  # The effective base freqence threshold for 140k sample size
-        self.scan_indel = True
+
 
 class BaseType(object):
 
@@ -118,11 +120,11 @@ class BaseType(object):
         Example
         -------
 
-            >>> import itertools
-            >>> bases = ['A', 'C', 'G', 'T']
-            >>> bc=[i for i in itertools.combinations(bases,3)]
-            >>> bc
-            ... [('A', 'C', 'G'), ('A', 'C', 'T'), ('A', 'G', 'T'), ('C', 'G', 'T')]
+        >>> import itertools
+        >>> bases = ['A', 'C', 'G', 'T']
+        >>> bc=[i for i in itertools.combinations(bases,3)]
+        >>> bc
+        ... [('A', 'C', 'G'), ('A', 'C', 'T'), ('A', 'G', 'T'), ('C', 'G', 'T')]
 
         """
         bc = []
@@ -136,7 +138,7 @@ class BaseType(object):
 
             _, pop_likelihood, base_expected_prob = EM(
                 self.prior_prob,
-                np.tile(init_likelihood, (self.prior_prob.shape[0],1)))
+                np.tile(init_likelihood, (self.prior_prob.shape[0], 1)))
 
             bc.append(b)
             lr.append(np.log(pop_likelihood).sum()) # sum the marginal prob
@@ -187,12 +189,14 @@ class BaseType(object):
 
             if len(bases) == 1 and self.depth[bases[0]] / self.total_depth > 0.5:
                 # mono-allelelic
-                self._var_qual = 5000
+                self._var_qual = 5000.0
 
             else:
-                from scipy.stats import chisqprob as sp_chisqprob
-                chi_prob = sp_chisqprob(chi_sqrt_value, 1)
+                from scipy.stats.distributions import chi2
+                chi_prob = chi2.sf(chi_sqrt_value, 1)
                 self._var_qual = round(-10 * np.log10(chi_prob), 2) \
-                    if chi_prob else 10000
+                    if chi_prob else 10000.0
 
         return
+
+

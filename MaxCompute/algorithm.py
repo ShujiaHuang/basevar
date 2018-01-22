@@ -1,7 +1,10 @@
 """
 This module contain some main algorithms of BaseVar
 """
+import sys
+
 import numpy as np
+
 
 
 def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
@@ -81,6 +84,37 @@ def m_step(prior_prob, ind_base_likelihood):
 
     return ind_base_likelihood, pop_likelihood
 
+def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
+    """Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
+
+    ``data`` : A 2-D list,
+             A tuple content pair-data for sample_base with other.
+             e.g: zip(sample_base, mapq)
+
+    ``Note`` : There's some difference between scipy.stats.ranksums
+               with R's wilcox.test
+               https://stackoverflow.com/questions/12797658/pythons-scipy-stats-ranksums-vs-rs-wilcox-test
+    """
+    ref, alt = [], []
+    for b, d in data:
+
+        if b == 'N':
+            continue
+
+        if b == ref_base:
+            ref.append(d)
+
+        elif b in alt_base:
+            alt.append(d)
+
+    from scipy.stats import ranksums
+    _, pvalue = ranksums(ref, alt)
+    phred_scale_value = round(-10 * np.log10(pvalue), 3)
+    if phred_scale_value == np.inf:
+        phred_scale_value = 10000.0
+
+    return phred_scale_value
+
 
 def strand_bias(ref_base, alt_base, sample_base, strands):
     """
@@ -103,29 +137,40 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
     """
     ref_fwd, ref_rev = 0, 0
     alt_fwd, alt_rev = 0, 0
-    for k, b in enumerate(sample_base):
+
+    for s, b in zip(strands, sample_base):
 
         # For strand bias
-        if b == 'N': continue
-        if strands[k] == '+':
-            if b == ref_base.upper():
+        if b == 'N':
+            continue
+
+        if s == '+':
+            if b == ref_base:
                 ref_fwd += 1
             elif b in alt_base:
                 alt_fwd += 1
 
-        elif strands[k] == '-':
-            if b == ref_base.upper():
+        elif s == '-':
+            if b == ref_base:
                 ref_rev += 1
             elif b in alt_base:
                 alt_rev += 1
 
         else:
-            raise ValueError ('[ERROR] Get strange strand symbol %s' % strands[k])
+            raise ValueError ('[ERROR] Get strange strand symbol %s' % s)
 
     # Strand bias by fisher exact test
     # Normally you remove any SNP with FS > 60.0 and an indel with FS > 200.0
     from scipy.stats import fisher_exact
     fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],
                                             [alt_fwd, alt_rev]])[1]), 3)
+    if fs == np.inf:
+        fs = 10000.0
 
-    return fs, ref_fwd, ref_rev, alt_fwd, alt_rev
+    # Strand bias estimated by the Symmetric Odds Ratio test
+    # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php
+    sor = round(float(ref_fwd * alt_rev) / (ref_rev * alt_fwd), 3) \
+        if ref_rev * alt_fwd > 0 else 10000.0
+
+
+    return fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev
