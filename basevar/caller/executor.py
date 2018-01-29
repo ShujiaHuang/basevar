@@ -12,7 +12,7 @@ import sys
 import argparse
 import time
 
-from pysam import FastaFile
+from pysam import FastaFile, AlignmentFile
 
 from . import utils
 from .basetypeprocess import BaseVarMultiProcess
@@ -73,6 +73,10 @@ class BaseTypeBamRunner(object):
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
 
+        # loading all the sample id from aligne_files
+        # ``samples_id`` has the same size and order as ``aligne_files``
+        self.sample_id = self._load_sample_id_from_bam()
+
     def _loading_position(self, position, region):
 
         # Loading positions
@@ -104,6 +108,30 @@ class BaseTypeBamRunner(object):
             fa.close()
 
         return regions
+
+    def _load_sample_id_from_bam(self):
+        """loading sample id in bam/cram files from RG tag"""
+
+        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+        sample_id = []
+        for i, al in enumerate(self.alignefiles):
+            bf = AlignmentFile(al)
+
+            if i % 1000 == 0:
+                sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
+                                 (i+1, len(self.alignefiles), time.asctime()))
+
+            if 'RG' not in bf.header:
+                sys.stderr.write('[ERROR] Bam file format error: missing '
+                                 '@RG in the header.\n')
+                bf.close()
+                sys.exit(1)
+
+            sample_id.append(bf.header['RG'][0]['SM'])
+            bf.close()
+
+        sys.stderr.write('[INFO] Finish load all %d sample ids\n\n' % len(sample_id))
+        return sample_id
 
     def run(self):
         """
@@ -152,6 +180,7 @@ class BaseTypeBamRunner(object):
                                                     sub_vcf_file,
                                                     sub_cvg_file,
                                                     regions_for_each_process[i],
+                                                    self.sample_id,
                                                     cmm=self.cmm))
 
         for p in processes:

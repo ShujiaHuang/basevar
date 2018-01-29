@@ -283,7 +283,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
     a multi-process job.
     """
     def __init__(self, ref_in_file, aligne_files, out_vcf_file, out_cvg_file,
-                 regions, cmm=None):
+                 regions, samples_id, cmm=None):
         """
         Constructor.
 
@@ -294,7 +294,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
-        samples_id = self._load_sample_id(aligne_files)
+        # samples_id = self._load_sample_id(aligne_files)
 
         self.single_process = BaseVarSingleProcess(ref_in_file,
                                                    aligne_files,
@@ -304,29 +304,29 @@ class BaseVarMultiProcess(multiprocessing.Process):
                                                    samples_id,
                                                    cmm=cmm)
 
-    def _load_sample_id(self, aligne_files):
-        """loading sample id in bam/cram files from RG tag"""
-
-        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
-        sample_id = []
-        for i, al in enumerate(aligne_files):
-            bf = pysam.AlignmentFile(al)
-
-            if i % 1000 == 0:
-                sys.stderr.write("[INFO] loading %d/%d alignment files ... %s" %
-                                 (i+1, len(aligne_files), time.asctime()))
-
-            if 'RG' not in bf.header:
-                sys.stderr.write('[ERROR] Bam file format error: missing '
-                                 '@RG in the header.\n')
-                bf.close()
-                sys.exit(1)
-
-            sample_id.append(bf.header['RG'][0]['SM'])
-            bf.close()
-
-        sys.stderr.write('[INFO] Finish load all %d sample ids\n\n' % len(sample_id))
-        return sample_id
+    # def _load_sample_id(self, aligne_files):
+    #     """loading sample id in bam/cram files from RG tag"""
+    #
+    #     sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+    #     sample_id = []
+    #     for i, al in enumerate(aligne_files):
+    #         bf = pysam.AlignmentFile(al)
+    #
+    #         if i % 1000 == 0:
+    #             sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
+    #                              (i+1, len(aligne_files), time.asctime()))
+    #
+    #         if 'RG' not in bf.header:
+    #             sys.stderr.write('[ERROR] Bam file format error: missing '
+    #                              '@RG in the header.\n')
+    #             bf.close()
+    #             sys.exit(1)
+    #
+    #         sample_id.append(bf.header['RG'][0]['SM'])
+    #         bf.close()
+    #
+    #     sys.stderr.write('[INFO] Finish load all %d sample ids\n\n' % len(sample_id))
+    #     return sample_id
 
     def run(self):
         """ Run the BaseVar process"""
