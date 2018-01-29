@@ -313,8 +313,8 @@ class BaseVarMultiProcess(multiprocessing.Process):
             bf = pysam.AlignmentFile(al)
 
             if i % 1000 == 0:
-                sys.stderr.write("[INFO] loading %d alignment files ... %s" %
-                                 (i+1, time.asctime()))
+                sys.stderr.write("[INFO] loading %d/%d alignment files ... %s" %
+                                 (i+1, len(aligne_files), time.asctime()))
 
             if 'RG' not in bf.header:
                 sys.stderr.write('[ERROR] Bam file format error: missing '
