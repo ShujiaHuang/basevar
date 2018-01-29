@@ -100,9 +100,8 @@ class BaseVarSingleProcess(object):
                         iter_tokes.append(bf.pileup(chrid, start-1, end))
                     except ValueError:
                         if self.cmm.debug:
-                            print >> sys.stderr, ("# [WARMING] Empty region",
-                                                  chrid, start-1, end,
-                                                  self.aligne_files[i])
+                            sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
+                                             (chrid, start-1, end, self.aligne_files[i]))
                         iter_tokes.append('')
 
                 # get all the reference sequence of chrid
@@ -134,6 +133,11 @@ class BaseVarSingleProcess(object):
                             fa,  # Fa sequence for indel sequence
                             is_scan_indel=True
                         )
+                        sys.stderr.write('[INFO] Fetch %d samples on position %s'
+                                         ' ... %s\n' % (len(sample_base),
+                                                        chrid+":"+str(position),
+                                                        time.asctime())
+                                         )
 
                         ref_base = fa[position-1]
                         # ignore positions if coverage=0 or ref base is 'N' base
@@ -291,6 +295,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
         samples_id = self._load_sample_id(aligne_files)
+        sys.stderr.write('[INFO] Finish load all %d sample ids\n\n' % len(samples_id))
 
         self.single_process = BaseVarSingleProcess(ref_in_file,
                                                    aligne_files,
@@ -308,7 +313,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
             bf = pysam.AlignmentFile(al)
 
             if 'RG' not in bf.header:
-                sys.stderr.write('[ERROR] Bam file format error: missiong '
+                sys.stderr.write('[ERROR] Bam file format error: missing '
                                  '@RG in the header.\n')
                 bf.close()
                 sys.exit(1)

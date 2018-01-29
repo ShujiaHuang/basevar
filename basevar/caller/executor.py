@@ -142,6 +142,11 @@ class BaseTypeBamRunner(object):
 
             out_vcf_names.add(sub_vcf_file)
             out_cvg_names.add(sub_cvg_file)
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s, %s]\n' % (i+1, self.opt.nCPU, sub_vcf_file,
+                                             sub_cvg_file))
+
             processes.append(BamBaseVarMultiProcess(self.opt.referencefile,
                                                     self.alignefiles,
                                                     sub_vcf_file,
