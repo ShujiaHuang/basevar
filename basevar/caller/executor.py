@@ -137,7 +137,7 @@ class BaseTypeBamRunner(object):
         """
         Run variant caller
         """
-        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' %
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' %
                          time.asctime())
 
         # Always create process manager even if nCPU==1, so that we can

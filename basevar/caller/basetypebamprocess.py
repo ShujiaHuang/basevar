@@ -210,6 +210,8 @@ class BaseVarSingleProcess(object):
     def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs,
                       read_pos_rank, sample_base_qual, strands, bt, out_file_handle):
 
+        sys.stderr.write('[DEBUG] %s\n' % '\t'.join(map(str, (chrid, position, ref_base, sample_base, mapqs, read_pos_rank, sample_base_qual, strands))))
+
         alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
         samples = []
 
