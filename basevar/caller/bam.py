@@ -115,17 +115,39 @@ def scan_indel(read, target_pos, fa):
 
     If no cigar string is present, empty arrays will be archived.
     """
+    # target_indx = 0
+    # for i, (map_start, map_end) in enumerate(read.alignment.blocks):
+    #     # If the cigar string is : 20M2I13M
+    #     # then alignment.cigar is: [(0, 20), (1, 2), (0, 13)]
+    #     # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
+    #     # But we should find the position of Insertion, which is the next one.
+    #
+    #     # map_end is 1-base and target_pos is 0-base
+    #     if map_end == target_pos + 1:
+    #         target_indx = i + 1  # +1 Get the index of indel in alignment.cigar
+    #         break
+
     target_indx = 0
-    for i, (map_start, map_end) in enumerate(read.alignment.blocks):
+    for i, (cigar_type, cigar_len) in enumerate(read.alignment.cigar):
         # If the cigar string is : 20M2I13M
         # then alignment.cigar is: [(0, 20), (1, 2), (0, 13)]
         # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
         # But we should find the position of Insertion, which is the next one.
 
-        # map_end is 1-base and target_pos is 0-base
-        if map_end == target_pos + 1:
-            target_indx = i + 1  # +1 Get the index of indel in alignment.cigar
-            break
+        if cigar_type in 'SHPN':
+            continue
+
+        # mapping
+        if cigar_type == 0:
+            _, map_end = read.alignment.blocks[target_indx]
+
+            # map_end is 1-base and target_pos is 0-base
+            if map_end == target_pos + 1:
+                target_indx += 1  # +1 Get the index of indel in alignment.cigar
+                break
+            else:
+                # +1 and continue
+                target_indx += 1
 
     cigar_type, cigar_len = read.alignment.cigar[target_indx]
     if cigar_type == 1:  # Insertion
@@ -138,8 +160,10 @@ def scan_indel(read, target_pos, fa):
         indel = '-' + fa[tpos:tpos+cigar_len]
     else:
         # Must just be 1 or 2
-        sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s (at) %s\n" %
-                         (read.alignment.cigarstring, read.alignment))
+        sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s %s %s %s (at) %s\n" %
+                         (read.alignment.cigarstring, read.alignment.cigar,
+                          read.alignment.blocks, read.alignment.cigar[target_indx],
+                          read.alignment))
         sys.exit(1)
 
     return indel if indel else ''
