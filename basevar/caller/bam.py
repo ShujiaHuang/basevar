@@ -134,7 +134,7 @@ def scan_indel(read, target_pos, fa):
         # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
         # But we should find the position of Insertion, which is the next one.
 
-        if cigar_type in 'SHPN':
+        if cigar_type in [3,4,5,6]:  # 'SHPN'
             continue
 
         # mapping
