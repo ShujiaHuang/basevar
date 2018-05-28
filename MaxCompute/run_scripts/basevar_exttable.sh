@@ -9,10 +9,11 @@ real_table=bgi_max_sz.$table_name
 
 ODPS_CMD='odpscmd --config=/apsarapangu/disk2/tianli.tl/huada/base_var/odps_conf/odps_config.ini.sz'
 
-osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIk3YBbHCA8EWk --key=SGqUx92FF5rVebMDOc3OaZKlWmL811 mkdir oss://nifty-140k/basevar_results/${table_name}_${chr_name}
-#osscmd --id=LTAIzpgTEbfsEote --key=QAnDU4tSlMF1ewsvjLh7w04WFCsFE0 mkdir oss://genomedata-sj/nifty_140k/basevar_results/${table_name}_result
+#osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIk3YBbHCA8EWk --key=SGqUx92FF5rVebMDOc3OaZKlWmL811 mkdir oss://nifty-140k/basevar_results/${table_name}_${chr_name}
+osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIzpgTEbfsEote --key=QAnDU4tSlMF1ewsvjLh7w04WFCsFE0 mkdir oss://genomedata-sj/basevar_results/${table_name}_${chr_name}
 
 $ODPS_CMD -e "
+DROP TABLE IF EXISTS ${table_name}_${chr_name}_withpos;
 CREATE TABLE IF NOT EXISTS ${table_name}_${chr_name}_withpos AS
 SELECT 
     CAST(split_part(line, '\t', 2, 2) AS BIGINT) pos, 
@@ -39,7 +40,7 @@ echo $interval
 #exit
 
 $ODPS_CMD -e "
---DROP TABLE IF EXISTS ${table_name}_${chr_name}_foross;
+DROP TABLE IF EXISTS ${table_name}_${chr_name}_foross;
 CREATE TABLE IF NOT EXISTS ${table_name}_${chr_name}_foross AS
 SELECT 
     CAST((pos - $min_pos) / $interval AS BIGINT) partition_id,
@@ -56,7 +57,8 @@ CREATE EXTERNAL TABLE IF NOT EXISTS ${table_name}_${chr_name}_ossout (
     line         STRING
 )
 STORED BY 'com.aliyun.odps.exttable.handler.BasevarHandler'
-LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/nifty-140k/basevar_results/${table_name}_${chr_name}/'
+--LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/nifty-140k/basevar_results/${table_name}_${chr_name}/'
+LOCATION 'oss://LTAIzpgTEbfsEote:QAnDU4tSlMF1ewsvjLh7w04WFCsFE0@oss-cn-shenzhen-internal.aliyuncs.com/genomedata-sj/basevar_results/${table_name}_${chr_name}/'
 USING 'oss-input-1.0.0.jar';
 "
 

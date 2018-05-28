@@ -2,10 +2,10 @@
 
 set -e
 
-DATASET_NAME="nifty_140k_bam"
-FASTA_FILE="hg19.fasta.gz"
+DATASET_NAME="nifty_bwa"
+FASTA_FILE="Homo_sapiens_assembly38.fasta.gz"
 ODPS_CMD="odpscmd --config=/apsarapangu/disk2/tianli.tl/huada/base_var/odps_conf/odps_config.ini.sz"
-chrid="chr1"
+chrid="chr8"
 
 # $ODPS_CMD -e "
 # fs -mkv basevar_ref;
@@ -21,7 +21,7 @@ chrid="chr1"
 # create function basevar_part_bam as basevar_part_bam.BaseVar using basevar_part_bam.py,basetype.py,algorithm.py,scipy.zip;
 # "
 
-# External table
+# # External table
 # $ODPS_CMD -e "
 # DROP TABLE IF EXISTS oss_${DATASET_NAME}_input;
 # CREATE EXTERNAL TABLE IF NOT EXISTS oss_${DATASET_NAME}_input
@@ -40,13 +40,15 @@ chrid="chr1"
 # STORED BY 'com.aliyun.odps.exttable.bam.BamHandler'
 # WITH SERDEPROPERTIES
 # (
-#     'fasta_file' = '$FASTA_FILE'
+#     'fasta_file' = '$FASTA_FILE',
+#     'sample_filter' = 'target_sample.list'
 # )
-# LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/nifty-140k/bamfile/'
-# USING 'oss-input-1.0.0.jar,$FASTA_FILE';
+# LOCATION 'oss://LTAIzpgTEbfsEote:QAnDU4tSlMF1ewsvjLh7w04WFCsFE0@oss-cn-shenzhen-internal.aliyuncs.com/genomedata-sj/nifty_bwa/'
+# --LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/nifty-140k/bamfile/'
+# USING 'oss-input-1.0.0.jar,$FASTA_FILE,target_sample.list';
 # "
 #
-# # Inner table && partition by chrid
+# # # # Inner table && partition by chrid
 # $ODPS_CMD -e "
 # CREATE TABLE IF NOT EXISTS ${DATASET_NAME}_partitioned
 # (
@@ -67,13 +69,14 @@ chrid="chr1"
 # )
 # "
 #
+#
 # $ODPS_CMD -e "
 # set odps.sql.udf.timeout=1200;
 # set odps.sql.mapper.memory=6144;
 # set odps.sql.udf.jvm.memory=10240;
 # set odps.sql.reshuffle.dynamicpt=false;
 # set odps.sql.planner.mode=lot;
-# set odps.sql.unstructured.data.split.size=2048;
+# set odps.sql.unstructured.data.split.size=3072;
 # INSERT OVERWRITE TABLE ${DATASET_NAME}_partitioned PARTITION (chr)
 # SELECT
 #     sample_name,
@@ -93,54 +96,59 @@ chrid="chr1"
 #     base_ref <> 'N'
 # "
 
-# expand
-$ODPS_CMD -e "
-set odps.sql.map.aggr=false;
-set odps.sql.udf.timeout=3600;
-set odps.sql.reducer.instances=3000;
-set odps.sql.executionengine.batch.rowcount=1;
-CREATE TABLE IF NOT EXISTS ${DATASET_NAME}_expand
-(
-    chrid STRING,
-    pos STRING,
-    base_ref STRING,
-    part0 STRING,
-    part1 STRING,
-    part2 STRING
-)
-PARTITIONED BY
-(
-    chr STRING
-);
-
-INSERT OVERWRITE TABLE ${DATASET_NAME}_expand PARTITION (chr='$chrid')
-SELECT
-    chrid,
-    pos,
-    base_ref,
-    expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 0) AS part0,
-    expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 1) AS part1,
-    expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 2) AS part2
-FROM
-    ${DATASET_NAME}_partitioned
-WHERE
-    chr = '$chrid'
-GROUP BY
-    chrid, pos, base_ref;
-"
-
-$ODPS_CMD -e "create table if not exists ${DATASET_NAME}_cvg (line string) PARTITIONED BY (chr STRING);
-set odps.sql.planner.mode=lot;
-insert overwrite table ${DATASET_NAME}_cvg PARTITION (chr='$chrid')
-select
-    basevar_part_bam('coverage', chrid, pos, base_ref, part0, part1, part2) as cvg
-from
-    ${DATASET_NAME}_expand
-where
-    chr = '$chrid'
-"
-./basevar_exttable.sh ${DATASET_NAME}_cvg $chrid
-
+# #expand
+# $ODPS_CMD -e "
+# set odps.sql.map.aggr=false;
+# --set odps.sql.udf.timeout=3600;
+# set odps.sql.reducer.instances=3000;
+# set odps.sql.executionengine.batch.rowcount=16;
+# set odps.sql.planner.mode=lot;
+# --set odps.sql.runtime.mode=ganjiang;
+# set odps.sql.mapper.split.size=1280;
+# set odps.sql.udf.python.memory=4096;
+# set odps.sql.reducer.memory=6144;
+# CREATE TABLE IF NOT EXISTS ${DATASET_NAME}_expand
+# (
+#     chrid STRING,
+#     pos STRING,
+#     base_ref STRING,
+#     part0 STRING,
+#     part1 STRING,
+#     part2 STRING
+# )
+# PARTITIONED BY
+# (
+#     chr STRING
+# );
+#
+# INSERT OVERWRITE TABLE ${DATASET_NAME}_expand PARTITION (chr='$chrid')
+# SELECT
+#     chrid,
+#     pos,
+#     base_ref,
+#     expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 0) AS part0,
+#     expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 1) AS part1,
+#     expand_target_part_bam(sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, 2) AS part2
+# FROM
+#     ${DATASET_NAME}_partitioned
+# WHERE
+#     chr = '$chrid'
+# GROUP BY
+#     chrid, pos, base_ref;
+# "
+# #
+# $ODPS_CMD -e "create table if not exists ${DATASET_NAME}_cvg (line string) PARTITIONED BY (chr STRING);
+# set odps.sql.planner.mode=lot;
+# insert overwrite table ${DATASET_NAME}_cvg PARTITION (chr='$chrid')
+# select
+#     basevar_part_bam('coverage', chrid, pos, base_ref, part0, part1, part2) as cvg
+# from
+#     ${DATASET_NAME}_expand
+# where
+#     chr = '$chrid'
+# "
+# ./basevar_exttable.sh ${DATASET_NAME}_cvg $chrid
+#
 $ODPS_CMD -e "create table if not exists ${DATASET_NAME}_vcf (line string) PARTITIONED BY (chr STRING);
 set odps.sql.planner.mode=lot;
 insert overwrite table ${DATASET_NAME}_vcf PARTITION (chr='$chrid')
