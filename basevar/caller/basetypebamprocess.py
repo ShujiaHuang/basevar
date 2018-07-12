@@ -61,9 +61,12 @@ class BaseVarSingleProcess(object):
             self.ali_files_hd.append(bf)
 
     def _close_aligne_file(self):
+
         self.ref_file_hd.close()
         for bf in self.ali_files_hd:
             bf.close()
+
+        return
 
     def run(self):
         """
@@ -74,7 +77,7 @@ class BaseVarSingleProcess(object):
 
             CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
                                 ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                                                       'REF_REV,ALT_FWD,ALT_REV)\n']))
+                                 'REF_REV,ALT_FWD,ALT_REV)\n']))
 
             # set header
             VCF.write('\n'.join(vcf_header) + '\n')
@@ -104,11 +107,10 @@ class BaseVarSingleProcess(object):
                                              (chrid, start-1, end, self.aligne_files[i]))
                         iter_tokes.append('')
 
-                # get all the reference sequence of chrid
+                # get sequence of chrid from reference fasta
                 fa = self.ref_file_hd.fetch(chrid)
 
-                # Set iteration marker: 1->iterate; 0->do not
-                # iterate or hit the end
+                # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
                 go_iter = [1] * len(iter_tokes)
                 n = 0
                 for start, end in regions:
@@ -124,9 +126,9 @@ class BaseVarSingleProcess(object):
 
                         # sample_base, sample_base_qual, strands, mapqs and
                         # read_pos_rank are listed the same orde with each other.
-                        (sample_base, sample_base_qual, strands, mapqs, read_pos_rank,
+                        (sample_bases, sample_base_quals, strands, mapqs, read_pos_rank,
                          indels) = bam.fetch_base_by_position(
-                            position - 1,  # postion in pysam is 0-base
+                            position - 1,  # postion for pysam is 0-base
                             sample_info,
                             go_iter,
                             iter_tokes,
@@ -134,43 +136,43 @@ class BaseVarSingleProcess(object):
                             is_scan_indel=True
                         )
                         sys.stderr.write('[INFO] Fetch %d samples on position %s'
-                                         ' ... %s\n' % (len(sample_base),
+                                         ' ... %s\n' % (len(sample_bases),
                                                         chrid+":"+str(position),
                                                         time.asctime())
                                          )
 
                         ref_base = fa[position-1]
                         # ignore positions if coverage=0 or ref base is 'N' base
-                        if not sample_base or ref_base in ['N', 'n']:
+                        if not sample_bases or ref_base in ['N', 'n']:
                             continue
 
-                        self._out_cvg_file(chrid, position, ref_base, sample_base,
+                        self._out_cvg_file(chrid, position, ref_base, sample_bases,
                                            strands, indels, CVG)
 
-                        bt = BaseType(ref_base.upper(), sample_base,
-                                      sample_base_qual, cmm=self.cmm)
+                        bt = BaseType(ref_base.upper(), sample_bases,
+                                      sample_base_quals, cmm=self.cmm)
                         bt.lrt()
 
                         if len(bt.alt_bases()) > 0:
                             self._out_vcf_line(chrid,
                                                position,
                                                ref_base,
-                                               sample_base,
+                                               sample_bases,
                                                mapqs,
                                                read_pos_rank,
-                                               sample_base_qual,
+                                               sample_base_quals,
                                                strands,
                                                bt,
                                                VCF)
 
         self._close_aligne_file()
 
-    def _out_cvg_file(self, chrid, position, ref_base, sample_base,
+    def _out_cvg_file(self, chrid, position, ref_base, sample_bases,
                       strands, indels, out_file_handle):
         # coverage info for each position
 
         base_depth = {b: 0 for b in self.cmm.BASE}
-        for k, b in enumerate(sample_base):
+        for k, b in enumerate(sample_bases):
 
             # ignore all bases('*') which not match ``cmm.BASE``
             if b in base_depth:
@@ -185,7 +187,7 @@ class BaseVarSingleProcess(object):
             [k + ':' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
 
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
-        if sample_base:
+        if sample_bases:
             base_sorted = sorted(base_depth.items(),
                                  key=lambda x: x[1],
                                  reverse=True)
@@ -194,7 +196,7 @@ class BaseVarSingleProcess(object):
             fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
                 ref_base.upper(),
                 [b1 if b1 != ref_base.upper() else b2],
-                sample_base,
+                sample_bases,
                 strands
             )
 
@@ -209,8 +211,6 @@ class BaseVarSingleProcess(object):
 
     def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs,
                       read_pos_rank, sample_base_qual, strands, bt, out_file_handle):
-
-        sys.stderr.write('[DEBUG] %s\n' % '\t'.join(map(str, (chrid, position, ref_base, sample_base, mapqs, read_pos_rank, sample_base_qual, strands))))
 
         alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
         samples = []
@@ -252,14 +252,14 @@ class BaseVarSingleProcess(object):
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
             ref_base.upper(), bt.alt_bases(), sample_base, strands)
 
-        # base=>[AF, allele depth]
-        af = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
-                  bt.depth[b]] for b in bt.alt_bases()}
+        # base=>[CAF, allele depth], CAF = Allele frequency by read count
+        caf = {b: ['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
+                   bt.depth[b]] for b in bt.alt_bases()}
 
         info = {'CM_DP': str(int(bt.total_depth)),
-                'CM_AC': ','.join(map(str, [af[b][1] for b in bt.alt_bases()])),
-                'CM_AF': ','.join(map(str, [af[b][0] for b in bt.alt_bases()])),
-                'CM_EAF': ','.join(map(str, [bt.eaf[b] for b in bt.alt_bases()])),
+                'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases()])),
+                'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases()])),
+                'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases()])),
                 'MQRankSum': str(mq_rank_sum),
                 'ReadPosRankSum': str(read_pos_rank_sum),
                 'BaseQRankSum': str(base_q_rank_sum),
@@ -296,8 +296,6 @@ class BaseVarMultiProcess(multiprocessing.Process):
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
-        # samples_id = self._load_sample_id(aligne_files)
-
         self.single_process = BaseVarSingleProcess(ref_in_file,
                                                    aligne_files,
                                                    out_vcf_file,
@@ -305,30 +303,6 @@ class BaseVarMultiProcess(multiprocessing.Process):
                                                    regions,
                                                    samples_id,
                                                    cmm=cmm)
-
-    # def _load_sample_id(self, aligne_files):
-    #     """loading sample id in bam/cram files from RG tag"""
-    #
-    #     sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
-    #     sample_id = []
-    #     for i, al in enumerate(aligne_files):
-    #         bf = pysam.AlignmentFile(al)
-    #
-    #         if i % 1000 == 0:
-    #             sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
-    #                              (i+1, len(aligne_files), time.asctime()))
-    #
-    #         if 'RG' not in bf.header:
-    #             sys.stderr.write('[ERROR] Bam file format error: missing '
-    #                              '@RG in the header.\n')
-    #             bf.close()
-    #             sys.exit(1)
-    #
-    #         sample_id.append(bf.header['RG'][0]['SM'])
-    #         bf.close()
-    #
-    #     sys.stderr.write('[INFO] Finish load all %d sample ids\n\n' % len(sample_id))
-    #     return sample_id
 
     def run(self):
         """ Run the BaseVar process"""

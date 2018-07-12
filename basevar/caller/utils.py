@@ -23,10 +23,10 @@ class CommonParameter(object):
 def vcf_header_define():
     header=['##fileformat=VCFv4.2',
             '##FILTER=<ID=LowQual,Description="Low quality">',
-            ('##INFO=<ID=CM_EAF,Number=.,Type=Float,Description="An ordered, '
-             'comma delimited list of Expectation Maxmization Estimated allele frequency">'),
-            ('##INFO=<ID=CM_AF,Number=.,Type=Float,Description='
-            '"An ordered, comma delimited list of allele frequencies base on read count">'),
+            ('##INFO=<ID=CM_AF,Number=.,Type=Float,Description="An ordered, '
+             'comma delimited list of allele frequencies base on LRT algorithm">'),
+            ('##INFO=<ID=CM_CAF,Number=.,Type=Float,Description='
+            '"An ordered, comma delimited list of allele frequencies just base on read count">'),
             '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
             '##INFO=<ID=CM_AC,Number=.,Type=Float,Description="An ordered, comma delimited allele depth in CMDB">',
             '##INFO=<ID=CM_DP,Number=.,Type=Float,Description="Total Depth in CMDB">',
@@ -36,7 +36,7 @@ def vcf_header_define():
             '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
             '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
             '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
-            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence/Quality by Depth">']
+            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">']
     header.append('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
     header.append('##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">')
     header.append('##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">')
@@ -81,6 +81,18 @@ def get_list_position(in_site_file):
                 sites[tok[0]].append([int(tok[1]), int(tok[2])])
 
     return sites
+
+
+def get_region_fromfile(in_region_file):
+
+    regions = []
+    with open(in_region_file) as f:
+        for r in f:
+            chr_id, reg = r.strip().split(':')
+            start, end = map(int, reg.split('-'))
+            regions.append([chr_id, start, end])
+
+    return regions
 
 
 def merge_region(position_region, delta=1):

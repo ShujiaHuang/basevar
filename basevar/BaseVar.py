@@ -18,15 +18,6 @@ def basetype():
     return
 
 
-def basetype_mpileup():
-    from caller.executor import BaseTypeRunner
-
-    bt = BaseTypeRunner()
-    bt.run()
-
-    return
-
-
 def vqsr():
     from caller.executor import VQSRRuner
     vq = VQSRRuner()
@@ -52,10 +43,13 @@ def merge():
 
     return
 
+
 def coverage():
     from caller.executor import CoverageRunner
     cvg = CoverageRunner()
     cvg.run()
+
+    return
 
 
 if __name__ == '__main__':
