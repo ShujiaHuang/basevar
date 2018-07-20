@@ -49,11 +49,10 @@ class BaseVarSingleProcess(object):
         self.ali_files_hd = []
         for f in self.aligne_files:
 
-            if f.endswith('.bam'):
-                bf = pysam.AlignmentFile(f, 'rb')
-            elif f.endswith('.cram'):
-                bf = pysam.AlignmentFile(f, 'rc')
-            else:
+            try:
+                bf = pysam.AlignmentFile(f)
+
+            except ValueError:
                 sys.stderr.write('[ERROR] Input file: %s is not BAM nor CRAM.\n' % f)
                 self._close_aligne_file()
                 sys.exit(1)
