@@ -63,7 +63,7 @@ class Fusion(object):
 
             start_postion[read.reference_name] = start_postion.get(read.reference_name, 0)
 
-            # locate the reference sequence
+            # get the reference sequence
             fa = self.ref_file_hd.fetch(read.reference_name)
             for fusion in self.get_fusion_region(fa, read, start_postion[read.reference_name]):
                 yield fusion
@@ -98,8 +98,6 @@ class Fusion(object):
         fusion_region = []
         fusion = FusionElement(read.reference_name, read.mapq,
                                '+' if not read.is_reverse else '-')
-        clip_head = 0
-        clip_tail = 0
 
         """
         The cigar string order in the array is "MIDNSHP=X" followed by a
@@ -132,21 +130,29 @@ class Fusion(object):
 
         If no cigar string is present, empty arrays will be archived.
         """
+        clip_head, clip_tail = 0, 0
+
         # CLIP can only happen in read head or read tail.
         if read.cigar[0][0] == 4: # 4:SOFT_CLIP Head
             clip_head = read.cigar[0][1]
 
-        if len(read.cigar) > 2 and read.cigar[-1][0] == 4: # 4:SOFT_CLIE Tail
+        if len(read.cigar) > 1 and read.cigar[-1][0] == 4: # 4:SOFT_CLIE Tail
             clip_tail = read.cigar[-1][1]
 
         is_first = True
         is_indel = False
+
+
+        ref_pos_not_in_insertion = 0
         # loop the aligne-pairs to find the alignment status of read and reference.
         # qpos and ref_pos are all 0-base system
         for qpos, ref_pos in read.aligned_pairs[clip_head:len(read.aligned_pairs)-clip_tail]:
 
+            if ref_pos is not None:
+                ref_pos_not_in_insertion = ref_pos
+
             # Ignore the position which has been scanned
-            if ref_pos < start_postion:
+            if ref_pos_not_in_insertion < start_postion:
                 continue
 
             ref_base = fa[ref_pos].upper() if ref_pos is not None else '.'
@@ -162,7 +168,8 @@ class Fusion(object):
 
                 is_indel = True
 
-                fusion.start = fusion_region[-1].end + 1
+                # 1-base system: fusion.start = fusion_region[-1].end + 1
+                fusion.start = fusion_region[-1].end  # set to be 0-base
                 fusion.end = ref_pos + 1
                 fusion.alt = '.'
                 fusion.base_quality = '!'  # '!' - 33 = 0
@@ -171,14 +178,17 @@ class Fusion(object):
 
                 is_indel = True
 
-                fusion.start = fusion_region[-1].end
+                # stay 0-base coordinate system
+                fusion.start = fusion_region[-1].end - 1
                 fusion.end = fusion_region[-1].end
                 fusion.alt += read_base
-                fusion.base_quality = '!'  # '!' - 33 = 0
+                fusion.base_quality += '!'  # '!' - 33 = 0
 
             else:  ## Matching
 
                 if is_indel:
+
+                    # store Indel information
                     fusion_region.append(fusion)
                     fusion = FusionElement(read.reference_name, read.mapq,
                                            '+' if not read.is_reverse else '-')
@@ -189,8 +199,8 @@ class Fusion(object):
                 is_indel = False
 
                 # data setting
-                fusion.start = ref_pos + 1  # 0-base => 1-base system
-                fusion.end = ref_pos + 1  # 0-base => 1-base system
+                fusion.start = ref_pos  # stay 0-base coordinate system
+                fusion.end = ref_pos + 1  # End position 0-base => 1-base system
 
                 # just record the first rank position in read, we can easily
                 # get other rank when the position is continuous
@@ -223,6 +233,7 @@ class Fusion(object):
 
             else:
                 is_first = False
+
                 fusion_region.append(fusion)
                 fusion = FusionElement(read.reference_name, read.mapq,
                                        '+' if not read.is_reverse else '-')
