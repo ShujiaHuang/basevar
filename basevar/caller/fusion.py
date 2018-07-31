@@ -171,7 +171,7 @@ class Fusion(object):
                 fusion.start = fusion_region[-1].end  # set to be 0-base
                 fusion.end = ref_pos + 1
                 fusion.alt = '.'
-                fusion.base_quality = '!'  # '!' - 33 = 0
+                fusion.base_quality = base_qual
 
             elif ref_pos is None:  # insertion
 
@@ -181,7 +181,7 @@ class Fusion(object):
                 fusion.start = fusion_region[-1].end - 1
                 fusion.end = fusion_region[-1].end
                 fusion.alt += read_base
-                fusion.base_quality += '!'  # '!' - 33 = 0
+                fusion.base_quality += base_qual
 
             else:  ## Matching
 
