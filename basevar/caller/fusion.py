@@ -142,7 +142,6 @@ class Fusion(object):
         is_first = True
         is_indel = False
 
-
         ref_pos_not_in_insertion = 0
         # loop the aligne-pairs to find the alignment status of read and reference.
         # qpos and ref_pos are all 0-base system
