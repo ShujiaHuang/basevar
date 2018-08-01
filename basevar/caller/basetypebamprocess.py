@@ -113,16 +113,16 @@ class BaseVarSingleProcess(object):
                 for start, end in regions:
 
                     sys.stderr.write('[INFO] Fetching info from %d samples in region %s'
-                                     ' ... %s\n' % (len(iter_tokes),
-                                                    chrid + ":" + str(start) + "-" + str(end),
-                                                    time.asctime())
+                                     ' at %s\n' % (len(iter_tokes),
+                                                   chrid + ":" + str(start) + "-" + str(end),
+                                                   time.asctime())
                                      )
 
                     for position in xrange(start, end + 1):
 
                         if n % 100000 == 0:
                             sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
-                                             (n, chrid, position, time.asctime()))
+                                             (n+1, chrid, position, time.asctime()))
                         n += 1
 
                         (sample_bases, sample_base_quals, strands, mapqs, read_pos_rank,
@@ -133,12 +133,6 @@ class BaseVarSingleProcess(object):
                             fa,  # Fa sequence for indel sequence
                             is_scan_indel=True
                         )
-
-                        sys.stderr.write('[INFO] Fetch %d samples on position %s'
-                                         ' ... %s\n' % (len(sample_bases),
-                                                        chrid+":"+str(position),
-                                                        time.asctime())
-                                         )
 
                         ref_base = fa[position-1]
                         # ignore positions if coverage=0 or ref base is 'N' base
