@@ -1,5 +1,5 @@
 """
-Package for parse
+Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
@@ -8,11 +8,10 @@ import sys
 from . import utils
 
 
-def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
+def fetch_base_by_position(position, sample_info, iter_tokes, fa,
                            is_scan_indel=False):
     """
     """
-
     base_quals = []
     bases = []
     strands = []
@@ -22,7 +21,7 @@ def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
 
     for i, sample_pos_line in enumerate(sample_info):
 
-        bs, qs, strand, mapq, rpr, indel, sample_info[i], go_iter[i] = (
+        bs, qs, strand, mapq, rpr, indel, sample_info[i] = (
             seek_position(position, sample_pos_line, iter_tokes[i], fa,
                           is_scan_indel=is_scan_indel)
         )
@@ -46,7 +45,6 @@ def seek_position(target_pos, sample_pos_line, sample_iter, fa,
     `fa`: Just for scan indel
     """
     base, strand, indel, rpr, qual, mapq = 'N', '.', '', 0, 0, 0  # Init
-    go_iter_mark = 0  # 1->iterate; 0->donot iterate or hit the end
     if sample_pos_line:
 
         if sample_pos_line.pos < target_pos:
@@ -64,7 +62,6 @@ def seek_position(target_pos, sample_pos_line, sample_iter, fa,
         # In case sample_pos_line may hit the end of file
         if sample_pos_line and sample_pos_line.pos == target_pos:
 
-            go_iter_mark = 1  # keep iterate
             base, strand, qual, mapq, rpr, indel = first_base(
                 sample_pos_line,
                 is_scan_indel={'yes': is_scan_indel,
@@ -72,11 +69,7 @@ def seek_position(target_pos, sample_pos_line, sample_iter, fa,
                                'fa': fa}
             )
 
-        else:
-            # sample_pos_line.pos > target_pos
-            go_iter_mark = 0
-
-    return base, qual, strand, mapq, rpr, indel, sample_pos_line, go_iter_mark
+    return base, qual, strand, mapq, rpr, indel, sample_pos_line
 
 
 def scan_indel(read, target_pos, fa):
@@ -115,18 +108,6 @@ def scan_indel(read, target_pos, fa):
 
     If no cigar string is present, empty arrays will be archived.
     """
-    # target_indx = 0
-    # for i, (map_start, map_end) in enumerate(read.alignment.blocks):
-    #     # If the cigar string is : 20M2I13M
-    #     # then alignment.cigar is: [(0, 20), (1, 2), (0, 13)]
-    #     # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
-    #     # But we should find the position of Insertion, which is the next one.
-    #
-    #     # map_end is 1-base and target_pos is 0-base
-    #     if map_end == target_pos + 1:
-    #         target_indx = i + 1  # +1 Get the index of indel in alignment.cigar
-    #         break
-
     target_indx = 0
     for i, (cigar_type, cigar_len) in enumerate(read.alignment.cigar):
         # If the cigar string is : 20M2I13M
@@ -185,8 +166,8 @@ def first_base(sample_pos_line, is_scan_indel=None):
 
         if not read.is_del and not read.is_refskip:
             # skip the base which base_quality < 20
-            if read.alignment.query_qualities[read.query_position] < 20:
-                continue
+            # if read.alignment.query_qualities[read.query_position] < 20:
+            #     continue
 
             base = read.alignment.query_sequence[read.query_position]
             qual = read.alignment.query_qualities[read.query_position]

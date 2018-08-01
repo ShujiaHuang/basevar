@@ -94,8 +94,6 @@ class BaseVarSingleProcess(object):
 
                 start, end = tmp_region[0], tmp_region[-1]
                 iter_tokes = []
-                sample_info = []
-
                 for i, bf in enumerate(self.ali_files_hd):
                     try:
                         # 0-base
@@ -110,9 +108,16 @@ class BaseVarSingleProcess(object):
                 fa = self.ref_file_hd.fetch(chrid)
 
                 # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
-                go_iter = [1] * len(iter_tokes)
                 n = 0
+                sample_info = [utils.fetch_next(it) for it in iter_tokes]
                 for start, end in regions:
+
+                    sys.stderr.write('[INFO] Fetching info from %d samples in region %s'
+                                     ' ... %s\n' % (len(iter_tokes),
+                                                    chrid + ":" + str(start) + "-" + str(end),
+                                                    time.asctime())
+                                     )
+
                     for position in xrange(start, end + 1):
 
                         if n % 100000 == 0:
@@ -120,20 +125,15 @@ class BaseVarSingleProcess(object):
                                              (n, chrid, position, time.asctime()))
                         n += 1
 
-                        sample_info = [utils.fetch_next(iter_tokes[i]) if g else sample_info[i]
-                                       for i, g in enumerate(go_iter)]
-
-                        # sample_base, sample_base_qual, strands, mapqs and
-                        # read_pos_rank are listed the same orde with each other.
                         (sample_bases, sample_base_quals, strands, mapqs, read_pos_rank,
                          indels) = bam.fetch_base_by_position(
                             position - 1,  # postion for pysam is 0-base
                             sample_info,
-                            go_iter,
                             iter_tokes,
                             fa,  # Fa sequence for indel sequence
                             is_scan_indel=True
                         )
+
                         sys.stderr.write('[INFO] Fetch %d samples on position %s'
                                          ' ... %s\n' % (len(sample_bases),
                                                         chrid+":"+str(position),
@@ -142,7 +142,7 @@ class BaseVarSingleProcess(object):
 
                         ref_base = fa[position-1]
                         # ignore positions if coverage=0 or ref base is 'N' base
-                        if not sample_bases or ref_base in ['N', 'n']:
+                        if (not sample_bases) or (ref_base in ['N', 'n']):
                             continue
 
                         self._out_cvg_file(chrid, position, ref_base, sample_bases,
