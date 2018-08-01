@@ -61,19 +61,6 @@ class BaseType(object):
 
         return
 
-    def ref_base(self):
-        return self._ref_base
-
-    def alt_bases(self):
-        return self._alt_bases
-
-    def var_qual(self):
-        return self._var_qual
-
-    def debug(self):
-        print(self.ref_base(), self.alt_bases(),
-              self.var_qual(), self.depth, self.af_by_lrt)
-
     def _set_allele_frequence(self, bases):
         """
         init the base likelihood by bases
@@ -186,5 +173,19 @@ class BaseType(object):
                     if chi_prob else 10000.0
 
         return
+
+    def ref_base(self):
+        return self._ref_base
+
+    def alt_bases(self):
+        return self._alt_bases
+
+    def var_qual(self):
+        return self._var_qual
+
+    def debug(self):
+        print(self.ref_base(), self.alt_bases(),
+              self.var_qual(), self.depth, self.af_by_lrt)
+
 
 
