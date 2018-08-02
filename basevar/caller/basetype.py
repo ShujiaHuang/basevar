@@ -163,7 +163,8 @@ class BaseType(object):
         # Todo: improve the calculation method for var_qual
         if len(self._alt_bases):
 
-            if len(bases) == 1 and self.depth[bases[0]] / self.total_depth > 0.5:
+            r = self.depth[bases[0]] / self.total_depth
+            if len(bases) == 1 and self.total_depth > 10 and r > 0.5:
                 # mono-allelelic
                 self._var_qual = 5000.0
 
