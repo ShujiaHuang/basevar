@@ -22,7 +22,7 @@ class CommonParameter(object):
 
 def vcf_header_define():
     header=['##fileformat=VCFv4.2',
-            '##FILTER=<ID=LowQual,Description="Low quality">',
+            '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
             ('##INFO=<ID=CM_AF,Number=.,Type=Float,Description="An ordered, '
              'comma delimited list of allele frequencies base on LRT algorithm">'),
             ('##INFO=<ID=CM_CAF,Number=.,Type=Float,Description='
