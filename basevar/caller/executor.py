@@ -9,6 +9,7 @@ the lord to rule them all, in a word, it's "The Ring".
 from __future__ import division
 
 import sys
+import os
 import argparse
 import time
 
@@ -38,8 +39,10 @@ class BaseTypeBamRunner(object):
 
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos). [None]', default='')
-        optp.add_argument('--regions', metavar='chr:start-end', dest='regions',
-                          help='skip positions not in (chr:start-end)', default='')
+        optp.add_argument('--region', metavar='chr:start-end', dest='region',
+                          help='Skip position which not in these regions. Comma delimited '
+                               'list of regions (chr:start-end). Could be a file contain the '
+                               'regions.', default='')
 
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
@@ -64,7 +67,7 @@ class BaseTypeBamRunner(object):
             optp.error('[ERROR] Missing reference fasta file.\n')
 
         # Loading positions if not provid we'll load all the genome
-        self.regions = self._loading_position(opt.positions, opt.regions)
+        self.regions = self._loading_position(opt.positions, opt.region)
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(opt.infilelist)
@@ -83,14 +86,23 @@ class BaseTypeBamRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = self._load_sample_id_from_bam()
 
-    def _loading_position(self, posfile, regionfile):
+    def _loading_position(self, posfile, region_info):
 
         # Loading positions
         _sites = utils.get_list_position(posfile) if posfile else {}
-        if len(regionfile):
+        if len(region_info):
 
-            region = utils.get_region_fromfile(regionfile)
-            for chrid, start, end in region:
+            regions = []
+            if os.path.isfile(region_info):
+                regions = utils.get_region_fromfile(region_info)
+
+            else:
+                for r in region_info.split(','):
+                    chr_id, reg = r.strip().split(':')
+                    start, end = map(int, reg.split('-'))
+                    regions.append([chr_id, start, end])
+
+            for chrid, start, end in regions:
 
                 if chrid not in _sites:
                     _sites[chrid] = []
@@ -236,8 +248,10 @@ class BaseTypeFusionRunner(object):
 
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos). [None]', default='')
-        optp.add_argument('--regions', metavar='chr:start-end', dest='regions',
-                          help='skip positions not in (chr:start-end)', default='')
+        optp.add_argument('--region', metavar='chr:start-end', dest='region',
+                          help='Skip position which not in these regions. Comma delimited '
+                               'list of regions (chr:start-end). Could be a file contain the '
+                               'regions.', default='')
 
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
@@ -262,7 +276,7 @@ class BaseTypeFusionRunner(object):
             optp.error('[ERROR] Missing reference fasta file.\n')
 
         # Loading positions if not provid we'll load all the genome
-        self.regions = self._loading_position(opt.positions, opt.regions)
+        self.regions = self._loading_position(opt.positions, opt.region)
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(opt.infilelist)
@@ -277,14 +291,23 @@ class BaseTypeFusionRunner(object):
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
 
-    def _loading_position(self, posfile, regionfile):
+    def _loading_position(self, posfile, region_info):
 
         # Loading positions
         _sites = utils.get_list_position(posfile) if posfile else {}
-        if len(regionfile):
+        if len(region_info):
 
-            region = utils.get_region_fromfile(regionfile)
-            for chrid, start, end in region:
+            regions = []
+            if os.path.isfile(region_info):
+                regions = utils.get_region_fromfile(region_info)
+
+            else:
+               for r in region_info.split(','):
+                   chr_id, reg = r.strip().split(':')
+                   start, end = map(int, reg.split('-'))
+                   regions.append([chr_id, start, end])
+
+            for chrid, start, end in regions:
 
                 if chrid not in _sites:
                     _sites[chrid] = []
