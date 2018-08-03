@@ -9,7 +9,6 @@ the lord to rule them all, in a word, it's "The Ring".
 from __future__ import division
 
 import sys
-import os
 import argparse
 import time
 
@@ -47,10 +46,10 @@ class BaseTypeBamRunner(object):
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
-                          help='By setting min AF to skip uneffective '
-                               'caller positions to accelerate program '
-                               'speed. Ususally you can set it to be min(0.001, 100/x),'
-                               'x is the size of your population. [min(0.001, 100/x)]')
+                          help='By setting min AF to skip uneffective caller positions '
+                               'to accelerate program speed. Usually you can set it to '
+                               'be min(0.001, 100/x), x is the size of your population.'
+                               '[min(0.001, 100/x)]')
 
         # special parameter to limit the function of BaseType
         optp.add_argument('--justdepth', dest='justdepth', type=bool,
@@ -67,7 +66,8 @@ class BaseTypeBamRunner(object):
             optp.error('[ERROR] Missing reference fasta file.\n')
 
         # Loading positions if not provid we'll load all the genome
-        self.regions = self._loading_position(opt.positions, opt.region)
+        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
+                                                  opt.region)
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(opt.infilelist)
@@ -85,48 +85,6 @@ class BaseTypeBamRunner(object):
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = self._load_sample_id_from_bam()
-
-    def _loading_position(self, posfile, region_info):
-
-        # Loading positions
-        _sites = utils.get_list_position(posfile) if posfile else {}
-        if len(region_info):
-
-            regions = []
-            if os.path.isfile(region_info):
-                regions = utils.get_region_fromfile(region_info)
-
-            else:
-                for r in region_info.split(','):
-                    chr_id, reg = r.strip().split(':')
-                    start, end = map(int, reg.split('-'))
-                    regions.append([chr_id, start, end])
-
-            for chrid, start, end in regions:
-
-                if chrid not in _sites:
-                    _sites[chrid] = []
-
-                _sites[chrid].append([start, end])
-
-        # sort and merge the regions
-        # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
-        regions = []
-        for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
-            for start, end in utils.merge_region(v):
-                regions.append([chrid, start, end])
-
-        # load all the genome if no position or regions provide
-        if not regions:
-
-            sys.stderr.write('[WARNINGS] Program will load all the genome cause '
-                             'there is not any positions and regions provided.\n')
-            fa = FastaFile(self.opt.referencefile)
-            regions = [[ci, 1, fa.get_reference_length(ci)]
-                       for ci in fa.references]
-            fa.close()
-
-        return regions
 
     def _load_sample_id_from_bam(self):
         """loading sample id in BAM/CRMA files from RG tag"""
@@ -239,12 +197,12 @@ class BaseTypeFusionRunner(object):
         """
         optp = argparse.ArgumentParser()
         optp.add_argument('basetypefusion')
-        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
-                          default='out', help='The prefix of output files. [out]')
         optp.add_argument('-I', '--fusion-file-list', dest='infilelist', metavar='FILE',
                           help='Fusion file list, one line per file.', default='')
         optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
                           help='Input reference fasta file.', default='')
+        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
+                          default='out', help='The prefix of output files. [out]')
 
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
                           help='skip unlisted positions (chr pos). [None]', default='')
@@ -256,10 +214,14 @@ class BaseTypeFusionRunner(object):
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
-                          help='By setting min AF to skip uneffective '
-                               'caller positions to accelerate program '
-                                'speed. Ususally you can set it to be min(0.001, 100/x),'
-                                'x is the size of your population. [min(0.001, 100/x)]')
+                          help='By setting min AF to skip uneffective caller positions '
+                               'to accelerate program speed. Usually you can set it to '
+                               'be min(0.001, 100/x), x is the size of your population.'
+                               '[min(0.001, 100/x)]')
+
+        # special parameter for calculating specific population allele frequence
+        optp.add_argument('--pop-group', dest='pop_group_file', metavar='FILE', type=str,
+                          help='Calculating the allele frequency for specific population.')
 
         # special parameter to limit the function of BaseType
         optp.add_argument('--justdepth', dest='justdepth', type=bool,
@@ -276,9 +238,10 @@ class BaseTypeFusionRunner(object):
             optp.error('[ERROR] Missing reference fasta file.\n')
 
         # Loading positions if not provid we'll load all the genome
-        self.regions = self._loading_position(opt.positions, opt.region)
+        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
+                                                  opt.region)
 
-        # Get all the input alignement files
+        # Get all the input align fusion files
         self.alignefiles = utils.load_file_list(opt.infilelist)
 
         self.cmm = cmm
@@ -290,48 +253,6 @@ class BaseTypeFusionRunner(object):
 
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
-
-    def _loading_position(self, posfile, region_info):
-
-        # Loading positions
-        _sites = utils.get_list_position(posfile) if posfile else {}
-        if len(region_info):
-
-            regions = []
-            if os.path.isfile(region_info):
-                regions = utils.get_region_fromfile(region_info)
-
-            else:
-               for r in region_info.split(','):
-                   chr_id, reg = r.strip().split(':')
-                   start, end = map(int, reg.split('-'))
-                   regions.append([chr_id, start, end])
-
-            for chrid, start, end in regions:
-
-                if chrid not in _sites:
-                    _sites[chrid] = []
-
-                _sites[chrid].append([start, end])
-
-        # sort and merge the regions
-        # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
-        regions = []
-        for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
-            for start, end in utils.merge_region(v):
-                regions.append([chrid, start, end])
-
-        # load all the genome if no position or regions provide
-        if not regions:
-
-            sys.stderr.write('[WARNINGS] Program will load all the genome cause '
-                             'there is not any positions and regions provided.\n')
-            fa = FastaFile(self.opt.referencefile)
-            regions = [[ci, 1, fa.get_reference_length(ci)]
-                       for ci in fa.references]
-            fa.close()
-
-        return regions
 
     def run(self):
         """
@@ -377,6 +298,7 @@ class BaseTypeFusionRunner(object):
 
             processes.append(BaseVarFusionMultiProcess(self.opt.referencefile,
                                                        self.alignefiles,
+                                                       self.opt.pop_group_file,
                                                        sub_vcf_file,
                                                        sub_cvg_file,
                                                        regions_for_each_process[i],

@@ -22,7 +22,6 @@ class Fusion(object):
     """
     Create fusion file for each alignement file
     """
-
     def __init__(self, in_ref_file, in_align_file):
         """
         Init setting.
@@ -39,11 +38,6 @@ class Fusion(object):
         """
         self.ref_file_hd = pysam.FastaFile(in_ref_file)
         self.align_file_hd = None
-        # if in_align_file.endswith('.bam'):
-        #     self.align_file_hd = pysam.AlignmentFile(in_align_file, 'rb')
-        #
-        # elif in_align_file.endswith('.cram'):
-        #     self.align_file_hd = pysam.AlignmentFile(in_align_file, 'rc')
 
         if in_align_file.endswith('.bam') or in_align_file.endswith('.cram'):
             self.align_file_hd = pysam.AlignmentFile(in_align_file)
@@ -246,7 +240,19 @@ class Fusion(object):
 
 if __name__ == '__main__':
 
-    # Just for testing the Fusion module
+    from pysam import AlignmentFile
+    # Just for testing the Fusion module: (fastafile, bamfile)
+
+    # Get alignment sample ID
+    bf = AlignmentFile(sys.argv[2])
+    sample_id = bf.header['RG'][0]['SM']
+    bf.close()
+
+    print ('##fileformat=Fusion_v1.0 and the coordinate is 0-base system')
+    print ('##RG\tSM:%s' % sample_id)
+    print ('\t'.join(['#CHROM', 'START', 'END', 'TYPE', 'MAPQ',
+                      'SO', 'Read_POS', 'BASE_QUAL']))
+
     callfusion = Fusion(sys.argv[1], sys.argv[2])
     for fusion in callfusion.generate_fusion():
         print '\t'.join(map(str, [fusion.chrid,

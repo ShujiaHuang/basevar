@@ -106,9 +106,9 @@ class BaseType(object):
         ... [('A', 'C', 'G'), ('A', 'C', 'T'), ('A', 'G', 'T'), ('C', 'G', 'T')]
 
         """
+
         bc, lr, bp = [], [], []
         for b in [i for i in itertools.combinations(bases, n)]:
-
             init_allele_frequecies = self._set_allele_frequence(b)
             if sum(init_allele_frequecies) == 0: continue  ## The coverage is empty
 
@@ -123,22 +123,31 @@ class BaseType(object):
 
         return bc, lr, bp
 
-    def lrt(self):
-        """The main function.
-        likelihood ratio test.
+    def lrt(self, specific_base_comb=None):
+        """The main function. likelihood ratio test.
+
+        Parameter:
+            ``specific_base_comb``: list like
+                just calculate the LRT from these specific base combination
         """
         if self.total_depth == 0: return
 
-        # get effective bases which count frequence > self.cmm.MINAF
-        bases = [b for b in self.cmm.BASE if self.depth[b]/self.total_depth > self.cmm.MINAF]
+        if specific_base_comb:
+            # get effective bases which count frequence >= self.cmm.MINAF
+            bases = [b for b in specific_base_comb
+                     if self.depth[b]/self.total_depth >= self.cmm.MINAF]
+        else:
+            # get effective bases which count frequence >= self.cmm.MINAF
+            bases = [b for b in self.cmm.BASE
+                     if self.depth[b]/self.total_depth >= self.cmm.MINAF]
 
-        # init
-        _, lr_null, bp = self._f(bases, len(bases))
-
-        base_frq = bp[0]
-        lr_alt = lr_null[0]
+        # init. Base combination will just be the ``bases`` if specific_base_comb
+        # is not provide or
+        bc, lr_null, bp = self._f(bases, len(bases))
 
         chi_sqrt_value = 0
+        base_frq = bp[0]
+        lr_alt = lr_null[0]
         for n in range(1, len(bases))[::-1]:
 
             bc, lr_null, bp = self._f(bases, n)

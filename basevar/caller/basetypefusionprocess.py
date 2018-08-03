@@ -14,10 +14,10 @@ from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 
 class BaseTypeFusionSingleProcess(object):
     """
-    simple class to repesent a single BaseVar process.
+    simple class to repesent a single process.
     """
-    def __init__(self, in_ref_file, in_fusion_files, out_vcf_file, out_cvg_file,
-                 regions, cmm=None):
+    def __init__(self, in_ref_file, in_fusion_files, in_popgroup_file,
+                 out_vcf_file, out_cvg_file, regions, cmm=None):
         """
         Store input file, options and output file name.
 
@@ -62,6 +62,27 @@ class BaseTypeFusionSingleProcess(object):
                 self._close_file()
                 sys.exit(1)
 
+        # loading population group
+        # group_id => [a list samples_index]
+        self.popgroup = {}
+        if in_popgroup_file and len(in_popgroup_file):
+
+            tmpdict = {}
+            with open(in_popgroup_file) as f:
+                # Just two columns: sample_id and group_id
+                for line in f:
+                    sample_id, group_id = line.strip().split()[0:2]
+                    tmpdict[sample_id] = group_id + '_AF'
+
+            for i, s in enumerate(self.samples):
+
+                if s in tmpdict:
+                    if tmpdict[s] not in self.popgroup:
+                        self.popgroup[tmpdict[s]] = []
+
+                    # record different index of different groups
+                    self.popgroup[tmpdict[s]].append(i)
+
     def _close_file(self):
 
         # close the reference file
@@ -78,6 +99,13 @@ class BaseTypeFusionSingleProcess(object):
         Run the process of calling variant and output
         """
         vcf_header = utils.vcf_header_define()
+        if self.popgroup:
+            for g in self.popgroup.keys():
+                g_id = g.split('_')[0]  # ignore '_AF'
+                vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele '
+                                  'frequency in the %s populations calculated base on LRT, in '
+                                  'the range (0,1)">' % (g_id, g_id))
+
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
             CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
@@ -155,6 +183,19 @@ class BaseTypeFusionSingleProcess(object):
                         bt.lrt()
 
                         if len(bt.alt_bases()) > 0:
+
+                            popgroup_bt = {}
+                            for group, index in self.popgroup.items():
+                                group_sample_bases = [sample_bases[i] for i in index]
+                                group_sample_base_quals = [sample_base_quals[i] for i in index]
+
+                                group_bt = BaseType(ref_base.upper(), group_sample_bases,
+                                                    group_sample_base_quals, cmm=self.cmm)
+                                basecombination = [ref_base.upper()] + bt.alt_bases()
+                                group_bt.lrt(basecombination)
+
+                                popgroup_bt[group] = group_bt
+
                             self._out_vcf_line(chrid,
                                                position,
                                                ref_base,
@@ -164,6 +205,7 @@ class BaseTypeFusionSingleProcess(object):
                                                sample_base_quals,
                                                strands,
                                                bt,
+                                               popgroup_bt,
                                                VCF)
 
         self._close_file()
@@ -296,8 +338,8 @@ class BaseTypeFusionSingleProcess(object):
 
         return
 
-    def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs,
-                      read_pos_rank, sample_base_qual, strands, bt, out_file_handle):
+    def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs, read_pos_rank,
+                      sample_base_qual, strands, bt, pop_group_bt, out_file_handle):
 
         alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
         samples = []
@@ -356,6 +398,13 @@ class BaseTypeFusionSingleProcess(object):
                 'SB_REF': str(ref_fwd)+','+str(ref_rev),
                 'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
 
+        if pop_group_bt:
+
+            for group, g_bt in pop_group_bt.items():
+                af = ','.join(map(str, [g_bt.af_by_lrt[b] if b in g_bt.af_by_lrt else 0
+                                        for b in bt.alt_bases()]))
+                info[group] = af
+
         out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
                               ','.join(bt.alt_bases()), str(bt.var_qual()),
                               '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
@@ -371,8 +420,8 @@ class BaseVarFusionMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __init__(self, ref_in_file, aligne_files, out_vcf_file, out_cvg_file,
-                 regions, cmm=None):
+    def __init__(self, ref_in_file, aligne_files, pop_group_file,
+                 out_vcf_file, out_cvg_file, regions, cmm=None):
         """
         Constructor.
 
@@ -385,6 +434,7 @@ class BaseVarFusionMultiProcess(multiprocessing.Process):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.single_process = BaseTypeFusionSingleProcess(ref_in_file,
                                                           aligne_files,
+                                                          pop_group_file,
                                                           out_vcf_file,
                                                           out_cvg_file,
                                                           regions,
