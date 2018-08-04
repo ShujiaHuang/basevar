@@ -1,4 +1,10 @@
 
+## 从OSS下载参考序列
+```bash
+oss://genomedata/human_reference/hg19_NC_012920/hg19.NC_012920.fasta
+oss://genomedata/human_reference/hg19_NC_012920/hg19.NC_012920.fasta.fai
+```
+
 ## 从BAM生成Fusion，并使用bgzip压缩，tabix建索引
 
 ```bash
