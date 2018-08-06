@@ -9,20 +9,26 @@ import sys
 import time
 
 
+def fusion():
+    from caller.executor import FusionRunner
+    cf = FusionRunner()
+    cf.run()
+
+    return
+
+
 def basetype():
     from caller.executor import BaseTypeBamRunner
-
     bt = BaseTypeBamRunner()
     bt.run()
 
     return
 
 
-def basetype_mpileup():
-    from caller.executor import BaseTypeRunner
-
-    bt = BaseTypeRunner()
-    bt.run()
+def fusionbasetype():
+    from caller.executor import BaseTypeFusionRunner
+    ft = BaseTypeFusionRunner()
+    ft.run()
 
     return
 
@@ -52,15 +58,20 @@ def merge():
 
     return
 
+
 def coverage():
     from caller.executor import CoverageRunner
     cvg = CoverageRunner()
     cvg.run()
 
+    return
+
 
 if __name__ == '__main__':
 
-    runner = {'basetype': basetype,
+    runner = {'fusion': fusion,
+              'basetype': basetype,
+              'fusionbasetype': fusionbasetype,
               'merge': merge,
               'coverage': coverage,
               'nbi': nearby_indel,

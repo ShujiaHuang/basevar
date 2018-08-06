@@ -12,11 +12,12 @@ import sys
 import argparse
 import time
 
-from pysam import FastaFile
+from pysam import FastaFile, AlignmentFile
 
 from . import utils
-from .basetypeprocess import BaseVarMultiProcess
+from .fusion import Fusion
 from .basetypebamprocess import BaseVarMultiProcess as BamBaseVarMultiProcess
+from .basetypefusionprocess import BaseVarFusionMultiProcess
 from .coverageprocess import BaseVarMultiProcess as CvgBaseVarMultiProcess
 from .vqsr import vqsr
 
@@ -27,96 +28,101 @@ class BaseTypeBamRunner(object):
         """init function
         """
         optp = argparse.ArgumentParser()
-        optp.add_argument('basetypebam')
-        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE',
+        optp.add_argument('basetype')
+        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
                           default='out', help='The prefix of output files. [out]')
-        optp.add_argument('-l', '--aligne-file-list', dest='infilelist', metavar='FILE',
-                          help='Input alignmernt file list.', default='')
-        optp.add_argument('-r', '--reference', dest='referencefile', metavar='FILE',
+        optp.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='FILE',
+                          help='BAM/CRAM file list, one line per file.', default='')
+        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
                           help='Input reference fasta file.', default='')
 
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
-                          help='skip unlisted positions (chr pos)', default='')
-        optp.add_argument('-R', '--regions', metavar='chr:start-end', dest='regions',
-                          help='skip positions not in (chr:start-end)', default='')
+                          help='skip unlisted positions (chr pos). [None]', default='')
+        optp.add_argument('--region', metavar='chr:start-end', dest='region',
+                          help='Skip position which not in these regions. Comma delimited '
+                               'list of regions (chr:start-end). Could be a file contain the '
+                               'regions.', default='')
 
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
-                          default=0.001, help='By setting min AF to skip uneffective '
-                                              'caller positions to accelerate program '
-                                              'speed. [0.001]')
+                          help='By setting min AF to skip uneffective caller positions '
+                               'to accelerate program speed. Usually you can set it to '
+                               'be min(0.001, 100/x), x is the size of your population.'
+                               '[min(0.001, 100/x)]')
 
-        ## special parameter to limit the function of BaseType
+        # special parameter to limit the function of BaseType
         optp.add_argument('--justdepth', dest='justdepth', type=bool,
-                          help='Just calculate the depth distribution [False]',
+                          help='Just output the depth information for each position [False]',
                           default=False)
 
         opt = optp.parse_args()
         self.opt = opt
-        self.cmm = cmm
-
-        # reset threshold of init min allele frequence by read depth
-        self.cmm.MINAF = self.opt.min_af
 
         if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] At least input one mpileup file.\n')
+            optp.error('[ERROR] Missing bamfile.\n')
 
         if len(opt.referencefile) == 0:
             optp.error('[ERROR] Missing reference fasta file.\n')
 
         # Loading positions if not provid we'll load all the genome
-        self.regions = self._loading_position(opt.positions, opt.regions)
+        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
+                                                  opt.region)
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(opt.infilelist)
+
+        self.cmm = cmm
+        if self.opt.min_af is None:
+            self.opt.min_af = min(100.0 / len(self.alignefiles), 0.001)
+
+        # reset threshold of min allele frequence threshold by sample size
+        self.cmm.MINAF = self.opt.min_af
+
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
 
-    def _loading_position(self, position, region):
+        # loading all the sample id from aligne_files
+        # ``samples_id`` has the same size and order as ``aligne_files``
+        self.sample_id = self._load_sample_id_from_bam()
 
-        # Loading positions
-        _sites = utils.get_list_position(position) if position else {}
+    def _load_sample_id_from_bam(self):
+        """loading sample id in BAM/CRMA files from RG tag"""
 
-        if len(region):
-            chrid, reg = region.strip().split(':')
-            reg = map(int, reg.split('-'))
-            if chrid not in _sites:
-                _sites[chrid] = []
+        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+        sample_id = []
+        for i, al in enumerate(self.alignefiles):
+            bf = AlignmentFile(al)
 
-            _sites[chrid].append([reg[0], reg[1]])
+            if i % 1000 == 0:
+                sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
+                                 (i+1, len(self.alignefiles), time.asctime()))
 
-        # merge and sorted the regions
-        # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
-        regions = []
-        for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
-            for start, end in utils.merge_region(v):
-                regions.append([chrid, start, end])
+            if 'RG' not in bf.header:
+                sys.stderr.write('[ERROR] Bam file format error: missing '
+                                 '@RG in the header.\n')
+                bf.close()
+                sys.exit(1)
 
-        # load all the genome if no position or regions provide
-        if not regions:
+            sample_id.append(bf.header['RG'][0]['SM'])
+            bf.close()
 
-            sys.stderr.write('[WARNINGS] Program will load all the genome cause '
-                             'there is not any positions and regions provided.\n')
-            fa = FastaFile(self.opt.referencefile)
-            regions = [[ci, 1, fa.get_reference_length(ci)]
-                       for ci in fa.references]
-            fa.close()
-
-        return regions
+        sys.stderr.write('[INFO] Finish load all %d samples\' ID '
+                         'from RG tag\n\n' % len(sample_id))
+        return sample_id
 
     def run(self):
         """
         Run variant caller
         """
-        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' %
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' %
                          time.asctime())
 
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
         if len(self.regions) < self.opt.nCPU:
-            # We cut the region evenly to fit nCPU if regions < nCPU
+            # We cut the region into pieces to fit nCPU if regions < nCPU
             for chrid, start, end in self.regions:
                 delta = int((end-start+1) / self.opt.nCPU)
                 if delta == 0:
@@ -142,11 +148,17 @@ class BaseTypeBamRunner(object):
 
             out_vcf_names.add(sub_vcf_file)
             out_cvg_names.add(sub_cvg_file)
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s, %s]\n' % (i+1, self.opt.nCPU, sub_vcf_file,
+                                             sub_cvg_file))
+
             processes.append(BamBaseVarMultiProcess(self.opt.referencefile,
                                                     self.alignefiles,
                                                     sub_vcf_file,
                                                     sub_cvg_file,
                                                     regions_for_each_process[i],
+                                                    self.sample_id,
                                                     cmm=self.cmm))
 
         for p in processes:
@@ -179,89 +191,81 @@ class BaseTypeBamRunner(object):
         return
 
 
-class BaseTypeRunner(object):
-
+class BaseTypeFusionRunner(object):
     def __init__(self, cmm=utils.CommonParameter()):
         """init function
         """
         optp = argparse.ArgumentParser()
-        optp.add_argument('basetype')
-        optp.add_argument('-o', '--outprefix', dest='outprefix', metavar='FILE',
+        optp.add_argument('basetypefusion')
+        optp.add_argument('-I', '--fusion-file-list', dest='infilelist', metavar='FILE',
+                          help='Fusion file list, one line per file.', default='')
+        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
+                          help='Input reference fasta file.', default='')
+        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
                           default='out', help='The prefix of output files. [out]')
-        optp.add_argument('-l', '--mpileup-list', dest='infilelist', metavar='FILE',
-                          help='The input mpileup file list.', default='')
+
         optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
-                          help='skip unlisted positions (chr pos)', default='')
-        optp.add_argument('-R', '--regions', metavar='chr:start-end', dest='regions',
-                          help='skip positions not in (chr:start-end)', default='')
-        optp.add_argument('-s', '--sample-list', dest='samplelistfile', metavar='FILE',
-                          help='The sample list.')
-        optp.add_argument('-S', '--subsample-list', dest='subsample', metavar='FILE',
-                          help='Skip samples not in subsample-list, one sample per row.')
+                          help='skip unlisted positions (chr pos). [None]', default='')
+        optp.add_argument('--region', metavar='chr:start-end', dest='region',
+                          help='Skip position which not in these regions. Comma delimited '
+                               'list of regions (chr:start-end). Could be a file contain the '
+                               'regions.', default='')
+
         optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                           help='Number of processer to use. [1]', default=1)
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
-                          default=0.001, help='By setting min AF to skip uneffective '
-                                              'caller positions to accelerate program '
-                                              'speed. [0.001]')
+                          help='By setting min AF to skip uneffective caller positions '
+                               'to accelerate program speed. Usually you can set it to '
+                               'be min(0.001, 100/x), x is the size of your population.'
+                               '[min(0.001, 100/x)]')
+
+        # special parameter for calculating specific population allele frequence
+        optp.add_argument('--pop-group', dest='pop_group_file', metavar='FILE', type=str,
+                          help='Calculating the allele frequency for specific population.')
+
+        # special parameter to limit the function of BaseType
+        optp.add_argument('--justdepth', dest='justdepth', type=bool,
+                          help='Just output the depth information for each position [False]',
+                          default=False)
 
         opt = optp.parse_args()
         self.opt = opt
 
+        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
+            optp.error('[ERROR] Missing bamfile.\n')
+
+        if len(opt.referencefile) == 0:
+            optp.error('[ERROR] Missing reference fasta file.\n')
+
+        # Loading positions if not provid we'll load all the genome
+        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
+                                                  opt.region)
+
+        # Get all the input align fusion files
+        self.alignefiles = utils.load_file_list(opt.infilelist)
+
         self.cmm = cmm
-        # reset threshold of init min allele frequence by read depth
+        if self.opt.min_af is None:
+            self.opt.min_af = min(100.0/len(self.alignefiles), 0.001)
+
+        # reset threshold of min allele frequence threshold by sample size
         self.cmm.MINAF = self.opt.min_af
 
-        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] At least input one mpileup file\n')
-
-        if len(opt.samplelistfile) == 0:
-            optp.error('[ERROR] Must input the sample\'s ID list file by (-s)')
-
-        if len(opt.positions) == 0 and len(opt.regions) == 0:
-            optp.error('[ERROR] The list of position (-L or -R) is required.\n')
-
-        # Loading positions
-        self.regions = self._loading_position(opt)
-
-        # Load all the input files
-        self.mpileupfiles = utils.load_file_list(opt.infilelist)
-        sys.stderr.write('[INFO] Finish loading parameters and mpileup '
+        sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
-
-    def _loading_position(self, opt):
-
-        # Loading positions
-        _sites = utils.get_list_position(opt.positions) if opt.positions else {}
-
-        if len(opt.regions):
-            chrid, reg = opt.regions.strip().split(':')
-            reg = map(int, reg.split('-'))
-            if chrid not in _sites: _sites[chrid] = []
-
-            _sites[chrid].append([reg[0], reg[1]])
-
-        # merge and sorted the regions
-        # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
-        regions = []
-        for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
-            for start, end in utils.merge_region(v):
-                regions.append([chrid, start, end])
-
-        return regions
 
     def run(self):
         """
         Run variant caller
         """
-        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s' %
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' %
                          time.asctime())
 
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
         if len(self.regions) < self.opt.nCPU:
-            # We cut the region evenly to fit nCPU if regions < nCPU
+            # We cut the region into pieces to fit nCPU if regions < nCPU
             for chrid, start, end in self.regions:
                 delta = int((end-start+1) / self.opt.nCPU)
                 if delta == 0:
@@ -287,12 +291,18 @@ class BaseTypeRunner(object):
 
             out_vcf_names.add(sub_vcf_file)
             out_cvg_names.add(sub_cvg_file)
-            processes.append(BaseVarMultiProcess(self.mpileupfiles,
-                                                 sub_vcf_file,
-                                                 sub_cvg_file,
-                                                 regions_for_each_process[i],
-                                                 self.opt,
-                                                 cmm=self.cmm))
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s, %s]\n' % (i+1, self.opt.nCPU, sub_vcf_file,
+                                             sub_cvg_file))
+
+            processes.append(BaseVarFusionMultiProcess(self.opt.referencefile,
+                                                       self.alignefiles,
+                                                       self.opt.pop_group_file,
+                                                       sub_vcf_file,
+                                                       sub_cvg_file,
+                                                       regions_for_each_process[i],
+                                                       cmm=self.cmm))
 
         for p in processes:
             p.start()
@@ -322,6 +332,63 @@ class BaseTypeRunner(object):
         utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
 
         return
+
+
+class FusionRunner(object):
+
+    def __init__(self):
+        """
+        init function
+        """
+        optp = argparse.ArgumentParser()
+
+        optp.add_argument('fusion')
+        optp.add_argument('-I', '--inputfile', dest='inbamfile', metavar='FILE',
+                          help='BAM/CRAM file list, one line per file.', default='')
+
+        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
+                          help='Input reference fasta file.', default='')
+
+        optp.add_argument('-O', '--outputfile', dest='outfile', metavar='FILE',
+                          default='out.fusion', help='Output fusion file. [out.fusion]')
+
+        opt = optp.parse_args()
+        self.opt = opt
+
+        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
+            optp.error('[ERROR] Missing input BAM/CRAM file.\n')
+
+        if len(opt.referencefile) == 0:
+            optp.error('[ERROR] Missing reference fasta file.\n')
+
+    def run(self):
+
+        # Get alignment sample ID
+        bf = AlignmentFile(self.opt.inbamfile)
+        sample_id = bf.header['RG'][0]['SM']
+        bf.close()
+
+        callfusion = Fusion(self.opt.referencefile, self.opt.inbamfile)
+        with open(self.opt.outfile, 'w') as OUT:
+
+            OUT.write('##fileformat=Fusion_v1.0 and the coordinate is 0-base system\n')
+            OUT.write('##RG\tSM:%s\n' % sample_id)
+            OUT.write('\t'.join(['#CHROM', 'START', 'END', 'TYPE', 'MAPQ',
+                                 'SO', 'Read_POS', 'BASE_QUAL']) + '\n')
+            for fusion in callfusion.generate_fusion():
+
+                info = '\t'.join(map(str, [fusion.chrid,
+                                           fusion.start,
+                                           fusion.end,
+                                           fusion.alt,
+                                           fusion.mapq,
+                                           fusion.strand_orientation,
+                                           fusion.read_first_position,
+                                           fusion.base_quality]
+                                     )
+                                 )
+
+                OUT.write(info+'\n')
 
 
 class VQSRRuner(object):
@@ -377,18 +444,20 @@ class CoverageRunner(object):
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
 
-    def _loading_position(self, position, region):
+    def _loading_position(self, posfile, regionfile):
 
         # Loading positions
-        _sites = utils.get_list_position(position) if position else {}
+        _sites = utils.get_list_position(posfile) if posfile else {}
 
-        if len(region):
-            chrid, reg = region.strip().split(':')
-            reg = map(int, reg.split('-'))
-            if chrid not in _sites:
-                _sites[chrid] = []
+        if len(regionfile):
 
-            _sites[chrid].append([reg[0], reg[1]])
+            region = utils.get_region_fromfile(regionfile)
+            for chrid, start, end in region:
+
+                if chrid not in _sites:
+                    _sites[chrid] = []
+
+                _sites[chrid].append([start, end])
 
         # merge and sorted the regions
         # [[chrid1, start1, end1], [chrid2, start2, end2], ...]

@@ -256,7 +256,7 @@ if __name__ == '__main__':
                          opt.pass_pos, opt.positions))
 
     print '\t'.join(['#CHROM', 'POS', 'ID', 'REF', 'ALT', 'DISEASE', 'ALT_freq',
-                     'FisherExactTest:p-value', 'Percentile:p-value',
+                     'StatisticTest:p-value', 'Percentile:p-value',
                      'Percentile:Rank','North(REF:ALT:AF)', 'Central(REF:ALT:AF)',
                      'South(REF:ALT:AF)'])
 

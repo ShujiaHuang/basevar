@@ -5,6 +5,8 @@ import os
 import heapq
 import gzip
 
+from pysam import FastaFile
+
 
 class CommonParameter(object):
     """
@@ -17,16 +19,20 @@ class CommonParameter(object):
         self.BASE = ['A', 'C', 'G', 'T']
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
         self.debug = False
-        self.MINAF = 0.001  # The effective base freqence threshold for 140k sample size
+        self.MINAF = 0.0001  # The effective base freqence threshold
 
 
 def vcf_header_define():
     header=['##fileformat=VCFv4.2',
-            '##FILTER=<ID=LowQual,Description="Low quality">',
-            ('##INFO=<ID=CM_EAF,Number=.,Type=Float,Description="An ordered, '
-             'comma delimited list of Expectation Maxmization Estimated allele frequency">'),
-            ('##INFO=<ID=CM_AF,Number=.,Type=Float,Description='
-            '"An ordered, comma delimited list of allele frequencies base on read count">'),
+
+            '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
+            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+            '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
+            '##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">',
+            '##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">',
+
+            '##INFO=<ID=CM_AF,Number=.,Type=Float,Description="An ordered, comma delimited list of allele frequencies base on LRT algorithm">',
+            '##INFO=<ID=CM_CAF,Number=.,Type=Float,Description="An ordered, comma delimited list of allele frequencies just base on read count">',
             '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
             '##INFO=<ID=CM_AC,Number=.,Type=Float,Description="An ordered, comma delimited allele depth in CMDB">',
             '##INFO=<ID=CM_DP,Number=.,Type=Float,Description="Total Depth in CMDB">',
@@ -36,11 +42,8 @@ def vcf_header_define():
             '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
             '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
             '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
-            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence/Quality by Depth">']
-    header.append('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
-    header.append('##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">')
-    header.append('##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">')
-    header.append('##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">')
+            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">'
+            ]
 
     return header
 
@@ -69,6 +72,47 @@ def load_file_list(in_file):
     return files
 
 
+def load_target_position(referencefile, posfile, region_info):
+    # Loading positions
+    _sites = get_list_position(posfile) if posfile else {}
+    if len(region_info):
+
+        regions = []
+        if os.path.isfile(region_info):
+            regions = get_region_fromfile(region_info)
+
+        else:
+            for r in region_info.split(','):
+                chr_id, reg = r.strip().split(':')
+                start, end = map(int, reg.split('-'))
+                regions.append([chr_id, start, end])
+
+        for chrid, start, end in regions:
+
+            if chrid not in _sites:
+                _sites[chrid] = []
+
+            _sites[chrid].append([start, end])
+
+    # sort and merge the regions
+    # [[chrid1, start1, end1], [chrid2, start2, end2], ...]
+    regions = []
+    for chrid, v in sorted(_sites.items(), key=lambda x: x[0]):
+        for start, end in merge_region(v):
+            regions.append([chrid, start, end])
+
+    # load all the genome if no position or regions provide
+    if not regions:
+        sys.stderr.write('[WARNINGS] Program will load all the genome cause '
+                         'there is not any positions and regions provided.\n')
+        fa = FastaFile(referencefile)
+        regions = [[ci, 1, fa.get_reference_length(ci)]
+                   for ci in fa.references]
+        fa.close()
+
+    return regions
+
+
 def get_list_position(in_site_file):
     sites = {}
     with open(in_site_file) as f:
@@ -81,6 +125,18 @@ def get_list_position(in_site_file):
                 sites[tok[0]].append([int(tok[1]), int(tok[2])])
 
     return sites
+
+
+def get_region_fromfile(in_region_file):
+
+    regions = []
+    with open(in_region_file) as f:
+        for r in f:
+            chr_id, reg = r.strip().split(':')
+            start, end = map(int, reg.split('-'))
+            regions.append([chr_id, start, end])
+
+    return regions
 
 
 def merge_region(position_region, delta=1):
@@ -198,7 +254,7 @@ class FileForQueueing(object):
         self.heap = []
 
         line = line
-        cols = line.strip().split("\t")
+        cols = line.strip().split()
         chrom = cols[0]
 
         # Where possible, convert chromosome names into
@@ -216,7 +272,7 @@ class FileForQueueing(object):
 
             try:
                 line = self.the_file.next()
-                cols = line.strip().split("\t")
+                cols = line.strip().split()
                 chrom = cols[0]
 
                 try:
@@ -259,7 +315,6 @@ class FileForQueueing(object):
 
             try:
                 line = self.the_file.next()
-                #cols = line.strip().split('\t')
                 cols = line.strip().split()
                 chrom = cols[0]
 
@@ -295,6 +350,7 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
         output_file = sys.stdout
     else:
         output_file = Open(final_file_name, 'wb')
+
     the_heap = []
 
     # Initialise queue
@@ -339,6 +395,5 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     if final_file_name != "-":
         output_file.close()
 
-    #log.info("Finished merging %s file(s)"%final_file_name)
     return
 

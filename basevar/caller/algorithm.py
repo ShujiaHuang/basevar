@@ -1,27 +1,21 @@
 """
 This module contain some main algorithms of BaseVar
 """
-import sys
-
 import numpy as np
 from scipy.stats import fisher_exact
 from scipy.stats import ranksums
 
-# from rpy2 import robjects
-# from rpy2 import rinterface
-# R = robjects.r
 
-
-def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
+def EM(allele_frequece, ind_allele_likelihood, iter_num=100, epsilon=0.001):
     """
-    EM Process
+    EM algorithm
 
     Parameters
     ----------
 
-    ``prior_prob``: array-like
+    ``allele_frequece``: 2d-array like the same as ind_allele_likelihood
 
-    ``ind_base_likelihood`` : 2d-array like, n x 4 matrix.
+    ``ind_allele_likelood`` : 2d-array like, n x 4 matrix.
 
     ``iter_num`` : integer, optional
         The lager EM iteration times. default: 100
@@ -29,65 +23,71 @@ def EM(prior_prob, ind_base_likelihood, iter_num=100, epsilon=0.001):
     ``epsilon`` : float, optinal
         The threshold of likelihood different for EM process. default 0.001
     """
-    # ind_base_likelihood is a `n x 4` matrix. n is sample size
-    ind_base_likelihood, pop_likelihood = m_step(prior_prob,
-                                                 ind_base_likelihood)
-    log_pop_likelihood = np.log(pop_likelihood)
+    # ind_allele_likelihood is a `n x 4` matrix. n is sample size
+    ind_allele_prob, marginal_likelihood = e_step(allele_frequece, ind_allele_likelihood)
+    log_marginal_likelihood = np.log(marginal_likelihood)
+
+    # m_step
+    expect_allele_freq = m_step(ind_allele_prob)
+
     for i in xrange(iter_num):
 
         # e_step
-        base_expect_prob = e_step(ind_base_likelihood)
+        ind_allele_prob, marginal_likelihood = e_step(
+            np.tile(expect_allele_freq, (ind_allele_likelihood.shape[0], 1)),
+            ind_allele_likelihood
+        )
 
         # m_step
-        ind_base_likelihood, pop_likelihood = m_step(
-            prior_prob,
-            np.tile(base_expect_prob, (prior_prob.shape[0], 1)))
+        expect_allele_freq = m_step(ind_allele_prob)
 
-        new_log_pop_likelihood = np.log(pop_likelihood)
-        delta = np.abs(new_log_pop_likelihood - log_pop_likelihood).sum()
+        new_log_marginal_likelihood = np.log(marginal_likelihood)
+        delta = np.abs(new_log_marginal_likelihood - log_marginal_likelihood).sum()
+
         if delta < epsilon:
             break
 
-        log_pop_likelihood = new_log_pop_likelihood
+        log_marginal_likelihood = new_log_marginal_likelihood
 
-    base_expect_prob = e_step(ind_base_likelihood)  # update the lastest base_expect_prob
-    return ind_base_likelihood, pop_likelihood, base_expect_prob
+    # update the lastest expect_allele_freq
+    expect_allele_freq = m_step(ind_allele_prob)
+    return ind_allele_prob, marginal_likelihood, expect_allele_freq
 
 
-def e_step(ind_base_likelihood):
+def e_step(allele_freq, ind_allele_likelihood):
     """
-    Expection step: update ``ind_base_likelihood``
+    Calculate the posterior probability of individual allele at each site as
+    the four A/C/G/T bases.
+    """
+    likelihood = allele_freq * ind_allele_likelihood
 
-    Calculate the base posterior probability.
+    # It's a 1-d array one sample per element(value)
+    marginal_likelihood = likelihood.sum(axis=1)
+
+    # Posterior probability of each individual for A/C/G/T
+    ind_allele_prob = likelihood / np.tile(
+        marginal_likelihood.reshape(marginal_likelihood.shape[0], 1),  # convert row => col
+        (1, likelihood.shape[1])  # coloum as the same as ``likelihood``
+    )
+
+    return ind_allele_prob, marginal_likelihood
+
+
+def m_step(ind_base_prob):
+    """
+    Update allele frequency.
 
     Parameters
     ----------
 
-    ``ind_base_likelihood``: 2d-array like, n x 4 matrix.
+    ``ind_base_prob``: 2d-array like, n x 4 matrix.
 
     """
-    sample_size = ind_base_likelihood.shape[0]
-    # ``base_expect_prob`` is the update of ``ind_base_likelihood``
-    base_expect_prob = ind_base_likelihood.sum(axis=0) / sample_size
+    sample_size = ind_base_prob.shape[0]
+    # ``expect_allele_prob`` is the update of ``ind_base_prob``
+    expect_allele_prob = ind_base_prob.sum(axis=0) / sample_size
 
-    return base_expect_prob
-
-
-def m_step(prior_prob, ind_base_likelihood):
-    """
-    Maximization the likelihood step
-    """
-    likelihood = prior_prob * ind_base_likelihood
-
-    # It's a 1-d array one sample per element
-    pop_likelihood = likelihood.sum(axis=1)
-
-    # Maximize the base likelihood
-    ind_base_likelihood = likelihood / np.tile(
-        pop_likelihood.reshape(pop_likelihood.shape[0], 1),  # convert row => col
-        (1, likelihood.shape[1]))  # coloum as the same as ``likelihood``
-
-    return ind_base_likelihood, pop_likelihood
+    return expect_allele_prob
 
 
 def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
