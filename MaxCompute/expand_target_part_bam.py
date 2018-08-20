@@ -7,17 +7,14 @@ from odps.udf import BaseUDAF
 class Expand(BaseUDAF):
 
     def __init__(self):
-        import os
-	print os.listdir('lib/python/odps')
         from odps.distcache import get_cache_file
-        res_file = get_cache_file('target_sample.list')
-        name_idx = dict()
+        res_file = get_cache_file('target_sample.txt')
+        self.name_idx = dict()
         i = 0
         for line in res_file:
-            name_idx[line.strip()] = i
+            self.name_idx[line.strip()] = i
             i += 1
         res_file.close()
-        self.name_idx = name_idx
         self.sample_count = i
         self.part_size = 50000
         self.part_idx = -1

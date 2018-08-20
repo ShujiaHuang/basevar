@@ -21,6 +21,20 @@ class BaseVar(BaseUDTF):
         self.cmm = cmm
         if not cmm.debug:
             include_package_path('scipy.zip')
+        res_file = get_cache_file('target_sample.txt')
+        name_idx = dict()
+        i = 0
+        for line in res_file:
+            name_idx[line.strip()] = i
+            i += 1
+        res_file.close()
+        popgroup_file = get_cache_file('popgroup.txt')
+        self.popgroup = {}
+        for line in popgroup_file:
+            sample_id, group_id = line.strip().split()[0:2]
+            if group_id not in self.popgroup:
+                self.popgroup[group_id] = []
+            self.popgroup[group_id].append(name_idx[sample_id])
 
     def process(self, mode, chrid, pos, base_ref, part0, part1, part2):
         #tokens = '\t'.join([part0, part1, part2]).strip().split('\t')
@@ -62,6 +76,14 @@ class BaseVar(BaseUDTF):
             bt = BaseType(base_ref, bases, quals, cmm=self.cmm)
             bt.lrt()
             if len(bt.alt_bases()) > 0:
+                popgroup_bt = {}
+                for group, index in self.popgroup.items():
+                    group_sample_bases = [bases[i] for i in index]
+                    group_sample_base_quals = [quals[i] for i in index]
+                    group_bt = BaseType(base_ref.upper(), group_sample_bases, group_sample_base_quals, cmm=self.cmm)
+                    basecombination = [base_ref.upper()] + bt.alt_bases()
+                    group_bt.lrt(basecombination)
+                    popgroup_bt[group] = group_bt
                 self.forward(self._out_vcf_line(chrid,
                                                 pos,
                                                 base_ref,
@@ -70,7 +92,8 @@ class BaseVar(BaseUDTF):
                                                 read_pos_ranks,
                                                 quals,
                                                 strands,
-                                                bt)
+                                                bt,
+                                                popgroup_bt)
                 )
         else:
             raise Exception('unknown mode %s' % mode)

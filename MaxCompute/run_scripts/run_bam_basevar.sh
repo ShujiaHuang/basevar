@@ -2,10 +2,10 @@
 
 set -e
 
-DATASET_NAME="nifty_bwa"
-FASTA_FILE="Homo_sapiens_assembly38.fasta.gz"
+DATASET_NAME="test_fusion"
+FASTA_FILE="hg19.NC_012920.fasta.gz"
 ODPS_CMD="odpscmd --config=/apsarapangu/disk2/tianli.tl/huada/base_var/odps_conf/odps_config.ini.sz"
-chrid="chr8"
+#chrid="chr8"
 
 # $ODPS_CMD -e "
 # fs -mkv basevar_ref;
@@ -137,7 +137,8 @@ chrid="chr8"
 #     chrid, pos, base_ref;
 # "
 # #
-# $ODPS_CMD -e "create table if not exists ${DATASET_NAME}_cvg (line string) PARTITIONED BY (chr STRING);
+# $ODPS_CMD -e "
+# create table if not exists ${DATASET_NAME}_cvg (line string) PARTITIONED BY (chr STRING);
 # set odps.sql.planner.mode=lot;
 # insert overwrite table ${DATASET_NAME}_cvg PARTITION (chr='$chrid')
 # select
@@ -149,7 +150,8 @@ chrid="chr8"
 # "
 # ./basevar_exttable.sh ${DATASET_NAME}_cvg $chrid
 #
-$ODPS_CMD -e "create table if not exists ${DATASET_NAME}_vcf (line string) PARTITIONED BY (chr STRING);
+$ODPS_CMD -e "
+create table if not exists ${DATASET_NAME}_vcf (line string) PARTITIONED BY (chr STRING);
 set odps.sql.planner.mode=lot;
 insert overwrite table ${DATASET_NAME}_vcf PARTITION (chr='$chrid')
 select
