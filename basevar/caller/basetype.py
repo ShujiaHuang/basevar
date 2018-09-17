@@ -3,10 +3,21 @@ This module contain functions of EM algorithm and Base genotype.
 """
 import itertools   # Use the combinations function
 import numpy as np
-from scipy.stats.distributions import chi2
 
-from .algorithm import EM
+from algorithm import EM
 
+class CommonParameter(object):
+    """
+    defined some globle common parameters
+    """
+    def __init__(self):
+        self.LRT_THRESHOLD = 24   ## 24 corresponding to a chi-pvalue of 10^-6
+        self.QUAL_THRESHOLD = 60  ## -10 * lg(10^-6)
+        self.MLN10TO10 = -0.23025850929940458 # -np.log(10)/10
+        self.BASE = ['A', 'C', 'G', 'T']
+        self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
+        self.debug = False
+        self.MINAF = 0.001  # The effective base freqence threshold for 140k sample size
 
 class BaseType(object):
 
@@ -178,6 +189,7 @@ class BaseType(object):
                 self._var_qual = 5000.0
 
             else:
+                from scipy.stats.distributions import chi2
                 chi_prob = chi2.sf(chi_sqrt_value, 1)
                 self._var_qual = round(-10 * np.log10(chi_prob), 2) \
                     if chi_prob else 10000.0

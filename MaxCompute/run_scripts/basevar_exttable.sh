@@ -10,7 +10,8 @@ real_table=bgi_max_sz.$table_name
 ODPS_CMD='odpscmd --config=/apsarapangu/disk2/tianli.tl/huada/base_var/odps_conf/odps_config.ini.sz'
 
 #osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIk3YBbHCA8EWk --key=SGqUx92FF5rVebMDOc3OaZKlWmL811 mkdir oss://nifty-140k/basevar_results/${table_name}_${chr_name}
-osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIzpgTEbfsEote --key=QAnDU4tSlMF1ewsvjLh7w04WFCsFE0 mkdir oss://genomedata-sj/basevar_results/${table_name}_${chr_name}
+#osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIzpgTEbfsEote --key=QAnDU4tSlMF1ewsvjLh7w04WFCsFE0 mkdir oss://genomedata-sj/test_data/fusiontest_results/${table_name}_${chr_name}
+osscmd --host=oss-cn-shenzhen.aliyuncs.com --id=LTAIk3YBbHCA8EWk --key=SGqUx92FF5rVebMDOc3OaZKlWmL811 mkdir oss://genomedata/test_data/fusiontest_results/${table_name}/${chr_name}
 
 $ODPS_CMD -e "
 DROP TABLE IF EXISTS ${table_name}_${chr_name}_withpos;
@@ -51,6 +52,7 @@ FROM
 "
 
 $ODPS_CMD -e "
+DROP TABLE IF EXISTS ${table_name}_${chr_name}_ossout;
 CREATE EXTERNAL TABLE IF NOT EXISTS ${table_name}_${chr_name}_ossout (
     partition_id BIGINT,
     idx          BIGINT,
@@ -58,7 +60,8 @@ CREATE EXTERNAL TABLE IF NOT EXISTS ${table_name}_${chr_name}_ossout (
 )
 STORED BY 'com.aliyun.odps.exttable.handler.BasevarHandler'
 --LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/nifty-140k/basevar_results/${table_name}_${chr_name}/'
-LOCATION 'oss://LTAIzpgTEbfsEote:QAnDU4tSlMF1ewsvjLh7w04WFCsFE0@oss-cn-shenzhen-internal.aliyuncs.com/genomedata-sj/basevar_results/${table_name}_${chr_name}/'
+--LOCATION 'oss://LTAIzpgTEbfsEote:QAnDU4tSlMF1ewsvjLh7w04WFCsFE0@oss-cn-shenzhen-internal.aliyuncs.com/genomedata-sj/basevar_results/${table_name}_${chr_name}/'
+LOCATION 'oss://LTAIk3YBbHCA8EWk:SGqUx92FF5rVebMDOc3OaZKlWmL811@oss-cn-shenzhen-internal.aliyuncs.com/genomedata/test_data/fusiontest_results/${table_name}/${chr_name}/'
 USING 'oss-input-1.0.0.jar';
 "
 

@@ -3,9 +3,8 @@ from odps.udf import annotate
 from odps.udf import BaseUDAF
 #from odps.distcache import get_cache_file
 
-@annotate('string,string,string,string,string,string,string,bigint->string')
+@annotate('string,string,string,string,string,string,string->string')
 class Expand(BaseUDAF):
-
     def __init__(self):
         from odps.distcache import get_cache_file
         res_file = get_cache_file('target_sample.txt')
@@ -17,16 +16,15 @@ class Expand(BaseUDAF):
         res_file.close()
         self.sample_count = i
         self.part_size = 50000
-        self.part_idx = -1
+        self.part_idx = 0
         self.buffer_size = min(self.sample_count, self.part_size)
 
     def new_buffer(self):
         return [''] * self.buffer_size
 
-    def iterate(self, buffer, sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand, part_idx):
-        self.part_idx = part_idx
+    def iterate(self, buffer, sample_name, read_base, read_quality, mapping_quality, read_pos_rank, indel, strand):
         idx = self.name_idx.get(sample_name, -1)
-        idx_of_part = idx - self.part_size * part_idx
+        idx_of_part = idx - self.part_size * self.part_idx
         if idx_of_part >= 0 and idx_of_part < self.buffer_size:
             s = '\t'.join([read_base, read_quality, mapping_quality, read_pos_rank, indel, strand])
             buffer[idx_of_part] = s
@@ -46,3 +44,23 @@ class Expand(BaseUDAF):
             if not s:
                 buffer[i] = 'N\t0\t0\t0\t\t.' # default value
         return '\t'.join(buffer[0:buffer_length])
+
+
+@annotate('string,string,string,string,string,string,string->string')
+class Expand_0(Expand):
+    def __init__(self):
+        Expand.__init__(self)
+        self.part_idx = 0
+
+@annotate('string,string,string,string,string,string,string->string')
+class Expand_1(Expand):
+    def __init__(self):
+        Expand.__init__(self)
+        self.part_idx = 1
+
+
+@annotate('string,string,string,string,string,string,string->string')
+class Expand_2(Expand):
+    def __init__(self):
+        Expand.__init__(self)
+        self.part_idx = 2

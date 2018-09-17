@@ -2,8 +2,6 @@
 This module contain some main algorithms of BaseVar
 """
 import numpy as np
-from scipy.stats import fisher_exact
-from scipy.stats import ranksums
 
 
 def EM(allele_frequece, ind_allele_likelihood, iter_num=100, epsilon=0.001):
@@ -125,7 +123,7 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
     #                      'wilcox.test and set phred_scale_value = 0 :\n'
     #                      '%s\n%s\n' % (ref, alt))
     #     phred_scale_value = 0
-
+    from scipy.stats import ranksums
     _, pvalue = ranksums(ref, alt)
     phred_scale_value = round(-10 * np.log10(pvalue), 3)
     if phred_scale_value == np.inf:
@@ -185,6 +183,7 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
     # fs = round(-10 * np.log10(pvalue), 3)
 
     # May be too slow?
+    from scipy.stats import fisher_exact
     fs = round(-10 * np.log10(fisher_exact([[ref_fwd, ref_rev],[alt_fwd, alt_rev]])[1]), 3)
 
     if fs == np.inf:
