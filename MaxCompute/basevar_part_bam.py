@@ -13,7 +13,7 @@ def include_package_path(res_name):
     import os, sys
     sys.path.append('work/scipy.zip')
 
-@annotate("string,string,string,string,string,string,string->string")
+@annotate("string,string,string,string,string,string,string->string,string")
 class BaseVar(BaseUDTF):
 
     def __init__(self, cmm=CommonParameter()):
@@ -71,7 +71,7 @@ class BaseVar(BaseUDTF):
         if mode == 'coverage':
             cvg_line = self._out_cvg_line(chrid, pos, base_ref, bases, strands, indels)
             if cvg_line:
-                self.forward(cvg_line)
+                self.forward(cvg_line, 'cvg')
         elif mode == 'vcf':
             bt = BaseType(base_ref.upper(), bases, quals, cmm=self.cmm)
             bt.lrt()
@@ -93,7 +93,35 @@ class BaseVar(BaseUDTF):
                                                 quals,
                                                 strands,
                                                 bt,
-                                                popgroup_bt)
+                                                popgroup_bt),
+                             'vcf'
+                )
+        elif mode == 'both':
+            cvg_line = self._out_cvg_line(chrid, pos, base_ref, bases, strands, indels)
+            if cvg_line:
+                self.forward(cvg_line, 'cvg')
+            bt = BaseType(base_ref.upper(), bases, quals, cmm=self.cmm)
+            bt.lrt()
+            if len(bt.alt_bases()) > 0:
+                popgroup_bt = {}
+                for group, index in self.popgroup.items():
+                    group_sample_bases = [bases[i] for i in index]
+                    group_sample_base_quals = [quals[i] for i in index]
+                    group_bt = BaseType(base_ref.upper(), group_sample_bases, group_sample_base_quals, cmm=self.cmm)
+                    basecombination = [base_ref.upper()] + bt.alt_bases()
+                    group_bt.lrt(basecombination)
+                    popgroup_bt[group] = group_bt
+                self.forward(self._out_vcf_line(chrid,
+                                                pos,
+                                                base_ref,
+                                                bases,
+                                                mapqs,
+                                                read_pos_ranks,
+                                                quals,
+                                                strands,
+                                                bt,
+                                                popgroup_bt),
+                             'vcf'
                 )
         else:
             raise Exception('unknown mode %s' % mode)
