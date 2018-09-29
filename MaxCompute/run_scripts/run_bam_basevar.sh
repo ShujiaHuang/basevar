@@ -200,7 +200,7 @@ do_both() {
     $ODPS_CMD -e "
 create table if not exists $res_name (line string) PARTITIONED BY (chr STRING, shard STRING, method STRING);
 set odps.sql.planner.mode=lot;
-insert overwrite table $vcf_name PARTITION (chr='$chr_id', shard='$shard_id', method)
+insert overwrite table $res_name PARTITION (chr='$chr_id', shard='$shard_id', method)
 select
     basevar_part_bam('both', chrid, pos, base_ref, part0, part1, part2) as (line, method)
 from
@@ -248,6 +248,8 @@ from
     $expand_name
 where
     chr = '$chr_id'
+and
+    shard = '$shard_id'
 "
 }
 
