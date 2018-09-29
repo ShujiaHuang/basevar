@@ -2,7 +2,11 @@
 
 set -e
 
+start_idx=$1
+end_idx=$2
+
 INFO_FILE="DONE"
+LOG_DIR="./log"
 PARTITION_POS_LENTH=6000000
 
 is_continue=$1
@@ -52,8 +56,9 @@ read_input_oss() {
     oss_id=$4
     oss_key=$5
     oss_path=$6
+    subdir=$7
 
-    external_table="oss_${input_name}"
+    external_table="oss_${input_name}_${subdir}"
     inner_table="${input_name}_partitioned"
 
     $ODPS_CMD -e "
@@ -78,7 +83,7 @@ WITH SERDEPROPERTIES
     'fasta_file' = '${fasta_file}'
     --'sample_filter' = 'target_sample.txt' #ignore sample_filter
 )
-LOCATION 'oss://${oss_id}:${oss_key}@${oss_host}/${oss_path}'
+LOCATION 'oss://${oss_id}:${oss_key}@${oss_host}/${oss_path}/${subdir}'
 USING 'oss-input-1.0.0.jar,${fasta_file}';
 "
 
@@ -128,7 +133,9 @@ SELECT
 FROM
     ${external_table}
 WHERE
-    base_ref <> 'N'
+    base_ref <> 'N';
+
+DROP TABLE IF EXISTS ${external_table};
 "
 }
 
@@ -244,13 +251,20 @@ where
 "
 }
 
-for subdir in $(osscmd --host=${OSS_HOST} --id=${OSS_ID} --key=${OSS_KEY} listalldir oss://${OSS_INPUT_PATH} 2>/dev/null | grep -v ": ")
+for((i=$start_idx;i<=$end_idx;i++))
 do
-    echo "read_input_oss:$subdir:$(date)" >> time_record
-    grep $subdir $INFO_FILE || (read_input_oss ${DATASET_NAME} $FASTA_FILE $OSS_HOST_INTERNAL $OSS_ID $OSS_KEY ${OSS_INPUT_PATH}/$subdir && echo $subdir >> $INFO_FILE)
+    subdir="sample_list_$i"
+    echo "$start_idx,$end_idx,read_input_oss:$subdir:$(date)" >> time_record
+    grep -e "^$subdir\$" $INFO_FILE || (read_input_oss ${DATASET_NAME} $FASTA_FILE $OSS_HOST_INTERNAL $OSS_ID $OSS_KEY ${OSS_INPUT_PATH} $subdir && echo $subdir >> $INFO_FILE)
 done
 
 exit
+
+for subdir in $(osscmd --host=${OSS_HOST} --id=${OSS_ID} --key=${OSS_KEY} listalldir oss://${OSS_INPUT_PATH} 2>/dev/null | grep -v ": ")
+do
+    echo "read_input_oss:$subdir:$(date)" >> time_record
+    grep $subdir $INFO_FILE || (read_input_oss ${DATASET_NAME} $FASTA_FILE $OSS_HOST_INTERNAL $OSS_ID $OSS_KEY ${OSS_INPUT_PATH} $subdir && echo $subdir >> $INFO_FILE)
+done
 
 for chr in $($ODPS_CMD -e "show partitions ${DATASET_NAME}_partitioned" 2>/dev/null | grep chr | awk '{print substr($0, 5)}')
 do
