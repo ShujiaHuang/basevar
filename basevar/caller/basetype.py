@@ -141,8 +141,9 @@ class BaseType(object):
             bases = [b for b in self.cmm.BASE
                      if self.depth[b]/self.total_depth >= self.cmm.MINAF]
 
+        if len(bases) == 0: return
+
         # init. Base combination will just be the ``bases`` if specific_base_comb
-        # is not provide or
         bc, lr_null, bp = self._f(bases, len(bases))
 
         chi_sqrt_value = 0
