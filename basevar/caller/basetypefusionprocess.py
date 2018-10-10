@@ -182,7 +182,7 @@ class BaseTypeFusionSingleProcess(object):
                         # VCF.write("\t".join([chrid, str(position), ".", ref_base, ".\t.\t.\t.\t."]+[":".join(map(str, [a,b,c])) for a,b,c in zip(sample_bases,sample_base_quals,strands)]))
                         # sys.exit(1)
 
-                        if ref_base.upper not in ['A', 'C', 'G', 'T', 'N']:
+                        if ref_base.upper() not in ['A', 'C', 'G', 'T', 'N']:
                             continue
 
                         bt = BaseType(ref_base.upper(), sample_bases,
