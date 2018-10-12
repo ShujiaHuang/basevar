@@ -71,7 +71,14 @@ class BaseTypeFusionSingleProcess(object):
             with open(in_popgroup_file) as f:
                 # Just two columns: sample_id and group_id
                 for line in f:
-                    sample_id, group_id = line.strip().split()[0:2]
+                    try:
+                        sample_id, group_id = line.strip().split()[0:2]
+                    except ValueError:
+                        sys.stderr.write('[ERROR] Catch un-expected error in in_popgroup_file '
+                                         'it may not contain two columns: %s\n' % line)
+                        self._close_file()
+                        sys.exit(1)
+
                     tmpdict[sample_id] = group_id + '_AF'
 
             for i, s in enumerate(self.samples):
