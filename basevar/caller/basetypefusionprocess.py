@@ -68,14 +68,18 @@ class BaseTypeFusionSingleProcess(object):
         if in_popgroup_file and len(in_popgroup_file):
 
             tmpdict = {}
+            line_num = 0
             with open(in_popgroup_file) as f:
+
+                line_num += 1
                 # Just two columns: sample_id and group_id
                 for line in f:
                     try:
                         sample_id, group_id = line.strip().split()[0:2]
                     except ValueError:
-                        sys.stderr.write('[ERROR] Catch un-expected error in in_popgroup_file '
-                                         'it may not contain two columns: %s\n' % line)
+                        sys.stderr.write('[ERROR] Format error in in_popgroup_file it '
+                                         'may not contain two columns: %d lines in '
+                                         'file %s \n' % (line_num, in_popgroup_file))
                         self._close_file()
                         sys.exit(1)
 
