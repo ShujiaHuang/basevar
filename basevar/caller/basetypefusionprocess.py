@@ -79,8 +79,8 @@ class BaseTypeFusionSingleProcess(object):
                         sample_id, group_id = line.strip().split()[0:2]
                     except ValueError:
                         sys.stderr.write('[ERROR] Format error in `in_popgroup_file` it '
-                                         'may not contain two columns: %d lines in '
-                                         'file "%s" \n' % (line_num, in_popgroup_file))
+                                         'may not contain two columns happen in: %d '
+                                         'lines in file "%s" \n' % (line_num, in_popgroup_file))
                         self._close_file()
                         sys.exit(1)
 
