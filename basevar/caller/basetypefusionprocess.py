@@ -111,18 +111,22 @@ class BaseTypeFusionSingleProcess(object):
         Run the process of calling variant and output
         """
         vcf_header = utils.vcf_header_define()
+        group = [] # Just for the header of CVG file
         if self.popgroup:
             for g in self.popgroup.keys():
                 g_id = g.split('_')[0]  # ignore '_AF'
+                group.append(g_id)
                 vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele '
                                   'frequency in the %s populations calculated base on LRT, in '
                                   'the range (0,1)">' % (g_id, g_id))
 
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
+            CVG.write('##fileformat=CVGv1.0\n')
+            CVG.write('##Group_info is the depth of A:C:G:T:Indel\n')
             CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
                                 ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                                 'REF_REV,ALT_FWD,ALT_REV)\n']))
+                                 'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
 
             # set header
             VCF.write('\n'.join(vcf_header) + '\n')
@@ -161,8 +165,7 @@ class BaseTypeFusionSingleProcess(object):
                     sys.stderr.write('[INFO] Fetching info from %d samples in region %s'
                                      ' at %s\n' % (len(iter_tokes),
                                                    chrid + ":" + str(start) + "-" + str(end),
-                                                   time.asctime())
-                                     )
+                                                   time.asctime()))
 
                     for position in xrange(start, end + 1):
 
@@ -205,11 +208,14 @@ class BaseTypeFusionSingleProcess(object):
 
                             popgroup_bt = {}
                             for group, index in self.popgroup.items():
-                                group_sample_bases = [sample_bases[i] for i in index]
-                                group_sample_base_quals = [sample_base_quals[i] for i in index]
+                                group_sample_bases, group_sample_base_quals = [], []
+                                for i in index:
+                                    group_sample_bases.append(sample_bases[i] )
+                                    group_sample_base_quals.append(sample_base_quals[i])
 
                                 group_bt = BaseType(ref_base.upper(), group_sample_bases,
                                                     group_sample_base_quals, cmm=self.cmm)
+
                                 basecombination = [ref_base.upper()] + bt.alt_bases()
                                 group_bt.lrt(basecombination)
 
@@ -258,6 +264,8 @@ class BaseTypeFusionSingleProcess(object):
 
             if indel:
                 indels.append(indel.upper())
+            else:
+                indels.append("")
 
         return bases, base_quals, strands, mapqs, read_pos_rank, indels
 
@@ -313,13 +321,11 @@ class BaseTypeFusionSingleProcess(object):
         qual = ord(qual) - 33
         return base, qual, strand, mapq, rpr, indel, sample_line
 
-    def _out_cvg_file(self, chrid, position, ref_base, sample_bases,
-                      strands, indels, out_file_handle):
+    def _base_depth_and_indel(self, bases, indels):
         # coverage info for each position
-
         base_depth = {b: 0 for b in self.cmm.BASE}
 
-        for k, b in enumerate(sample_bases):
+        for b in bases:
 
             # ignore all bases('*') which not match ``cmm.BASE``
             if b in base_depth:
@@ -328,10 +334,34 @@ class BaseTypeFusionSingleProcess(object):
         # deal with indels
         indel_dict = {}
         for ind in indels:
+
+            if len(ind) == 0:
+                # non indels
+                continue
+
             indel_dict[ind] = indel_dict.get(ind, 0) + 1
 
         indel_string = ','.join(
             [k + ':' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
+
+        return [base_depth, indel_string]
+
+    def _out_cvg_file(self, chrid, position, ref_base, sample_bases,
+                      strands, indels, out_file_handle):
+        # coverage info for each position
+        base_depth, indel_string = self._base_depth_and_indel(sample_bases, indels)
+
+        # base depth and indels for each subgroup
+        group_cvg = {}
+        for group, index in self.popgroup.items():
+
+            group_sample_bases, group_sample_indels = [], []
+            for i in index:
+                group_sample_bases.append(sample_bases[i])
+                group_sample_indels.append(indels[i])
+
+            bd, ind = self._base_depth_and_indel(group_sample_bases, group_sample_indels)
+            group_cvg[group] = [bd, ind]
 
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
         if sample_bases:
@@ -349,11 +379,18 @@ class BaseTypeFusionSingleProcess(object):
 
         if sum(base_depth.values()):
 
+            group_info = []
+            if group_cvg:
+                for k in self.popgroup.keys():
+                    depth, indel_str = group_cvg[k]
+                    s = ':'.join([str(depth[b]) for b in self.cmm.BASE] + [indel_str])
+                    group_info.append(s)
+
             out_file_handle.write('\t'.join(
                 [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) +
-                      '\t' + str(fs) + '\t' + str(sor) + '\t' +
-                      ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
+                [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string] +
+                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
+                group_info) + '\n')
 
         return
 
