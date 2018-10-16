@@ -16,8 +16,8 @@ from pysam import FastaFile, AlignmentFile, TabixFile
 
 from . import utils
 from .fusion import Fusion
-from .basetypebamprocess import BaseVarMultiProcess as BamBaseVarMultiProcess
-from .basetypefusionprocess import BaseVarFusionMultiProcess
+from .basetypebam import BaseVarMultiProcess as BamBaseVarMultiProcess
+from .basetypefusion import BaseVarFusionMultiProcess
 from .coverageprocess import BaseVarMultiProcess as CvgBaseVarMultiProcess
 from .vqsr import vqsr
 
