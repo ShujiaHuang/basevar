@@ -75,6 +75,8 @@ def load_file_list(in_file):
 def load_target_position(referencefile, posfile, region_info):
     # Loading positions
     _sites = get_list_position(posfile) if posfile else {}
+
+    fa = FastaFile(referencefile)
     if len(region_info):
 
         regions = []
@@ -83,9 +85,15 @@ def load_target_position(referencefile, posfile, region_info):
 
         else:
             for r in region_info.split(','):
-                chr_id, reg = r.strip().split(':')
-                start, end = map(int, reg.split('-'))
-                regions.append([chr_id, start, end])
+
+                if ':' in r:
+                    chr_id, reg = r.strip().split(':')
+                    start, end = map(int, reg.split('-'))
+                    regions.append([chr_id, start, end])
+                else:
+                    # Just chromosome id
+                    ci = r.strip()
+                    regions.append([ci, 1, fa.get_reference_length(ci)])
 
         for chrid, start, end in regions:
 
@@ -105,10 +113,10 @@ def load_target_position(referencefile, posfile, region_info):
     if not regions:
         sys.stderr.write('[WARNINGS] Program will load all the genome cause '
                          'there is not any positions and regions provided.\n')
-        fa = FastaFile(referencefile)
         regions = [[ci, 1, fa.get_reference_length(ci)]
                    for ci in fa.references]
-        fa.close()
+
+    fa.close()
 
     return regions
 
