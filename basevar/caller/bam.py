@@ -34,6 +34,8 @@ def fetch_base_by_position(position, sample_info, iter_tokes, fa,
 
         if indel:
             indels.append(indel.upper())
+        else:
+            indels.append("")
 
     return bases, base_quals, strands, mapqs, read_pos_rank, indels
 
