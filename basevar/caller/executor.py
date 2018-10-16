@@ -12,7 +12,7 @@ import sys
 import argparse
 import time
 
-from pysam import FastaFile, AlignmentFile
+from pysam import FastaFile, AlignmentFile, TabixFile
 
 from . import utils
 from .fusion import Fusion
@@ -51,6 +51,10 @@ class BaseTypeBamRunner(object):
                                'be min(0.001, 100/x), x is the size of your population.'
                                '[min(0.001, 100/x)]')
 
+        # special parameter for calculating specific population allele frequence
+        optp.add_argument('--pop-group', dest='pop_group_file', metavar='FILE', type=str,
+                          help='Calculating the allele frequency for specific population.')
+
         # special parameter to limit the function of BaseType
         optp.add_argument('--justdepth', dest='justdepth', type=bool,
                           help='Just output the depth information for each position [False]',
@@ -74,7 +78,7 @@ class BaseTypeBamRunner(object):
 
         self.cmm = cmm
         if self.opt.min_af is None:
-            self.opt.min_af = min(100.0 / len(self.alignefiles), 0.001)
+            self.opt.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)
 
         # reset threshold of min allele frequence threshold by sample size
         self.cmm.MINAF = self.opt.min_af
@@ -155,6 +159,7 @@ class BaseTypeBamRunner(object):
 
             processes.append(BamBaseVarMultiProcess(self.opt.referencefile,
                                                     self.alignefiles,
+                                                    self.opt.pop_group_file,
                                                     sub_vcf_file,
                                                     sub_cvg_file,
                                                     regions_for_each_process[i],
@@ -242,17 +247,47 @@ class BaseTypeFusionRunner(object):
                                                   opt.region)
 
         # Get all the input align fusion files
-        self.alignefiles = utils.load_file_list(opt.infilelist)
+        self.fusionfiles = utils.load_file_list(opt.infilelist)
 
         self.cmm = cmm
         if self.opt.min_af is None:
-            self.opt.min_af = min(100.0/len(self.alignefiles), 0.001)
+            self.opt.min_af = min(100.0/len(self.fusionfiles), 0.001, self.cmm.MINAF)
 
         # reset threshold of min allele frequence threshold by sample size
         self.cmm.MINAF = self.opt.min_af
 
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
+
+        # loading all the sample id from aligne_files
+        # ``samples_id`` has the same size and order as ``aligne_files``
+        self.sample_id = self._load_sample_id()
+
+    def _load_sample_id(self):
+        """loading sample id in BAM/CRMA files from RG tag"""
+
+        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+        # loading sample'id from the header of fusion files
+        sample_id = []
+        for i, f in enumerate(self.fusionfiles):
+
+            tf = TabixFile(f)
+            try:
+                # get sample ID: '##RG\tSM:SAMPLE_ID'
+                header = [h for h in tf.header if h.startswith('##RG\tSM:')][0]
+                sample_id.append(header.split(':')[-1])
+                tf.close()
+
+            except IndexError:
+
+                sys.stderr.write('[ERROR] File header has no sample tag mark '
+                                 'by "SM:", Please check %s!' % f)
+                tf.close()
+                sys.exit(1)
+
+        sys.stderr.write('[INFO] Finish load all %d samples\' ID '
+                         'from RG tag\n\n' % len(sample_id))
+        return sample_id
 
     def run(self):
         """
@@ -297,11 +332,12 @@ class BaseTypeFusionRunner(object):
                                              sub_cvg_file))
 
             processes.append(BaseVarFusionMultiProcess(self.opt.referencefile,
-                                                       self.alignefiles,
+                                                       self.fusionfiles,
                                                        self.opt.pop_group_file,
                                                        sub_vcf_file,
                                                        sub_cvg_file,
                                                        regions_for_each_process[i],
+                                                       self.sample_id,
                                                        cmm=self.cmm))
 
         for p in processes:
@@ -574,7 +610,7 @@ class MergeRunner(object):
 
 
 class NearbyIndelRunner(object):
-
+    """Add Nearby Indel density and type information for each variants of VCF"""
     def __init__(self):
         """init function"""
         optp = argparse.ArgumentParser()

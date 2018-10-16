@@ -8,8 +8,7 @@ import multiprocessing
 import pysam
 
 from . import utils
-from .basetype import BaseType
-from .algorithm import strand_bias, ref_vs_alt_ranksumtest
+from .basetypeprocess import basetypeprocess
 
 
 class BaseTypeFusionSingleProcess(object):
@@ -17,7 +16,7 @@ class BaseTypeFusionSingleProcess(object):
     simple class to repesent a single process.
     """
     def __init__(self, in_ref_file, in_fusion_files, in_popgroup_file,
-                 out_vcf_file, out_cvg_file, regions, cmm=None):
+                 out_vcf_file, out_cvg_file, regions, samples, cmm=None):
         """
         Store input file, options and output file name.
 
@@ -33,6 +32,7 @@ class BaseTypeFusionSingleProcess(object):
         self.in_fusion_files = in_fusion_files
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
+        self.samples = samples
         self.cmm = cmm
         self.regions = {}
 
@@ -47,53 +47,11 @@ class BaseTypeFusionSingleProcess(object):
         # Cache a batch of file handle which index by tabix
         self.tb_files = [pysam.TabixFile(f) for f in self.in_fusion_files]
 
-        # loading sample'id from the header of fusion files
-        self.samples = []
-        for i, tf in enumerate(self.tb_files):
-
-            try:
-                # get sample ID: '##RG\tSM:SAMPLE_ID'
-                header = [h for h in tf.header if h.startswith('##RG\tSM:')][0]
-                self.samples.append(header.split(':')[-1])
-            except IndexError:
-
-                sys.stderr.write('[ERROR] File header has no sample tag mark '
-                                 'by "SM:", Please check %s!' % self.in_fusion_files[i])
-                self._close_file()
-                sys.exit(1)
-
         # loading population group
         # group_id => [a list samples_index]
         self.popgroup = {}
         if in_popgroup_file and len(in_popgroup_file):
-
-            tmpdict = {}
-            line_num = 0
-            with open(in_popgroup_file) as f:
-
-                # Just two columns: sample_id and group_id
-                for line in f:
-                    line_num += 1
-
-                    try:
-                        sample_id, group_id = line.strip().split()[0:2]
-                    except ValueError:
-                        sys.stderr.write('[ERROR] Format error in `in_popgroup_file` it '
-                                         'may not contain two columns happen in: %d '
-                                         'lines in file "%s" \n' % (line_num, in_popgroup_file))
-                        self._close_file()
-                        sys.exit(1)
-
-                    tmpdict[sample_id] = group_id + '_AF'
-
-            for i, s in enumerate(self.samples):
-
-                if s in tmpdict:
-                    if tmpdict[s] not in self.popgroup:
-                        self.popgroup[tmpdict[s]] = []
-
-                    # record different index of different groups
-                    self.popgroup[tmpdict[s]].append(i)
+            self.popgroup = utils.load_popgroup_info(self.samples, in_popgroup_file)
 
     def _close_file(self):
 
@@ -187,51 +145,16 @@ class BaseTypeFusionSingleProcess(object):
                         ref_base = fa[position-1]
 
                         # ignore positions if coverage=0 or ref base is 'N' base
-                        if (not sample_bases) or (ref_base in ['N', 'n']):
+                        if (not sample_bases) or (ref_base.upper() not in ['A', 'C', 'G', 'T']):
                             continue
 
-                        self._out_cvg_file(chrid, position, ref_base, sample_bases,
-                                           strands, indels, CVG)
+                        basetypeprocess(chrid, position, ref_base, sample_bases, sample_base_quals,
+                                        mapqs, strands, indels, read_pos_rank, self.popgroup,
+                                        self.cmm, CVG, VCF)
 
                         # These two lines just for debug.
                         # VCF.write("\t".join([chrid, str(position), ".", ref_base, ".\t.\t.\t.\t."]+[":".join(map(str, [a,b,c])) for a,b,c in zip(sample_bases,sample_base_quals,strands)]))
                         # sys.exit(1)
-
-                        if ref_base.upper() not in ['A', 'C', 'G', 'T', 'N']:
-                            continue
-
-                        bt = BaseType(ref_base.upper(), sample_bases,
-                                      sample_base_quals, cmm=self.cmm)
-                        bt.lrt()
-
-                        if len(bt.alt_bases()) > 0:
-
-                            popgroup_bt = {}
-                            for group, index in self.popgroup.items():
-                                group_sample_bases, group_sample_base_quals = [], []
-                                for i in index:
-                                    group_sample_bases.append(sample_bases[i] )
-                                    group_sample_base_quals.append(sample_base_quals[i])
-
-                                group_bt = BaseType(ref_base.upper(), group_sample_bases,
-                                                    group_sample_base_quals, cmm=self.cmm)
-
-                                basecombination = [ref_base.upper()] + bt.alt_bases()
-                                group_bt.lrt(basecombination)
-
-                                popgroup_bt[group] = group_bt
-
-                            self._out_vcf_line(chrid,
-                                               position,
-                                               ref_base,
-                                               sample_bases,
-                                               mapqs,
-                                               read_pos_rank,
-                                               sample_base_quals,
-                                               strands,
-                                               bt,
-                                               popgroup_bt,
-                                               VCF)
 
         self._close_file()
 
@@ -321,154 +244,6 @@ class BaseTypeFusionSingleProcess(object):
         qual = ord(qual) - 33
         return base, qual, strand, mapq, rpr, indel, sample_line
 
-    def _base_depth_and_indel(self, bases, indels):
-        # coverage info for each position
-        base_depth = {b: 0 for b in self.cmm.BASE}
-
-        for b in bases:
-
-            # ignore all bases('*') which not match ``cmm.BASE``
-            if b in base_depth:
-                base_depth[b] += 1
-
-        # deal with indels
-        indel_dict = {}
-        for ind in indels:
-
-            if len(ind) == 0:
-                # non indels
-                continue
-
-            indel_dict[ind] = indel_dict.get(ind, 0) + 1
-
-        indel_string = ','.join(
-            [k + ':' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
-
-        return [base_depth, indel_string]
-
-    def _out_cvg_file(self, chrid, position, ref_base, sample_bases,
-                      strands, indels, out_file_handle):
-        # coverage info for each position
-        base_depth, indel_string = self._base_depth_and_indel(sample_bases, indels)
-
-        # base depth and indels for each subgroup
-        group_cvg = {}
-        for group, index in self.popgroup.items():
-
-            group_sample_bases, group_sample_indels = [], []
-            for i in index:
-                group_sample_bases.append(sample_bases[i])
-                group_sample_indels.append(indels[i])
-
-            bd, ind = self._base_depth_and_indel(group_sample_bases, group_sample_indels)
-            group_cvg[group] = [bd, ind]
-
-        fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
-        if sample_bases:
-            base_sorted = sorted(base_depth.items(),
-                                 key=lambda x: x[1],
-                                 reverse=True)
-
-            b1, b2 = base_sorted[0][0], base_sorted[1][0]
-            fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-                ref_base.upper(),
-                [b1 if b1 != ref_base.upper() else b2],
-                sample_bases,
-                strands
-            )
-
-        if sum(base_depth.values()):
-
-            group_info = []
-            if group_cvg:
-                for k in self.popgroup.keys():
-                    depth, indel_str = group_cvg[k]
-                    s = ':'.join([str(depth[b]) for b in self.cmm.BASE] + [indel_str])
-                    group_info.append(s)
-
-            out_file_handle.write('\t'.join(
-                [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string] +
-                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
-                group_info) + '\n')
-
-        return
-
-    def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs, read_pos_rank,
-                      sample_base_qual, strands, bt, pop_group_bt, out_file_handle):
-
-        alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
-        samples = []
-
-        for k, b in enumerate(sample_base):
-
-            # For sample FORMAT
-            if b != 'N':
-                # For the base which not in bt.alt_bases()
-                if b not in alt_gt:
-                    alt_gt[b] = './.'
-
-                gt = '0/.' if b == ref_base.upper() else alt_gt[b]
-
-                samples.append(gt + ':' + b + ':' + strands[k] + ':' +
-                               str(round(bt.qual_pvalue[k], 6)))
-            else:
-                samples.append('./.')  # 'N' base
-
-        # Rank Sum Test for mapping qualities of REF versus ALT reads
-        mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                             zip(sample_base, mapqs))
-
-        # Rank Sum Test for variant appear position among read of REF versus ALT
-        read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                                   zip(sample_base, read_pos_rank))
-
-        # Rank Sum Test for base quality of REF versus ALT
-        base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                                 zip(sample_base, sample_base_qual))
-
-        # Variant call confidence normalized by depth of sample reads
-        # supporting a variant.
-        ad_sum = sum([bt.depth[b] for b in bt.alt_bases()])
-        qd = round(float(bt.var_qual() / ad_sum), 3)
-
-        # Strand bias by fisher exact test and Strand bias estimated by the
-        # Symmetric Odds Ratio test
-        fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-            ref_base.upper(), bt.alt_bases(), sample_base, strands)
-
-        # base=>[CAF, allele depth], CAF = Allele frequency by read count
-        caf = {b: ['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
-                   bt.depth[b]] for b in bt.alt_bases()}
-
-        info = {'CM_DP': str(int(bt.total_depth)),
-                'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases()])),
-                'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases()])),
-                'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases()])),
-                'MQRankSum': str(mq_rank_sum),
-                'ReadPosRankSum': str(read_pos_rank_sum),
-                'BaseQRankSum': str(base_q_rank_sum),
-                'QD': str(qd),
-                'SOR': str(sor),
-                'FS': str(fs),
-                'SB_REF': str(ref_fwd)+','+str(ref_rev),
-                'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
-
-        if pop_group_bt:
-
-            for group, g_bt in pop_group_bt.items():
-                af = ','.join(map(str, [g_bt.af_by_lrt[b] if b in g_bt.af_by_lrt else 0
-                                        for b in bt.alt_bases()]))
-                info[group] = af
-
-        out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                              ','.join(bt.alt_bases()), str(bt.var_qual()),
-                              '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
-                              ';'.join([k+'='+v for k, v in sorted(
-                                  info.items(), key=lambda x:x[0])]),
-                                  'GT:AB:SO:BP'] + samples) + '\n')
-        return self
-
 
 ###############################################################################
 class BaseVarFusionMultiProcess(multiprocessing.Process):
@@ -476,8 +251,8 @@ class BaseVarFusionMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __init__(self, ref_in_file, aligne_files, pop_group_file,
-                 out_vcf_file, out_cvg_file, regions, cmm=None):
+    def __init__(self, ref_in_file, fusion_files, pop_group_file,
+                 out_vcf_file, out_cvg_file, regions,samples, cmm=None):
         """
         Constructor.
 
@@ -489,11 +264,12 @@ class BaseVarFusionMultiProcess(multiprocessing.Process):
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.single_process = BaseTypeFusionSingleProcess(ref_in_file,
-                                                          aligne_files,
+                                                          fusion_files,
                                                           pop_group_file,
                                                           out_vcf_file,
                                                           out_cvg_file,
                                                           regions,
+                                                          samples,
                                                           cmm=cmm)
 
     def run(self):

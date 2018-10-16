@@ -9,17 +9,16 @@ import multiprocessing
 import pysam
 
 from . import utils
-from .basetype import BaseType
 from . import bam
-from .algorithm import strand_bias, ref_vs_alt_ranksumtest
+from .basetypeprocess import basetypeprocess
 
 
 class BaseVarSingleProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
-    def __init__(self, ref_file, aligne_files, out_vcf_file, out_cvg_file,
-                 regions, samples, cmm=None):
+    def __init__(self, ref_file, aligne_files, in_popgroup_file, out_vcf_file,
+                 out_cvg_file, regions, samples, cmm=None):
         """
         Store input file, options and output file name.
 
@@ -59,6 +58,12 @@ class BaseVarSingleProcess(object):
 
             self.ali_files_hd.append(bf)
 
+            # loading population group
+            # group_id => [a list samples_index]
+            self.popgroup = {}
+            if in_popgroup_file and len(in_popgroup_file):
+                self.popgroup = utils.load_popgroup_info(self.samples, in_popgroup_file)
+
     def _close_aligne_file(self):
 
         self.ref_file_hd.close()
@@ -72,11 +77,22 @@ class BaseVarSingleProcess(object):
         Run the process of calling variant and output
         """
         vcf_header = utils.vcf_header_define()
+        group = []  # Just for the header of CVG file
+        if self.popgroup:
+            for g in self.popgroup.keys():
+                g_id = g.split('_')[0]  # ignore '_AF'
+                group.append(g_id)
+                vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele '
+                                  'frequency in the %s populations calculated base on LRT, in '
+                                  'the range (0,1)">' % (g_id, g_id))
+
         with open(self.out_vcf_file, 'w') as VCF, open(self.out_cvg_file, 'w') as CVG:
 
+            CVG.write('##fileformat=CVGv1.0\n')
+            CVG.write('##Group_info is the depth of A:C:G:T:Indel\n')
             CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
                                 ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                                 'REF_REV,ALT_FWD,ALT_REV)\n']))
+                                 'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
 
             # set header
             VCF.write('\n'.join(vcf_header) + '\n')
@@ -135,140 +151,17 @@ class BaseVarSingleProcess(object):
                         )
 
                         ref_base = fa[position-1]
+
                         # ignore positions if coverage=0 or ref base is 'N' base
-                        if (not sample_bases) or (ref_base in ['N', 'n']):
+                        if (not sample_bases) or (ref_base.upper() not in ['A', 'C', 'G', 'T']):
                             continue
 
-                        self._out_cvg_file(chrid, position, ref_base, sample_bases,
-                                           strands, indels, CVG)
-
-                        bt = BaseType(ref_base.upper(), sample_bases,
-                                      sample_base_quals, cmm=self.cmm)
-                        bt.lrt()
-
-                        if len(bt.alt_bases()) > 0:
-                            self._out_vcf_line(chrid,
-                                               position,
-                                               ref_base,
-                                               sample_bases,
-                                               mapqs,
-                                               read_pos_rank,
-                                               sample_base_quals,
-                                               strands,
-                                               bt,
-                                               VCF)
+                        # Calling varaints by Basetypes and output VCF and Coverage files.
+                        basetypeprocess(chrid, position, ref_base, sample_bases, sample_base_quals,
+                                        mapqs, strands, indels, read_pos_rank, self.popgroup,
+                                        self.cmm, CVG, VCF)
 
         self._close_aligne_file()
-
-    def _out_cvg_file(self, chrid, position, ref_base, sample_bases,
-                      strands, indels, out_file_handle):
-        # coverage info for each position
-
-        base_depth = {b: 0 for b in self.cmm.BASE}
-        for k, b in enumerate(sample_bases):
-
-            # ignore all bases('*') which not match ``cmm.BASE``
-            if b in base_depth:
-                base_depth[b] += 1
-
-        # deal with indels
-        indel_dict = {}
-        for ind in indels:
-            indel_dict[ind] = indel_dict.get(ind, 0) + 1
-
-        indel_string = ','.join(
-            [k + ':' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
-
-        fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
-        if sample_bases:
-            base_sorted = sorted(base_depth.items(),
-                                 key=lambda x: x[1],
-                                 reverse=True)
-
-            b1, b2 = base_sorted[0][0], base_sorted[1][0]
-            fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-                ref_base.upper(),
-                [b1 if b1 != ref_base.upper() else b2],
-                sample_bases,
-                strands
-            )
-
-        if sum(base_depth.values()):
-            out_file_handle.write('\t'.join(
-                [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in self.cmm.BASE] + [indel_string]) +
-                      '\t' + str(fs) + '\t' + str(sor) + '\t' +
-                      ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev])) + '\n')
-
-        return
-
-    def _out_vcf_line(self, chrid, position, ref_base, sample_base, mapqs,
-                      read_pos_rank, sample_base_qual, strands, bt, out_file_handle):
-
-        alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
-        samples = []
-
-        for k, b in enumerate(sample_base):
-
-            # For sample FORMAT
-            if b != 'N':
-                # For the base which not in bt.alt_bases()
-                if b not in alt_gt:
-                    alt_gt[b] = './.'
-
-                gt = '0/.' if b == ref_base.upper() else alt_gt[b]
-
-                samples.append(gt + ':' + b + ':' + strands[k] + ':' +
-                               str(round(bt.qual_pvalue[k], 6)))
-            else:
-                samples.append('./.')  # 'N' base
-
-        # Rank Sum Test for mapping qualities of REF versus ALT reads
-        mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                             zip(sample_base, mapqs))
-
-        # Rank Sum Test for variant appear position among read of REF versus ALT
-        read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                                   zip(sample_base, read_pos_rank))
-
-        # Rank Sum Test for base quality of REF versus ALT
-        base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                                 zip(sample_base, sample_base_qual))
-
-        # Variant call confidence normalized by depth of sample reads
-        # supporting a variant.
-        ad_sum = sum([bt.depth[b] for b in bt.alt_bases()])
-        qd = round(float(bt.var_qual() / ad_sum), 3)
-
-        # Strand bias by fisher exact test and Strand bias estimated by the
-        # Symmetric Odds Ratio test
-        fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-            ref_base.upper(), bt.alt_bases(), sample_base, strands)
-
-        # base=>[CAF, allele depth], CAF = Allele frequency by read count
-        caf = {b: ['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
-                   bt.depth[b]] for b in bt.alt_bases()}
-
-        info = {'CM_DP': str(int(bt.total_depth)),
-                'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases()])),
-                'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases()])),
-                'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases()])),
-                'MQRankSum': str(mq_rank_sum),
-                'ReadPosRankSum': str(read_pos_rank_sum),
-                'BaseQRankSum': str(base_q_rank_sum),
-                'QD': str(qd),
-                'SOR': str(sor),
-                'FS': str(fs),
-                'SB_REF': str(ref_fwd)+','+str(ref_rev),
-                'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
-
-        out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                              ','.join(bt.alt_bases()), str(bt.var_qual()),
-                              '.' if bt.var_qual() > self.cmm.QUAL_THRESHOLD else 'LowQual',
-                              ';'.join([k+'='+v for k, v in sorted(
-                                  info.items(), key=lambda x:x[0])]),
-                                  'GT:AB:SO:BP'] + samples) + '\n')
-        return self
 
 
 ###############################################################################
@@ -277,8 +170,8 @@ class BaseVarMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __init__(self, ref_in_file, aligne_files, out_vcf_file, out_cvg_file,
-                 regions, samples_id, cmm=None):
+    def __init__(self, ref_in_file, aligne_files, pop_group_file, out_vcf_file,
+                 out_cvg_file, regions, samples_id, cmm=None):
         """
         Constructor.
 
@@ -291,6 +184,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.single_process = BaseVarSingleProcess(ref_in_file,
                                                    aligne_files,
+                                                   pop_group_file,
                                                    out_vcf_file,
                                                    out_cvg_file,
                                                    regions,

@@ -397,3 +397,38 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
 
     return
 
+
+def load_popgroup_info(samples, in_popgroup_file):
+    """loading population group"""
+
+    tmpdict = {}
+    line_num = 0
+    with open(in_popgroup_file) as f:
+
+        # Just two columns: sample_id and group_id
+        for line in f:
+            line_num += 1
+
+            try:
+                sample_id, group_id = line.strip().split()[0:2]
+            except ValueError:
+                sys.stderr.write('[ERROR] Format error in `in_popgroup_file` it '
+                                 'may not contain two columns happen in: %d '
+                                 'lines in file "%s" \n' % (line_num, in_popgroup_file))
+                sys.exit(1)
+
+            tmpdict[sample_id] = group_id + '_AF'
+
+    # group_id => [a list samples_index]
+    popgroup = {}
+    # keep the sample's order
+    for i, s in enumerate(samples):
+
+        if s in tmpdict:
+            if tmpdict[s] not in popgroup:
+                popgroup[tmpdict[s]] = []
+
+            # record different index of different groups
+            popgroup[tmpdict[s]].append(i)
+
+    return popgroup
