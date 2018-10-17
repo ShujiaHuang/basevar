@@ -147,11 +147,14 @@ class BaseTypeBamRunner(object):
 
         processes = []
         for i in range(self.opt.nCPU):
-            sub_vcf_file = self.opt.outprefix + '_temp_%s' % i + '.vcf'
             sub_cvg_file = self.opt.outprefix + '_temp_%s' % i + '.cvg.tsv'
-
-            out_vcf_names.add(sub_vcf_file)
             out_cvg_names.add(sub_cvg_file)
+
+            if not self.opt.justdepth:
+                sub_vcf_file = self.opt.outprefix + '_temp_%s' % i + '.vcf'
+                out_vcf_names.add(sub_vcf_file)
+            else:
+                sub_vcf_file = None
 
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s, %s]\n' % (i+1, self.opt.nCPU, sub_vcf_file,
@@ -160,10 +163,10 @@ class BaseTypeBamRunner(object):
             processes.append(BamBaseVarMultiProcess(self.opt.referencefile,
                                                     self.alignefiles,
                                                     self.opt.pop_group_file,
-                                                    sub_vcf_file,
-                                                    sub_cvg_file,
                                                     regions_for_each_process[i],
                                                     self.sample_id,
+                                                    out_cvg_file=sub_cvg_file,
+                                                    out_vcf_file=sub_vcf_file,
                                                     cmm=self.cmm))
 
         for p in processes:
@@ -182,16 +185,17 @@ class BaseTypeBamRunner(object):
 
                 sys.exit(1)
 
-        # make sure all process are finished
+        # Make sure all process are finished
         for p in processes:
             p.join()
 
         # Final output file name
-        out_vcf_file = self.opt.outprefix + '.vcf'
         out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
-
-        utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
         utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
+
+        if not self.opt.justdepth:
+            out_vcf_file = self.opt.outprefix + '.vcf'
+            utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
 
         return
 
@@ -321,11 +325,14 @@ class BaseTypeFusionRunner(object):
 
         processes = []
         for i in range(self.opt.nCPU):
-            sub_vcf_file = self.opt.outprefix + '_temp_%s' % i + '.vcf'
             sub_cvg_file = self.opt.outprefix + '_temp_%s' % i + '.cvg.tsv'
-
-            out_vcf_names.add(sub_vcf_file)
             out_cvg_names.add(sub_cvg_file)
+
+            if not self.opt.justdepth:
+                sub_vcf_file = self.opt.outprefix + '_temp_%s' % i + '.vcf'
+                out_vcf_names.add(sub_vcf_file)
+            else:
+                sub_vcf_file = None
 
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s, %s]\n' % (i+1, self.opt.nCPU, sub_vcf_file,
@@ -334,10 +341,10 @@ class BaseTypeFusionRunner(object):
             processes.append(BaseVarFusionMultiProcess(self.opt.referencefile,
                                                        self.fusionfiles,
                                                        self.opt.pop_group_file,
-                                                       sub_vcf_file,
-                                                       sub_cvg_file,
                                                        regions_for_each_process[i],
                                                        self.sample_id,
+                                                       out_cvg_file=sub_cvg_file,
+                                                       out_vcf_file=sub_vcf_file,
                                                        cmm=self.cmm))
 
         for p in processes:
@@ -361,11 +368,12 @@ class BaseTypeFusionRunner(object):
             p.join()
 
         # Final output file name
-        out_vcf_file = self.opt.outprefix + '.vcf'
         out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
-
-        utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
         utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
+
+        if not self.opt.justdepth:
+            out_vcf_file = self.opt.outprefix + '.vcf'
+            utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
 
         return
 
@@ -575,7 +583,6 @@ class CoverageRunner(object):
 
         # Final output file name
         out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
-
         utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
 
         return

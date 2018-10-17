@@ -12,38 +12,41 @@ def basetypeprocess(chrid, position, ref_base, sample_bases, base_quals, mapqs, 
     _out_cvg_file(chrid, position, ref_base, sample_bases, strands, indels,
                   popgroup, cvg_file_handle, cmm=cmm)
 
-    bt = BaseType(ref_base.upper(), sample_bases, base_quals, cmm=cmm)
-    bt.lrt()
+    # Call variant if ``vcf_file_handle`` is not None
+    if vcf_file_handle:
 
-    if len(bt.alt_bases()) > 0:
+        bt = BaseType(ref_base.upper(), sample_bases, base_quals, cmm=cmm)
+        bt.lrt()
 
-        popgroup_bt = {}
-        for group, index in popgroup.items():
-            group_sample_bases, group_sample_base_quals = [], []
-            for i in index:
-                group_sample_bases.append(sample_bases[i])
-                group_sample_base_quals.append(base_quals[i])
+        if len(bt.alt_bases()) > 0:
 
-            group_bt = BaseType(ref_base.upper(), group_sample_bases,
-                                group_sample_base_quals, cmm=cmm)
+            popgroup_bt = {}
+            for group, index in popgroup.items():
+                group_sample_bases, group_sample_base_quals = [], []
+                for i in index:
+                    group_sample_bases.append(sample_bases[i])
+                    group_sample_base_quals.append(base_quals[i])
 
-            basecombination = [ref_base.upper()] + bt.alt_bases()
-            group_bt.lrt(basecombination)
+                group_bt = BaseType(ref_base.upper(), group_sample_bases,
+                                    group_sample_base_quals, cmm=cmm)
 
-            popgroup_bt[group] = group_bt
+                basecombination = [ref_base.upper()] + bt.alt_bases()
+                group_bt.lrt(basecombination)
 
-        _out_vcf_line(chrid,
-                      position,
-                      ref_base,
-                      sample_bases,
-                      mapqs,
-                      read_pos_rank,
-                      base_quals,
-                      strands,
-                      bt,
-                      popgroup_bt,
-                      vcf_file_handle,
-                      cmm=cmm)
+                popgroup_bt[group] = group_bt
+
+            _out_vcf_line(chrid,
+                          position,
+                          ref_base,
+                          sample_bases,
+                          mapqs,
+                          read_pos_rank,
+                          base_quals,
+                          strands,
+                          bt,
+                          popgroup_bt,
+                          vcf_file_handle,
+                          cmm=cmm)
     return
 
 
