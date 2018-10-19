@@ -10,7 +10,6 @@ import pysam
 
 from . import utils
 from . import bam
-from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 
 
 def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,

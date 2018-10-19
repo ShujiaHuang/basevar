@@ -118,7 +118,8 @@ def scan_indel(read, target_pos, fa):
         # But we should find the position of Insertion, which is the next one.
 
         if cigar_type in [3,4,5,6]:  # 'SHPN'
-            continue
+            # continue
+            target_indx += 1
 
         # mapping
         if cigar_type == 0:

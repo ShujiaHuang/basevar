@@ -8,6 +8,8 @@ Date: 2016-10-06 16:38:00
 import sys
 import time
 
+from datetime import datetime
+
 
 def fusion():
     from caller.executor import FusionRunner
@@ -59,21 +61,13 @@ def merge():
     return
 
 
-def coverage():
-    from caller.executor import CoverageRunner
-    cvg = CoverageRunner()
-    cvg.run()
-
-    return
-
-
 if __name__ == '__main__':
 
+    START_TIME = datetime.now()
     runner = {'fusion': fusion,
               'basetype': basetype,
               'fusionbasetype': fusionbasetype,
               'merge': merge,
-              'coverage': coverage,
               'nbi': nearby_indel,
               'VQSR': vqsr
               }
@@ -86,5 +80,7 @@ if __name__ == '__main__':
     command = sys.argv[1]
     runner[command]()
 
+    elapsed_time = datetime.now() - START_TIME
+    sys.stderr.write('\n** %s done, %d seconds elapsed **\n' % (sys.argv[1], elapsed_time.seconds))
     sys.stderr.write('** %s ALL DONE %s **\n' % (command, time.asctime()))
     sys.stderr.write('>> For the flowers bloom in the desert <<\n')
