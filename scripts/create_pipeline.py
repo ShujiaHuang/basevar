@@ -96,7 +96,6 @@ def creat_basetype_pipe():
                             '&& echo "** %s done **"' % outfile_prefix])
 
 
-
 if __name__ == '__main__':
 
     creat_basetype_pipe()

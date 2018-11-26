@@ -10,7 +10,6 @@ Date: 2017-08-02
 """
 import sys
 import re
-import os
 import time
 
 import numpy as np
@@ -19,6 +18,7 @@ from sklearn.metrics import roc_curve
 from . import variant_recalibrator_argument_collection as VRAC
 from . import variant_datum as vd
 from .. import vcfutils
+from .. import utils
 
 
 class VariantDataManager(object):
@@ -30,7 +30,11 @@ class VariantDataManager(object):
         self.annoTexts      = [['QUAL', 'Float', 'Raw variant quality before VQSR process'],
                                ['DP', 'Integer', 'Total depth of this variant'],
                                ['FS', 'Float', 'Phred-scaled p-value using '
-                                'Fisher\'s exact test to detect strand bias']]
+                                               'Fisher\'s exact test to detect strand bias'],
+                               ['Indel_SP', 'Integer', 'Indel species around this position.'
+                                                       'The less the better.'],
+                               ['Indel_TOT', 'Integer', 'Number of Indel around this position.'
+                                                       'The less the better.']]
 
         self.data = [] # list <VariantDatum>
         if data: # data is not None
@@ -127,8 +131,7 @@ class VariantDataManager(object):
 
         lodThreshold, lodCum = None, []
         if len(self.data) > 0:
-
-            lodDist = np.array([[d.atTrainingSite, d.lod] 
+            lodDist = np.array([[d.atTrainingSite, d.lod]
                                 for d in self.data if(not d.failingSTDThreshold)])
 
             # I just use the 'roc_curve' function to calculate the worst 
@@ -149,7 +152,7 @@ def LoadTrainingSiteFromVCF(vcffile):
     """
     Just record the training site positions
     """
-    I = os.popen('gzip -dc %s' % vcffile) if vcffile.endswith('.gz') else open(vcffile)
+    I = utils.Open(vcffile, 'r')
     sys.stderr.write('\n[INFO] Loading Training site from VCF %s\n' % time.asctime())
     n, dataSet =0, set()
     for line in I:
@@ -169,19 +172,14 @@ def LoadTrainingSiteFromVCF(vcffile):
 
     return dataSet
 
-def LoadDataSet(vcfInfile, traningSet, pedFile=None):
+def LoadDataSet(vcfInfile, traningSet):
     """
-    Args:
-        'pedFile': The .PED file
     """
-    # Return a dict: [sample-id] => [parent1, parent2]
-    # if pedFile is None, return {}
-    # pedigree = vcfutils.loadPedigree(pedFile)
 
     if len(traningSet) == 0:
         raise ValueError('[ERROR] No Training Data found')
 
-    I = os.popen('gzip -dc %s' % vcfInfile) if vcfInfile.endswith('.gz') else open(vcfInfile)
+    I = utils.Open(vcfInfile, 'r')
     sys.stderr.write('\n[INFO] Loading data set from VCF %s\n' % time.asctime())
 
     n, data, hInfo = 0, [], vcfutils.Header()
@@ -196,23 +194,34 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
             continue
 
         col = line.strip().split()
+        if col[3] in ['N', 'n']:
+            continue
+
         qual = float(col[5])
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
         fs = re.search(r';?FS=([^;]+)', col[7])
-
-        if not dp or not fs:
+        indel_sp = re.search(r';?Indel_SP=([^;]+)', col[7])
+        indel_tot = re.search(r';?Indel_TOT=([^;]+)', col[7])
+        if any([not dp, not fs, not indel_sp, not indel_tot]):
             continue
 
         dp = round(float(dp.group(1)), 2)
         fs = round(float(fs.group(1)), 3)
+        indel_sp = float(indel_sp.group(1))
+        indel_tot = float(indel_tot.group(1))
 
         if fs >= 10000.0:
             fs = 10000.0
 
         datum = vd.VariantDatum()
-        datum.raw_annotations = dict(QUAL=qual, DP=dp, FS=fs)
-        datum.annotations = [qual, dp, fs]
+        datum.raw_annotations = dict(QUAL=qual,
+                                     DP=dp,
+                                     FS=fs,
+                                     Indel_SP=indel_sp,
+                                     Indel_TOT=indel_tot)
+
+        datum.annotations = [qual, dp, fs, indel_sp, indel_tot]
 
         datum.variantOrder = col[0] + ':' + col[1]
         if datum.variantOrder in traningSet:
@@ -221,7 +230,6 @@ def LoadDataSet(vcfInfile, traningSet, pedFile=None):
         data.append(datum)
 
     I.close()
-
     sys.stderr.write('[INFO] Finish loading data set %d lines. %s\n' %
                      (n, time.asctime()))
 

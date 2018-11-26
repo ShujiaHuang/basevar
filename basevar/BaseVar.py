@@ -9,17 +9,45 @@ import sys
 import time
 
 
-def basetype():
-    from caller.executor import BaseTypeRunner
+def fusion():
+    from caller.executor import FusionRunner
+    cf = FusionRunner()
+    cf.run()
 
-    bt = BaseTypeRunner()
+    return
+
+
+def basetype():
+    from caller.executor import BaseTypeBamRunner
+    bt = BaseTypeBamRunner()
     bt.run()
+
+    return
+
+
+def fusionbasetype():
+    from caller.executor import BaseTypeFusionRunner
+    ft = BaseTypeFusionRunner()
+    ft.run()
+
+    return
 
 
 def vqsr():
     from caller.executor import VQSRRuner
     vq = VQSRRuner()
     vq.run()
+
+    return
+
+
+def nearby_indel():
+
+    from caller.executor import NearbyIndelRunner
+    nbi = NearbyIndelRunner()
+    nbi.run()
+
+    return
 
 
 def merge():
@@ -28,20 +56,35 @@ def merge():
     mg = MergeRunner()
     mg.run()
 
+    return
+
+
+def coverage():
+    from caller.executor import CoverageRunner
+    cvg = CoverageRunner()
+    cvg.run()
+
+    return
+
 
 if __name__ == '__main__':
 
-    runner = {'basetype': basetype,
+    runner = {'fusion': fusion,
+              'basetype': basetype,
+              'fusionbasetype': fusionbasetype,
               'merge': merge,
-              'VQSR': vqsr}
+              'coverage': coverage,
+              'nbi': nearby_indel,
+              'VQSR': vqsr
+              }
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
         sys.stderr.write('[Usage] python %s [option]\n\n' % sys.argv[0])
-        sys.stderr.write('\n\t'.join(['Option:'] + runner.keys()))
+        sys.stderr.write('\n\t'.join(['Option:'] + runner.keys()) + '\n\n')
         sys.exit(1)
 
     command = sys.argv[1]
     runner[command]()
 
-    sys.stderr.write('** %s ALL DONE %s **' % (command, time.asctime()))
-    sys.stderr.write('>> For the flowers bloom in the desert <<')
+    sys.stderr.write('** %s ALL DONE %s **\n' % (command, time.asctime()))
+    sys.stderr.write('>> For the flowers bloom in the desert <<\n')

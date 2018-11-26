@@ -6,13 +6,14 @@ Author: Shujia Huang & Siyang Liu
 Date  : 2014-05-23 11:21:53
 """
 import re
-import os
 import sys
 import time
 import argparse
 
 from . import variant_data_manager as vdm
 from . import variant_recalibrator as vror
+
+from .. import utils
 
 def main(opt):
 
@@ -27,7 +28,7 @@ def main(opt):
 
     # Traning modul and calculate the VQ for all dataSet
     vr.OnTraversalDone(dataSet)
-    vr.VisualizationLodVStrainingSet(opt.figure + '.BadLodSelectInTraining')
+    # vr.VisualizationLodVStrainingSet(opt.figure + '.BadLodSelectInTraining')
 
     # For Record the Annnotations' values
     for d in vr.dataManager.annoTexts: 
@@ -51,7 +52,7 @@ def main(opt):
         print (h)
 
     sys.stderr.write('\n[INFO] Outputting %s ...\n' % time.asctime())
-    I = os.popen('gzip -dc %s' % opt.vcfInfile) if opt.vcfInfile[-3:] == '.gz' else open(opt.vcfInfile)
+    I = utils.Open(opt.vcfInfile, 'r')
 
     n, j, monitor = 0, 0, True
     for line in I:
@@ -59,17 +60,17 @@ def main(opt):
         if n % 100000 == 0:
             sys.stderr.write('** Output lines %d %s\n' % (n, time.asctime()))
 
-        if re.search(r'^#', line): continue
+        if line.startswith('#'): continue
 
         col = line.strip().split()
-        # qual = float(col[5])
-        # if qual == 5000 or qual == 10000:
-        #     # do not use outline quality variants
-        #     continue
+        if col[3] in ['N', 'n']:
+            continue
 
         dp = re.search(r';?CM_DP=([^;]+)', col[7])
         fs = re.search(r';?FS=([^;]+)', col[7])
-        if not dp or not fs:
+        indel_sp = re.search(r';?Indel_SP=([^;]+)', col[7])
+        indel_tot = re.search(r';?Indel_TOT=([^;]+)', col[7])
+        if any([not dp, not fs, not indel_sp, not indel_tot]):
             continue
 
         order = col[0] + ':' + col[1]
@@ -95,9 +96,8 @@ def main(opt):
         culprit[annoTexts[d.worstAnnotation]] = culprit.get(
             annoTexts[d.worstAnnotation], 0.0) + 1.0  # For summary
 
-        # d.lod = round(d.lod, 2)
-        d.lod = round(d.lod * 10, 2)
-        for lod in [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50]:
+        d.lod = round(d.lod*10, 2)
+        for lod in [0, 1, 2, 3, 4, 5, 10, 20, 25, 30, 35, 40, 45, 50]:
             if d.lod >= lod:
                 good[lod] = good.get(lod, 0.0) + 1.0
 
@@ -109,14 +109,13 @@ def main(opt):
 
         vcfinfo['VQ'] = 'VQ=' + str(d.lod)
         vcfinfo['CU'] = 'CU=' + annoTexts[d.worstAnnotation]
-
         for k, v in d.raw_annotations.items():
             if k not in vcfinfo:
                 vcfinfo[k] = k + '=' + str('%.2f' % v)
 
         col[7] = ';'.join(sorted(vcfinfo.values()))
         if d.lod < 0:
-            d.lod = 0  # QUAL: donot allow value below 0
+            d.lod = 0  # QUAL: donot allow less than 0
 
         col[5] = str(d.lod)  # QUAL field should use phred scala
         print ('\t'.join(col))
@@ -128,19 +127,17 @@ def main(opt):
     ## Output Summary
     sys.stderr.write('\n[Summmary] Here is the summary information:\n')
     for k, v in sorted(good.items(), key = lambda k:k[0]):
-        sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f%\n' %
+        sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f\n' %
             (k, v, v*100/tot)))
 
     for k, v in sorted(culprit.items(), key = lambda k:k[0]):
-        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f%\n' %
+        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f\n' %
             (k, v, v*100.0/tot)))
 
 def cmdopts():
     """
     The command line parameters for VQSR
     """
-    # usage = ('\nUsage: %prog VQSR [--Train Training data set] '
-    #          '[-i SampleVcfInfile] > Output')
     optp = argparse.ArgumentParser()
     optp.add_argument('VQSR')
 

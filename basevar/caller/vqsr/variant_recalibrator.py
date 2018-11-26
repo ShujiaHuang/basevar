@@ -5,7 +5,6 @@ Author: Shujia Huang
 Date  : 2014-05-23 11:21:53
 """
 import sys
-import matplotlib.pyplot as plt
 
 # My own class
 from . import variant_data_manager as vdm
@@ -74,6 +73,8 @@ class VariantRecalibrator(object):
 
     def VisualizationLodVStrainingSet(self, figName):
 
+        import matplotlib.pyplot as plt
+
         fig = plt.figure()
         plt.title('LOD VS Positive training set', fontsize = 14)
         plt.plot(self.LodCumInTrain[:,0], self.LodCumInTrain[:,1], 'r-')
@@ -86,4 +87,3 @@ class VariantRecalibrator(object):
         plt.ylabel('Rate of Positive->Negative', fontsize = 16)
 
         fig.savefig(figName + '.png')
-        fig.savefig(figName + '.pdf')

@@ -51,6 +51,7 @@ class Info(object):
 
     def add(self, key, context):
         self.info[key] = context
+
         return self
 
 
