@@ -255,13 +255,11 @@ if __name__ == '__main__':
 
     callfusion = Fusion(sys.argv[1], sys.argv[2])
     for fusion in callfusion.generate_fusion():
-        print '\t'.join(map(str, [fusion.chrid,
-                                  fusion.start,
-                                  fusion.end,
-                                  fusion.alt,
-                                  fusion.mapq,
-                                  fusion.strand_orientation,
-                                  fusion.read_first_position,
-                                  fusion.base_quality]
-                            )
-                        )
+        print ('\t'.join(map(str, [fusion.chrid,
+                                   fusion.start,
+                                   fusion.end,
+                                   fusion.alt,
+                                   fusion.mapq,
+                                   fusion.strand_orientation,
+                                   fusion.read_first_position,
+                                   fusion.base_quality])))
