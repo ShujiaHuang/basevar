@@ -29,34 +29,34 @@ class BaseTypeBamRunner(object):
         """
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
-        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
-                          default='out', help='The prefix of output files. [out]')
-        optp.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='FILE',
+        optp.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='Bamfiles',
                           help='BAM/CRAM file list, one line per file.', default='')
-        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
+        optp.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta',
                           help='Input reference fasta file.', default='')
+        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='VCF_Prefix',
+                          default='out', help='The prefix of output files. [out]')
 
-        optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
+        optp.add_argument('-L', '--positions', metavar='positions', dest='positions',
                           help='skip unlisted positions (chr pos). [None]', default='')
         optp.add_argument('--region', metavar='chr:start-end', dest='region',
                           help='Skip position which not in these regions. Comma delimited '
                                'list of regions (chr:start-end). Could be a file contain the '
                                'regions.', default='')
 
-        optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
+        optp.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int,
                           help='Number of processer to use. [1]', default=1)
-        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
+        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='float',
                           help='By setting min AF to skip uneffective caller positions '
                                'to accelerate program speed. Usually you can set it to '
                                'be min(0.001, 100/x), x is the size of your population.'
                                '[min(0.001, 100/x)]')
 
         # special parameter for calculating specific population allele frequence
-        optp.add_argument('--pop-group', dest='pop_group_file', metavar='FILE', type=str,
+        optp.add_argument('--pop-group', dest='pop_group_file', metavar='Group_List_File', type=str,
                           help='Calculating the allele frequency for specific population.')
 
         # special parameter to limit the function of BaseType
-        optp.add_argument('--justdepth', dest='justdepth', type=bool,
+        optp.add_argument('--justdepth', dest='justdepth', metavar='bool', type=bool,
                           help='Just output the depth information for each position [False]',
                           default=False)
 
