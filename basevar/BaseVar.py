@@ -8,6 +8,8 @@ Date: 2016-10-06 16:38:00
 import sys
 import time
 
+from datetime import datetime
+
 
 def fusion():
     from caller.executor import FusionRunner
@@ -69,6 +71,8 @@ def coverage():
 
 if __name__ == '__main__':
 
+    START_TIME = datetime.now()
+
     runner = {'fusion': fusion,
               'basetype': basetype,
               'fusionbasetype': fusionbasetype,
@@ -86,5 +90,6 @@ if __name__ == '__main__':
     command = sys.argv[1]
     runner[command]()
 
-    sys.stderr.write('** %s ALL DONE %s **\n' % (command, time.asctime()))
+    elasped_time = datetime.now() - START_TIME
+    sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (command, time.asctime(), elasped_time.seconds))
     sys.stderr.write('>> For the flowers bloom in the desert <<\n')
