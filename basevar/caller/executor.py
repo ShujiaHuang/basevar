@@ -36,20 +36,23 @@ class BaseTypeBamRunner(object):
         optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='VCF_Prefix',
                           default='out', help='The prefix of output files. [out]')
 
-        optp.add_argument('-L', '--positions', metavar='positions', dest='positions',
-                          help='skip unlisted positions (chr pos). [None]', default='')
-        optp.add_argument('--region', metavar='chr:start-end', dest='region',
-                          help='Skip position which not in these regions. Comma delimited '
-                               'list of regions (chr:start-end). Could be a file contain the '
-                               'regions.', default='')
+        optp.add_argument('-L', '--positions', metavar='positions',type=str, dest='positions',
+                          help='skip unlisted positions (chr pos). -L and --region could be provided '
+                               'simultaneously. [None]', default='')
+        optp.add_argument('--region', metavar='chr:start-end', type=str, dest='region',
+                          help='Skip positions which not in these regions. Comma delimited list of regions '
+                               '(chr:start-end). Could be a file contain the regions. This parameter could '
+                               'be provide with -L simultaneously', default='')
 
-        optp.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int,
-                          help='Number of processer to use. [1]', default=1)
+        optp.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int,
+                          help='Number of samples in a batch file', default=1000)
+
+        optp.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int, help='Number of processer to use. [1]',
+                          default=1)
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='float',
-                          help='By setting min AF to skip uneffective caller positions '
-                               'to accelerate program speed. Usually you can set it to '
-                               'be min(0.001, 100/x), x is the size of your population.'
-                               '[min(0.001, 100/x)]')
+                          help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
+                               'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
+                               '[min(0.001, 100/x, cmm.MINAF)]. Probably you donot need to care about this parameter.')
 
         # special parameter for calculating specific population allele frequence
         optp.add_argument('--pop-group', dest='pop_group_file', metavar='Group_List_File', type=str,
@@ -69,13 +72,15 @@ class BaseTypeBamRunner(object):
         if len(opt.referencefile) == 0:
             optp.error('[ERROR] Missing reference fasta file.\n')
 
-        # Loading positions if not provid we'll load all the genome
-        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
+        # Loading positions or load all the genome regions
+        self.regions = utils.load_target_position(opt.referencefile,
+                                                  opt.positions,
                                                   opt.region)
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(opt.infilelist)
 
+        # setting the precision of MAF
         self.cmm = cmm
         if self.opt.min_af is None:
             self.opt.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)

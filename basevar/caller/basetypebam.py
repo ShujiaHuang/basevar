@@ -82,9 +82,8 @@ class BaseVarSingleProcess(object):
             for g in self.popgroup.keys():
                 g_id = g.split('_')[0]  # ignore '_AF'
                 group.append(g_id)
-                vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele '
-                                  'frequency in the %s populations calculated base on LRT, in '
-                                  'the range (0,1)">' % (g_id, g_id))
+                vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
+                                  'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
 
         CVG = open(self.out_cvg_file, 'w')
         CVG.write('##fileformat=CVGv1.0\n')
@@ -158,9 +157,19 @@ class BaseVarSingleProcess(object):
                         continue
 
                     # Calling varaints by Basetypes and output VCF and Coverage files.
-                    basetypeprocess(chrid, position, ref_base, sample_bases, sample_base_quals,
-                                    mapqs, strands, indels, read_pos_rank, self.popgroup,
-                                    self.cmm, CVG, VCF)
+                    basetypeprocess(chrid,
+                                    position,
+                                    ref_base,
+                                    sample_bases,
+                                    sample_base_quals,
+                                    mapqs,
+                                    strands,
+                                    indels,
+                                    read_pos_rank,
+                                    self.popgroup,
+                                    self.cmm,
+                                    CVG,
+                                    VCF)
 
         CVG.close()
         if VCF: VCF.close()

@@ -1,9 +1,8 @@
-"""
-"""
 import sys
 import os
 import heapq
 import gzip
+import time
 
 from pysam import FastaFile
 
@@ -20,6 +19,38 @@ class CommonParameter(object):
         self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
         self.debug = False
         self.MINAF = 0.0001  # The effective base freqence threshold
+
+
+def safe_makedir(dname):
+    """Make a directory if it doesn't exist, handling concurrent race conditions.
+    """
+    if not dname:
+        return dname
+
+    num_tries = 0
+    max_tries = 5
+    while not os.path.exists(dname):
+        # we could get an error here if multiple processes are creating
+        # the directory at the same time. Grr, concurrency.
+        try:
+            os.makedirs(dname)
+        except OSError:
+            if num_tries > max_tries:
+                raise
+
+            num_tries += 1
+            time.sleep(2)
+
+    return dname
+
+
+def file_exists(fname):
+    """Check if a file exists and is non-empty.
+    """
+    try:
+        return fname and os.path.exists(fname) and os.path.getsize(fname) > 0
+    except OSError:
+        return False
 
 
 def vcf_header_define():
@@ -174,8 +205,7 @@ def merge_region(position_region, delta=1):
     flag = False
     for s, e in position_region:
         if s > e:
-            print >> sys.stderr,('[ERROR]Your region start > end.'
-                                 ' It is not allow when call Merge function\n')
+            sys.stderr.write(('[ERROR]Your region start > end. It is not allow when call Merge function\n'))
             sys.exit(1)
 
         if prepos == '':
@@ -186,7 +216,7 @@ def merge_region(position_region, delta=1):
 
         else:
             if prepos > s:
-                print >> sys.stderr,('[ERROR]The array hasn\'t been sorted.\n')
+                sys.stderr.write(('[ERROR]The array hasn\'t been sorted.\n'))
                 sys.exit(1)
 
             if delta + end >= s:
@@ -254,7 +284,7 @@ class FileForQueueing(object):
     """
     def __init__(self, the_file, line, is_del_raw_file=False):
         """
-        Store the file, and initialise the current value
+        Store the file, and init current value
         """
         self.the_file = the_file
         self.finishedReadingFile = False
@@ -295,7 +325,7 @@ class FileForQueueing(object):
 
             heapq.heappush(self.heap, (chrom, pos, line))
 
-        # Now take the top line
+        # take the top line
         self.chrom, self.pos, self.line = heapq.heappop(self.heap)
 
     def __cmp__(self, other):
@@ -349,7 +379,7 @@ class FileForQueueing(object):
 
 def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     """
-    Merging output VCF/CVG files into a final file
+    Merging output VCF/CVG files into a final big one
     log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
     """
 
@@ -372,8 +402,7 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
                 if index == 0:
                     output_file.write(line)
             else:
-                the_file_for_queueing = FileForQueueing(the_file, line,
-                                                        is_del_raw_file=is_del_raw_file)
+                the_file_for_queueing = FileForQueueing(the_file, line, is_del_raw_file=is_del_raw_file)
                 heapq.heappush(the_heap, the_file_for_queueing)
                 break
 
