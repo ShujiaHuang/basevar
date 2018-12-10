@@ -24,7 +24,6 @@ class BaseVarSingleProcess(object):
 
         Parameters:
         ===========
-
             samples: list like
                 A list of sample id
         """
@@ -74,7 +73,7 @@ class BaseVarSingleProcess(object):
 
     def run(self):
         """
-        Run the process of calling variant and output
+        Run the process of calling variant and output files
         """
         vcf_header = utils.vcf_header_define()
         group = []  # Just for the header of CVG file

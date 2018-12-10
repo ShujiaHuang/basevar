@@ -44,6 +44,7 @@ class BaseTypeBamRunner(object):
                                '(chr:start-end). Could be a file contain the regions. This parameter could '
                                'be provide with -L simultaneously', default='')
 
+        # The number of output subfiles
         optp.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int,
                           help='Number of samples in a batch file', default=1000)
 
