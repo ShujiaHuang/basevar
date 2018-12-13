@@ -8,6 +8,7 @@ the lord to rule them all, in a word, it's "The Ring".
 """
 from __future__ import division
 
+import os
 import sys
 import argparse
 import time
@@ -19,7 +20,7 @@ from .fusion import Fusion
 from .basetypebam import BaseVarMultiProcess as BamBaseVarMultiProcess
 from .basetypefusion import BaseVarFusionMultiProcess
 from .coverageprocess import BaseVarMultiProcess as CvgBaseVarMultiProcess
-from .vqsr import vqsr
+# from .vqsr import vqsr
 
 
 class BaseTypeBamRunner(object):
@@ -29,40 +30,43 @@ class BaseTypeBamRunner(object):
         """
         optp = argparse.ArgumentParser()
         optp.add_argument('basetype')
-        optp.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='Bamfiles',
-                          help='BAM/CRAM file list, one line per file.', default='')
+        optp.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='Bamfiles', default='',
+                          help='BAM/CRAM file list, one line per file.')
         optp.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta',
                           help='Input reference fasta file.', default='')
         optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='VCF_Prefix',
                           default='out', help='The prefix of output files. [out]')
 
-        optp.add_argument('-L', '--positions', metavar='positions',type=str, dest='positions',
-                          help='skip unlisted positions (chr pos). -L and --region could be provided '
-                               'simultaneously. [None]', default='')
-        optp.add_argument('--region', metavar='chr:start-end', type=str, dest='region',
+        optp.add_argument('-L', '--positions', metavar='positions',type=str, dest='positions', default='',
+                          help='skip unlisted positions (chrid pos). -L and --region could be provided '
+                               'simultaneously. [None]')
+        optp.add_argument('--region', metavar='chr:start-end', type=str, dest='region', default='',
                           help='Skip positions which not in these regions. Comma delimited list of regions '
                                '(chr:start-end). Could be a file contain the regions. This parameter could '
-                               'be provide with -L simultaneously', default='')
+                               'be provide with -L simultaneously')
 
         # The number of output subfiles
-        optp.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int,
-                          help='Number of samples in a batch file', default=1000)
+        optp.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int, default=1000,
+                          help='Number of samples in a batch file')
 
-        optp.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int, help='Number of processer to use. [1]',
-                          default=1)
+        optp.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int, default=1,
+                          help='Number of processer to use. [1]')
         optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='float',
                           help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
                                '[min(0.001, 100/x, cmm.MINAF)]. Probably you donot need to care about this parameter.')
 
         # special parameter for calculating specific population allele frequence
-        optp.add_argument('--pop-group', dest='pop_group_file', metavar='Group_List_File', type=str,
+        optp.add_argument('--pop-group', dest='pop_group_file', metavar='Group-List-File', type=str,
                           help='Calculating the allele frequency for specific population.')
 
+        optp.add_argument('--filename-has-samplename', dest='filename_has_samplename', type=bool, default=False,
+                          help="Sample id should be the first element in filename and been separated by '.' . "
+                               "This will save a lot of time if you have thousands of bamfiles. [False]")
+
         # special parameter to limit the function of BaseType
-        optp.add_argument('--justdepth', dest='justdepth', metavar='bool', type=bool,
-                          help='Just output the depth information for each position [False]',
-                          default=False)
+        optp.add_argument('--justdepth', dest='justdepth', metavar='bool', type=bool, default=False,
+                          help='Just output the depth information for each position [False]')
 
         opt = optp.parse_args()
         self.opt = opt
@@ -86,9 +90,7 @@ class BaseTypeBamRunner(object):
         if self.opt.min_af is None:
             self.opt.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)
 
-        # reset threshold of min allele frequence threshold by sample size
         self.cmm.MINAF = self.opt.min_af
-
         sys.stderr.write('[INFO] Finish loading parameters and input file '
                          'list %s\n' % time.asctime())
 
@@ -96,26 +98,35 @@ class BaseTypeBamRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = self._load_sample_id_from_bam()
 
-    def _load_sample_id_from_bam(self):
+    def _load_sample_id_from_bam(self, filename_has_samplename=True):
         """loading sample id in BAM/CRMA files from RG tag"""
 
         sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
         sample_id = []
         for i, al in enumerate(self.alignefiles):
-            bf = AlignmentFile(al)
 
             if i % 1000 == 0:
                 sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
                                  (i+1, len(self.alignefiles), time.asctime()))
 
-            if 'RG' not in bf.header:
-                sys.stderr.write('[ERROR] Bam file format error: missing '
-                                 '@RG in the header.\n')
-                bf.close()
-                sys.exit(1)
+            if filename_has_samplename:
+                filename = os.path.basename(al)
 
-            sample_id.append(bf.header['RG'][0]['SM'])
-            bf.close()
+                # sample id should be the first element separate by ".",
+                # e.g: "CL100045504_L02_61.sorted.rmdup.realign.BQSR.bam", "CL100045504_L02_61" is sample id.
+                sample_id.append(filename.split(".")[0])
+
+            else:
+
+                # This situation will take a very long time to get sampleID from BAM header.
+                bf = AlignmentFile(al)
+                if 'RG' not in bf.header:
+                    sys.stderr.write('[ERROR] Bam file format error: missing @RG in the header.\n')
+                    bf.close()
+                    sys.exit(1)
+
+                sample_id.append(bf.header['RG'][0]['SM'])
+                bf.close()
 
         sys.stderr.write('[INFO] Finish load all %d samples\' ID '
                          'from RG tag\n\n' % len(sample_id))
@@ -125,11 +136,10 @@ class BaseTypeBamRunner(object):
         """
         Run variant caller
         """
-        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' %
-                         time.asctime())
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' % time.asctime())
 
         # Always create process manager even if nCPU==1, so that we can
-        # listen for signals from main thread
+        # listen signals from main thread
         regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
         if len(self.regions) < self.opt.nCPU:
             # We cut the region into pieces to fit nCPU if regions < nCPU
@@ -171,6 +181,7 @@ class BaseTypeBamRunner(object):
                                                     self.opt.pop_group_file,
                                                     regions_for_each_process[i],
                                                     self.sample_id,
+                                                    batchcount=self.opt.batchcount,
                                                     out_cvg_file=sub_cvg_file,
                                                     out_vcf_file=sub_vcf_file,
                                                     cmm=self.cmm))
@@ -441,17 +452,17 @@ class FusionRunner(object):
                 OUT.write(info+'\n')
 
 
-class VQSRRuner(object):
-    """Runner for VQSR"""
-    def __init__(self):
-        """Init function"""
-        self.vqsr = vqsr
-        return
-
-    def run(self):
-        self.vqsr.main(self.vqsr.cmdopts())
-
-        return
+# class VQSRRuner(object):
+#     """Runner for VQSR"""
+#     def __init__(self):
+#         """Init function"""
+#         self.vqsr = vqsr
+#         return
+#
+#     def run(self):
+#         self.vqsr.main(self.vqsr.cmdopts())
+#
+#         return
 
 
 class CoverageRunner(object):
