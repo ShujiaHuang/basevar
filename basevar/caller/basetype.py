@@ -48,10 +48,10 @@ class BaseType(object):
         self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
         for i, b in enumerate(bases):
             ## Individual likelihood for [A, C, G, T], one sample per row
-            if b != 'N':  # ignore all the 'N' base sample
+            if b != 'N' and b[0] not in ['-', '+']:  # ignore all the 'N' bases and indels
                 self.ind_allele_likelihood.append([self.qual_pvalue[i]
-                                                 if b == t else (1.0-self.qual_pvalue[i])/3
-                                                 for t in self.cmm.BASE])
+                                                   if b == t else (1.0-self.qual_pvalue[i])/3
+                                                   for t in self.cmm.BASE])
                 # record depth for [ACGT]
                 if b in self.depth: # ignore '*'
                     self.depth[b] += 1

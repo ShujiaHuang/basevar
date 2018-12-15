@@ -6,16 +6,15 @@ from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 
 
-def basetypeprocess(chrid, position, ref_base, sample_bases, base_quals, mapqs, strands,
-                    indels, read_pos_rank, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands,
+                    read_pos_rank, popgroup, cmm, cvg_file_handle, vcf_file_handle):
 
-    _out_cvg_file(chrid, position, ref_base, sample_bases, strands, indels,
-                  popgroup, cvg_file_handle, cmm=cmm)
+    _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle, cmm=cmm)
 
     # Call variant if ``vcf_file_handle`` is not None
     if vcf_file_handle:
 
-        bt = BaseType(ref_base.upper(), sample_bases, base_quals, cmm=cmm)
+        bt = BaseType(ref_base.upper(), bases, base_quals, cmm=cmm)
         bt.lrt()
 
         if len(bt.alt_bases()) > 0:
@@ -24,7 +23,7 @@ def basetypeprocess(chrid, position, ref_base, sample_bases, base_quals, mapqs, 
             for group, index in popgroup.items():
                 group_sample_bases, group_sample_base_quals = [], []
                 for i in index:
-                    group_sample_bases.append(sample_bases[i])
+                    group_sample_bases.append(bases[i])
                     group_sample_base_quals.append(base_quals[i])
 
                 group_bt = BaseType(ref_base.upper(), group_sample_bases,
@@ -38,7 +37,7 @@ def basetypeprocess(chrid, position, ref_base, sample_bases, base_quals, mapqs, 
             _out_vcf_line(chrid,
                           position,
                           ref_base,
-                          sample_bases,
+                          bases,
                           mapqs,
                           read_pos_rank,
                           base_quals,
@@ -50,53 +49,48 @@ def basetypeprocess(chrid, position, ref_base, sample_bases, base_quals, mapqs, 
     return
 
 
-def _base_depth_and_indel(bases, indels, cmm=None):
+def _base_depth_and_indel(bases, cmm=None):
     # coverage info for each position
     base_depth = {b: 0 for b in cmm.BASE}
+    indel_depth = {}
 
     for b in bases:
 
-        # ignore all bases('*') which not match ``cmm.BASE``
-        if b in base_depth:
-            base_depth[b] += 1
-
-    # deal with indels
-    indel_dict = {}
-    for ind in indels:
-
-        if len(ind) == 0:
-            # non indels
+        if b == "N":
             continue
 
-        indel_dict[ind] = indel_dict.get(ind, 0) + 1
+        if b in base_depth:
+            # ignore all bases('*') which not match ``cmm.BASE``
+            base_depth[b] += 1
+        else:
+            # Indel
+            indel_depth[b] = indel_depth.get(b, 0) + 1
 
     indel_string = ','.join(
-        [k + '|' + str(v) for k, v in indel_dict.items()]) if indel_dict else '.'
+        [k + '|' + str(v) for k, v in indel_depth.items()]) if indel_depth else '.'
 
     return [base_depth, indel_string]
 
 
-def _out_cvg_file(chrid, position, ref_base, sample_bases, strands,
-                 indels, popgroup, out_file_handle, cmm=None):
+def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle, cmm=None):
     """output coverage information into `out_file_handle`"""
 
     # coverage info for each position
-    base_depth, indel_string = _base_depth_and_indel(sample_bases, indels, cmm=cmm)
+    base_depth, indel_string = _base_depth_and_indel(bases, cmm=cmm)
 
     # base depth and indels for each subgroup
     group_cvg = {}
     for group, index in popgroup.items():
 
-        group_sample_bases, group_sample_indels = [], []
+        group_sample_bases = []
         for i in index:
-            group_sample_bases.append(sample_bases[i])
-            group_sample_indels.append(indels[i])
+            group_sample_bases.append(bases[i])
 
-        bd, ind = _base_depth_and_indel(group_sample_bases, group_sample_indels, cmm=cmm)
+        bd, ind = _base_depth_and_indel(group_sample_bases, cmm=cmm)
         group_cvg[group] = [bd, ind]
 
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
-    if sample_bases:
+    if sum(base_depth.values()) > 0:
         base_sorted = sorted(base_depth.items(),
                              key=lambda x: x[1],
                              reverse=True)
@@ -105,7 +99,7 @@ def _out_cvg_file(chrid, position, ref_base, sample_bases, strands,
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
             ref_base.upper(),
             [b1 if b1 != ref_base.upper() else b2],
-            sample_bases,
+            bases,
             strands
         )
 
@@ -127,17 +121,17 @@ def _out_cvg_file(chrid, position, ref_base, sample_bases, strands,
     return
 
 
-def _out_vcf_line(chrid, position, ref_base, sample_base, mapqs, read_pos_rank, sample_base_qual,
+def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample_base_qual,
                   strands, bt, pop_group_bt, out_file_handle, cmm=None):
     """output vcf lines into `out_file_handle`"""
 
     alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
     samples = []
 
-    for k, b in enumerate(sample_base):
+    for k, b in enumerate(bases):
 
         # For sample FORMAT
-        if b != 'N':
+        if b != 'N' and b[0] not in ['-', '+']:
             # For the base which not in bt.alt_bases()
             if b not in alt_gt:
                 alt_gt[b] = './.'
@@ -147,19 +141,19 @@ def _out_vcf_line(chrid, position, ref_base, sample_base, mapqs, read_pos_rank, 
             samples.append(gt + ':' + b + ':' + strands[k] + ':' +
                            str(round(bt.qual_pvalue[k], 6)))
         else:
-            samples.append('./.')  # 'N' base
+            samples.append('./.')  # 'N' base or indel
 
     # Rank Sum Test for mapping qualities of REF versus ALT reads
     mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                         zip(sample_base, mapqs))
+                                         zip(bases, mapqs))
 
     # Rank Sum Test for variant appear position among read of REF versus ALT
     read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                               zip(sample_base, read_pos_rank))
+                                               zip(bases, read_pos_rank))
 
     # Rank Sum Test for base quality of REF versus ALT
     base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
-                                             zip(sample_base, sample_base_qual))
+                                             zip(bases, sample_base_qual))
 
     # Variant call confidence normalized by depth of sample reads
     # supporting a variant.
@@ -169,7 +163,7 @@ def _out_vcf_line(chrid, position, ref_base, sample_base, mapqs, read_pos_rank, 
     # Strand bias by fisher exact test and Strand bias estimated by the
     # Symmetric Odds Ratio test
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-        ref_base.upper(), bt.alt_bases(), sample_base, strands)
+        ref_base.upper(), bt.alt_bases(), bases, strands)
 
     # base=>[CAF, allele depth], CAF = Allele frequency by read count
     caf = {b: ['%f' % round(bt.depth[b]/float(bt.total_depth), 6),

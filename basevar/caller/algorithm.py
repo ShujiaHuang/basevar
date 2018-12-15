@@ -104,7 +104,7 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
     ref, alt = [], []
     for b, d in data:
 
-        if b == 'N':
+        if b == 'N' or b[0] in ['-', '+']:
             continue
 
         if b == ref_base:
@@ -134,7 +134,7 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
     return phred_scale_value
 
 
-def strand_bias(ref_base, alt_base, sample_base, strands):
+def strand_bias(ref_base, alt_base, bases, strands):
     """
     A method for calculating the strand bias of REF_BASE and ALT_BASE
 
@@ -156,10 +156,10 @@ def strand_bias(ref_base, alt_base, sample_base, strands):
     ref_fwd, ref_rev = 0, 0
     alt_fwd, alt_rev = 0, 0
 
-    for s, b in zip(strands, sample_base):
+    for s, b in zip(strands, bases):
 
-        # For strand bias
-        if b == 'N':
+        # ignore non bases or indels
+        if b == 'N' or b[0] in ['-', '+']:
             continue
 
         if s == '+':

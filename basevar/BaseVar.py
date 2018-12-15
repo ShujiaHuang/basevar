@@ -35,12 +35,12 @@ def fusionbasetype():
     return
 
 
-def vqsr():
-    from caller.executor import VQSRRuner
-    vq = VQSRRuner()
-    vq.run()
-
-    return
+# def vqsr():
+#     from caller.executor import VQSRRuner
+#     vq = VQSRRuner()
+#     vq.run()
+#
+#     return
 
 
 def nearby_indel():
@@ -69,7 +69,7 @@ def coverage():
     return
 
 
-if __name__ == '__main__':
+def main():
 
     START_TIME = datetime.now()
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
               'merge': merge,
               'coverage': coverage,
               'nbi': nearby_indel,
-              'VQSR': vqsr
+              # 'VQSR': vqsr
               }
 
     if len(sys.argv) == 1 or (sys.argv[1] not in runner):
@@ -93,3 +93,7 @@ if __name__ == '__main__':
     elasped_time = datetime.now() - START_TIME
     sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (command, time.asctime(), elasped_time.seconds))
     sys.stderr.write('>> For the flowers bloom in the desert <<\n')
+
+
+if __name__ == '__main__':
+    main()

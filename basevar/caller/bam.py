@@ -8,8 +8,7 @@ import sys
 from . import utils
 
 
-def fetch_base_by_position(position, sample_info, iter_tokes, fa,
-                           is_scan_indel=False):
+def fetch_base_by_position(position, sample_info, iter_tokes, fa):
     """
     """
     base_quals = []
@@ -17,14 +16,10 @@ def fetch_base_by_position(position, sample_info, iter_tokes, fa,
     strands = []
     mapqs = []
     read_pos_rank = []
-    indels = []
 
     for i, sample_pos_line in enumerate(sample_info):
 
-        bs, qs, strand, mapq, rpr, indel, sample_info[i] = (
-            seek_position(position, sample_pos_line, iter_tokes[i], fa,
-                          is_scan_indel=is_scan_indel)
-        )
+        bs, qs, strand, mapq, rpr, sample_info[i] = seek_position(position, sample_pos_line, iter_tokes[i], fa)
 
         bases.append(bs)
         base_quals.append(qs)
@@ -32,21 +27,15 @@ def fetch_base_by_position(position, sample_info, iter_tokes, fa,
         mapqs.append(mapq)
         read_pos_rank.append(rpr)
 
-        if indel:
-            indels.append(indel.upper())
-        else:
-            indels.append("")
-
-    return bases, base_quals, strands, mapqs, read_pos_rank, indels
+    return bases, base_quals, strands, mapqs, read_pos_rank
 
 
-def seek_position(target_pos, sample_pos_line, sample_iter, fa,
-                  is_scan_indel=False):
+def seek_position(target_pos, sample_pos_line, sample_iter, fa):
     """Get mapping info for specific position.
 
-    `fa`: Just for scan indel
+    `fa`: Use for scanning indels
     """
-    base, strand, indel, rpr, qual, mapq = 'N', '.', '', 0, 0, 0  # Init
+    base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
     if sample_pos_line:
 
         if sample_pos_line.pos < target_pos:
@@ -58,20 +47,14 @@ def seek_position(target_pos, sample_pos_line, sample_iter, fa,
                 if sample_pos_line:
                     pos = sample_pos_line.pos
                 else:
-                    # The end of file. Break the loop.
+                    # hit the end of file, break the loop.
                     break
 
-        # In case sample_pos_line may hit the end of file
+        # sample_pos_line may hit the end of file
         if sample_pos_line and sample_pos_line.pos == target_pos:
+            base, strand, qual, mapq, rpr = first_base(sample_pos_line, sample_pos_line.pos, fa)
 
-            base, strand, qual, mapq, rpr, indel = first_base(
-                sample_pos_line,
-                is_scan_indel={'yes': is_scan_indel,
-                               'pos': sample_pos_line.pos,
-                               'fa': fa}
-            )
-
-    return base, qual, strand, mapq, rpr, indel, sample_pos_line
+    return base, qual, strand, mapq, rpr, sample_pos_line
 
 
 def scan_indel(read, target_pos, fa):
@@ -149,35 +132,36 @@ def scan_indel(read, target_pos, fa):
                           read.alignment))
         sys.exit(1)
 
-    return indel if indel else ''
+    return indel if indel else 'N'
 
 
-def first_base(sample_pos_line, is_scan_indel=None):
-    """Just get the first base for each sample.
+def first_base(sample_pos_line, position, fa):
+    """Just get first alignement base for each sample.
     """
-    # set the default value for is_scan_indel
-    if not is_scan_indel:
-        is_scan_indel = {'yes': False}
-
-    base, strand, indel, rpr, qual, mapq = 'N', '.', '', 0, 0, 0  # Init
-    # skip read which mapping quality less then 30
+    base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
     for read in [al for al in sample_pos_line.pileups if al.alignment.mapq >= 30]:
+        # skip read which mapping quality less then 30
 
-        if is_scan_indel['yes'] and read.indel:
-            indel = scan_indel(read, is_scan_indel['pos'], is_scan_indel['fa'])
+        strand = '-' if read.alignment.is_reverse else '+'
+        mapq = read.alignment.mapq
+        if read.indel:
+            base = scan_indel(read, position, fa)
+            break
 
-        if not read.is_del and not read.is_refskip:
+        elif not read.is_del and not read.is_refskip:
             # skip the base which base_quality < 20
             # if read.alignment.query_qualities[read.query_position] < 20:
             #     continue
 
-            base = read.alignment.query_sequence[read.query_position]
-            qual = read.alignment.query_qualities[read.query_position]
-            mapq = read.alignment.mapq
             rpr = read.query_position + 1
-            strand = '-' if read.alignment.is_reverse else '+'
+            base = read.alignment.query_sequence[read.query_position]
 
-            # Just get info in the first loop!
+            # Todo: much faster than `read.alignment.qqual[read.query_position]`
+            #  and I don't know why.
+            qual = read.alignment.query_qualities[read.query_position]
+
+            # Just get the first one and skip other reads which covereds this position,
+            # no matter the first one it's indel or not.
             break
 
-    return base, strand, qual, mapq, rpr, indel
+    return base, strand, qual, mapq, rpr

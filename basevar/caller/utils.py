@@ -85,7 +85,8 @@ def fetch_next(iter_fh):
     prevent throunghing the 'StopIteration' exception.
     """
 
-    if iter_fh == '': return ''
+    if iter_fh == '':
+        return ''
 
     try:
         line = iter_fh.next()
@@ -142,8 +143,8 @@ def load_target_position(referencefile, posfile, region_info):
 
     # load all the genome if no position or regions provide
     if not regions:
-        sys.stderr.write('[WARNINGS] Program will load all the genome cause '
-                         'there is not any positions and regions provided.\n')
+        sys.stderr.write('[WARNINGS] Program will load all the genome. This will '
+                         'take a long long time.\n')
         regions = [[ci, 1, fa.get_reference_length(ci)]
                    for ci in fa.references]
 
