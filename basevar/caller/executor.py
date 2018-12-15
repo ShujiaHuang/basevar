@@ -96,12 +96,15 @@ class BaseTypeBamRunner(object):
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
-        self.sample_id = self._load_sample_id_from_bam()
+        self.sample_id = self._load_sample_id_from_bam(opt.filename_has_samplename)
 
     def _load_sample_id_from_bam(self, filename_has_samplename=True):
         """loading sample id in BAM/CRMA files from RG tag"""
 
         sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+        if filename_has_samplename:
+            sys.stderr.write('[INFO] loading samples\' id from filename because you '
+                             'set "--filename-has-samplename True"\n')
         sample_id = []
         for i, al in enumerate(self.alignefiles):
 
