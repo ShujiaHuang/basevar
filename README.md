@@ -1,6 +1,13 @@
 # BaseVar
 Call variants without calling genotype
 
+## Installation
+
+```bash
+
+pip install basevar
+
+```
 
 
 ```bash
