@@ -84,6 +84,7 @@ class BaseVarSingleProcess(object):
         """
         ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
         """
+
         # Create a batch of temp files for variant discovery
         self.batchfile_dir = utils.safe_makedir(os.path.split(os.path.realpath(self.out_vcf_file))[0] + "/batchfiles")
 
@@ -99,6 +100,7 @@ class BaseVarSingleProcess(object):
 
         tmp_region = sorted(tmp_region)
         bigstart, bigend = tmp_region[0], tmp_region[-1]
+
         m = 0
         for i in range(0, len(self.aligne_files), batchcount):
 
@@ -108,6 +110,7 @@ class BaseVarSingleProcess(object):
                                                             m,
                                                             part_num)
 
+            sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
             # One batch of alignment files
             sub_alignfiles = self.aligne_files[i:i+batchcount]
             ali_files_hd = self._open_aligne_files(sub_alignfiles)
@@ -174,6 +177,7 @@ class BaseVarSingleProcess(object):
 
             batchfiles.append(part_file_name)
             self._close_aligne_file(ali_files_hd)
+            sys.stderr.write("[INFO] Done for batchfile %s at %s\n\n" % (part_file_name, time.asctime()))
 
         return batchfiles
 
@@ -251,7 +255,7 @@ class BaseVarSingleProcess(object):
                 for position in range(start, end + 1):
 
                     if n % 100000 == 0:
-                        sys.stderr.write("[INFO] Loading lines %d at position %s:%d\t%s\n" %
+                        sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
                                          (n+1, chrid, position, time.asctime()))
                     n += 1
 
