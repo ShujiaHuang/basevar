@@ -94,6 +94,7 @@ def scan_indel(read, target_pos, fa):
     If no cigar string is present, empty arrays will be archived.
     """
     target_indx = 0
+    delta = 0
     for i, (cigar_type, cigar_len) in enumerate(read.alignment.cigar):
         # If the cigar string is : 20M2I13M
         # then alignment.cigar is: [(0, 20), (1, 2), (0, 13)]
@@ -101,6 +102,7 @@ def scan_indel(read, target_pos, fa):
         # But we should find the position of Insertion, which is the next one.
 
         if cigar_type in [3,4,5,6]:  # 'SHPN'
+            delta += 1
             continue
 
         # mapping
@@ -112,9 +114,10 @@ def scan_indel(read, target_pos, fa):
                 target_indx += 1  # +1 Get the index of indel in alignment.cigar
                 break
             else:
-                # +1 and continue
+                # +1
                 target_indx += 1
 
+    target_indx += delta
     cigar_type, cigar_len = read.alignment.cigar[target_indx]
     if cigar_type == 1:  # Insertion
 
@@ -126,10 +129,10 @@ def scan_indel(read, target_pos, fa):
         indel = '-' + fa[tpos:tpos+cigar_len]
     else:
         # Must just be 1 or 2
-        sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s %s %s %s (at) %s\n" %
+        sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s %s %s %s (at) %d in %s\n" %
                          (read.alignment.cigarstring, read.alignment.cigar,
                           read.alignment.blocks, read.alignment.cigar[target_indx],
-                          read.alignment))
+                          target_indx, read.alignment))
         sys.exit(1)
 
     return indel if indel else 'N'
