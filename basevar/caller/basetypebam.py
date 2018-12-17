@@ -105,7 +105,8 @@ class BaseVarSingleProcess(object):
             m += 1
             part_file_name = "%s/BaseVar.%s.%d_%d.batch" % (self.batchfile_dir,
                                                             ".".join(map(str, [chrid, bigstart, bigend])),
-                                                            m, part_num)
+                                                            m,
+                                                            part_num)
 
             # One batch of alignment files
             sub_alignfiles = self.aligne_files[i:i+batchcount]
@@ -147,17 +148,18 @@ class BaseVarSingleProcess(object):
                             sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
                                              (n + 1, chrid, position, time.asctime()))
                         n += 1
+
+                        ref_base = fa[position - 1]
+                        # ref base is 'N' base, very important
+                        if ref_base.upper() not in ['A', 'C', 'G', 'T']:
+                            continue
+
                         sample_bases, sample_base_quals, strands, mapqs, read_pos_rank = bam.fetch_base_by_position(
                             position - 1,  # postion for pysam is 0-base
                             sample_info,
                             iter_tokes,
                             fa  # Fa sequence for indel sequence
                         )
-
-                        ref_base = fa[position - 1]
-                        # ref base is 'N' base
-                        if ref_base.upper() not in ['A', 'C', 'G', 'T']:
-                            continue
 
                         OUT.write("%s\n" % "\t".join([
                             chrid,
@@ -193,6 +195,7 @@ class BaseVarSingleProcess(object):
                 sys.stderr.write("[Error] %d lines, chromosome [%s and %s] or position [%d and %d] "
                                  "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
                                  (i+1, col[0], chrid, col[1], position, col[2], ref_base))
+                sys.exit(1)
 
             mapqs.append(col[3])
             sample_bases.append(col[4].upper())
@@ -252,10 +255,14 @@ class BaseVarSingleProcess(object):
                                          (n+1, chrid, position, time.asctime()))
                     n += 1
 
+                    ref_base = fa[position - 1]
+                    # ignore while ref base is 'N' base, very important
+                    if ref_base.upper() not in ['A', 'C', 'G', 'T']:
+                        continue
+
                     # The order of position in all the batchfiles will be the same and match exactly
                     # with `(start, end in regions)`
                     info = [utils.fetch_next(it) for it in batch_files_hd]
-                    ref_base = fa[position - 1]
 
                     (sample_bases,
                      sample_base_quals,
@@ -263,8 +270,8 @@ class BaseVarSingleProcess(object):
                      mapqs,
                      read_pos_rank) = self.fetch_baseinfo_by_position(chrid, position, ref_base, info)
 
-                    # # ignore positions if coverage=0 or ref base is 'N' base
-                    if (ref_base.upper() not in ['A', 'C', 'G', 'T']) or sum(read_pos_rank) == 0:
+                    # # ignore positions if coverage=0
+                    if sum(read_pos_rank) == 0:
                         continue
 
                     # Calling varaints by Basetypes and output VCF and Coverage files.
@@ -288,109 +295,109 @@ class BaseVarSingleProcess(object):
         if VCF: VCF.close()
         self.ref_file_hd.close()
 
-    def run_bak(self):
-        """
-        Run the process of calling variant and output files
-        """
-        vcf_header = utils.vcf_header_define()
-        group = []  # Just for the header of CVG file
-        if self.popgroup:
-            for g in self.popgroup.keys():
-                g_id = g.split('_')[0]  # ignore '_AF'
-                group.append(g_id)
-                vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
-                                  'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
-
-        CVG = open(self.out_cvg_file, 'w')
-        CVG.write('##fileformat=CVGv1.0\n')
-        CVG.write('##Group information is the depth of A:C:G:T:Indel\n')
-        CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
-                            ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                             'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
-
-        VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
-        if VCF:
-            # set header if VCF is not None
-            VCF.write('\n'.join(vcf_header) + '\n')
-            VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
-                                 'INFO\tFORMAT'] + self.samples) + '\n')
-
-        for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
-            # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
-            # ``iter_tokes`` is a list of iterator for each sample's input file
-            tmp_region = []
-            for p in regions:  # covert to 1d-array
-                tmp_region.extend(p)
-
-            tmp_region = sorted(tmp_region)
-
-            start, end = tmp_region[0], tmp_region[-1]
-            iter_tokes = []
-            for i, bf in enumerate(self.ali_files_hd):
-                try:
-                    # 0-base
-                    iter_tokes.append(bf.pileup(chrid, start-1, end))
-                except ValueError:
-                    if self.cmm.debug:
-                        sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
-                                         (chrid, start-1, end, self.aligne_files[i]))
-                    iter_tokes.append('')
-
-            # get sequence of chrid from reference fasta
-            fa = self.ref_file_hd.fetch(chrid)
-
-            # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
-            n = 0
-            sample_info = [utils.fetch_next(it) for it in iter_tokes]
-            for start, end in regions:
-
-                sys.stderr.write('[INFO] Fetching info from %d samples in region %s'
-                                 ' at %s\n' % (len(iter_tokes),
-                                               chrid + ":" + str(start) + "-" + str(end),
-                                               time.asctime())
-                                 )
-
-                for position in xrange(start, end + 1):
-
-                    if n % 100000 == 0:
-                        sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
-                                         (n+1, chrid, position, time.asctime()))
-                    n += 1
-
-                    (sample_bases, sample_base_quals, strands, mapqs, read_pos_rank,
-                     indels) = bam.fetch_base_by_position(
-                        position - 1,  # postion for pysam is 0-base
-                        sample_info,
-                        iter_tokes,
-                        fa,  # Fa sequence for indel sequence
-                        is_scan_indel=True
-                    )
-
-                    ref_base = fa[position-1]
-
-                    # ignore positions if coverage=0 or ref base is 'N' base
-                    if (not sample_bases) or (ref_base.upper() not in ['A', 'C', 'G', 'T']):
-                        continue
-
-                    # Calling varaints by Basetypes and output VCF and Coverage files.
-                    basetypeprocess(chrid,
-                                    position,
-                                    ref_base,
-                                    sample_bases,
-                                    sample_base_quals,
-                                    mapqs,
-                                    strands,
-                                    indels,
-                                    read_pos_rank,
-                                    self.popgroup,
-                                    self.cmm,
-                                    CVG,
-                                    VCF)
-
-        CVG.close()
-        if VCF: VCF.close()
-
-        self._close_aligne_file()
+    # def run_bak(self):
+    #     """
+    #     Run the process of calling variant and output files
+    #     """
+    #     vcf_header = utils.vcf_header_define()
+    #     group = []  # Just for the header of CVG file
+    #     if self.popgroup:
+    #         for g in self.popgroup.keys():
+    #             g_id = g.split('_')[0]  # ignore '_AF'
+    #             group.append(g_id)
+    #             vcf_header.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
+    #                               'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
+    #
+    #     CVG = open(self.out_cvg_file, 'w')
+    #     CVG.write('##fileformat=CVGv1.0\n')
+    #     CVG.write('##Group information is the depth of A:C:G:T:Indel\n')
+    #     CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
+    #                         ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
+    #                          'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
+    #
+    #     VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
+    #     if VCF:
+    #         # set header if VCF is not None
+    #         VCF.write('\n'.join(vcf_header) + '\n')
+    #         VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
+    #                              'INFO\tFORMAT'] + self.samples) + '\n')
+    #
+    #     for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
+    #         # ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+    #         # ``iter_tokes`` is a list of iterator for each sample's input file
+    #         tmp_region = []
+    #         for p in regions:  # covert to 1d-array
+    #             tmp_region.extend(p)
+    #
+    #         tmp_region = sorted(tmp_region)
+    #
+    #         start, end = tmp_region[0], tmp_region[-1]
+    #         iter_tokes = []
+    #         for i, bf in enumerate(self.ali_files_hd):
+    #             try:
+    #                 # 0-base
+    #                 iter_tokes.append(bf.pileup(chrid, start-1, end))
+    #             except ValueError:
+    #                 if self.cmm.debug:
+    #                     sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
+    #                                      (chrid, start-1, end, self.aligne_files[i]))
+    #                 iter_tokes.append('')
+    #
+    #         # get sequence of chrid from reference fasta
+    #         fa = self.ref_file_hd.fetch(chrid)
+    #
+    #         # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
+    #         n = 0
+    #         sample_info = [utils.fetch_next(it) for it in iter_tokes]
+    #         for start, end in regions:
+    #
+    #             sys.stderr.write('[INFO] Fetching info from %d samples in region %s'
+    #                              ' at %s\n' % (len(iter_tokes),
+    #                                            chrid + ":" + str(start) + "-" + str(end),
+    #                                            time.asctime())
+    #                              )
+    #
+    #             for position in xrange(start, end + 1):
+    #
+    #                 if n % 100000 == 0:
+    #                     sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
+    #                                      (n+1, chrid, position, time.asctime()))
+    #                 n += 1
+    #
+    #                 (sample_bases, sample_base_quals, strands, mapqs, read_pos_rank,
+    #                  indels) = bam.fetch_base_by_position(
+    #                     position - 1,  # postion for pysam is 0-base
+    #                     sample_info,
+    #                     iter_tokes,
+    #                     fa,  # Fa sequence for indel sequence
+    #                     is_scan_indel=True
+    #                 )
+    #
+    #                 ref_base = fa[position-1]
+    #
+    #                 # ignore positions if coverage=0 or ref base is 'N' base
+    #                 if (not sample_bases) or (ref_base.upper() not in ['A', 'C', 'G', 'T']):
+    #                     continue
+    #
+    #                 # Calling varaints by Basetypes and output VCF and Coverage files.
+    #                 basetypeprocess(chrid,
+    #                                 position,
+    #                                 ref_base,
+    #                                 sample_bases,
+    #                                 sample_base_quals,
+    #                                 mapqs,
+    #                                 strands,
+    #                                 indels,
+    #                                 read_pos_rank,
+    #                                 self.popgroup,
+    #                                 self.cmm,
+    #                                 CVG,
+    #                                 VCF)
+    #
+    #     CVG.close()
+    #     if VCF: VCF.close()
+    #
+    #     self._close_aligne_file()
 
 
 ###############################################################################
