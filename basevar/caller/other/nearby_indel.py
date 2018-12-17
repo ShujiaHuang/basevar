@@ -33,12 +33,12 @@ class NearbyIndel(object):
         """
         total_indel_num, indel_type = 0, {}
         for r in self.in_cvg_tb.fetch(chr_id, start=start-1, end=end):
-            # chrM    30      T       16150   5       8       2       16135   +1c:1   -0.0    7302,8833,4,4
+            # chrM    30      T       16150   5       8       2       16135   +1C|1,+AA|2   -0.0    7302,8833,4,4
             col = r.strip().split()
             if col[8] == '.': continue
 
             for indel in [s.upper() for s in col[8].split(',')]:
-                indel, n = indel.split(':')
+                indel, n = indel.split('|')
                 n = int(n)
 
                 total_indel_num += n

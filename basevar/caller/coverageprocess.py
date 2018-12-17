@@ -1,5 +1,5 @@
 """
-This is a Process module for BaseType by BAM/CRAM
+This is a Process module for calculatinig coverage
 
 """
 import sys
@@ -10,7 +10,6 @@ import pysam
 
 from . import utils
 from . import bam
-from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 
 
 def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
@@ -20,11 +19,8 @@ def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
     indels = []
 
     for i, sample_pos_line in enumerate(sample_info):
-
-        bs, strand, indel, sample_info[i], go_iter[i] = (
-            seek_position(position, sample_pos_line, iter_tokes[i], fa,
-                          is_scan_indel=is_scan_indel)
-        )
+        bs, strand, indel, sample_info[i], go_iter[i] = seek_position(
+            position, sample_pos_line, iter_tokes[i], fa, is_scan_indel=is_scan_indel)
 
         bases.append(bs)
         strands.append(strand)
@@ -36,7 +32,7 @@ def fetch_base_by_position(position, sample_info, go_iter, iter_tokes, fa,
 
 
 def seek_position(target_pos, sample_pos_line, sample_iter, fa,
-                   is_scan_indel=False):
+                  is_scan_indel=False):
     """Get mapping info for specific position.
 
     `fa`: Just for scan indel
@@ -102,10 +98,11 @@ def all_base(sample_pos_line, is_scan_indel=None):
     return base, strand, indel
 
 
-class BaseVarSingleProcess(object):
+class CvgSingleProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
+
     def __init__(self, ref_file, aligne_files, out_cvg_file,
                  regions, samples, cmm=None):
         """
@@ -178,11 +175,11 @@ class BaseVarSingleProcess(object):
                 for i, bf in enumerate(self.ali_files_hd):
                     try:
                         # 0-base
-                        iter_tokes.append(bf.pileup(chrid, start-1, end))
+                        iter_tokes.append(bf.pileup(chrid, start - 1, end))
                     except ValueError:
                         if self.cmm.debug:
                             print >> sys.stderr, ("# [WARMING] Empty region",
-                                                  chrid, start-1, end,
+                                                  chrid, start - 1, end,
                                                   self.aligne_files[i])
                         iter_tokes.append('')
 
@@ -215,25 +212,22 @@ class BaseVarSingleProcess(object):
                             is_scan_indel=True
                         )
 
-                        ref_base = fa[position-1]
+                        ref_base = fa[position - 1]
                         # ignore positions if coverage=0 or ref base is 'N' base
                         if not sample_base or ref_base in ['N', 'n']:
                             continue
 
-                        self._out_cvg_file(chrid, position, ref_base, sample_base,
-                                           strands, indels, CVG)
+                        self._out_cvg_file(chrid, position, ref_base, sample_base, indels, CVG)
 
         self._close_aligne_file()
 
-    def _out_cvg_file(self, chrid, position, ref_base, sample_base,
-                      strands, indels, out_file_handle):
+    def _out_cvg_file(self, chrid, position, ref_base, sample_base, indels, out_file_handle):
 
         """
         :param chrid:
         :param position:
         :param ref_base:
         :param sample_base: 2d array,
-        :param strands:  2d array
         :param indels: 2d array
         :return:
         """
@@ -267,11 +261,12 @@ class BaseVarSingleProcess(object):
 
 
 ###############################################################################
-class BaseVarMultiProcess(multiprocessing.Process):
+class CvgMultiProcess(multiprocessing.Process):
     """
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
+
     def __init__(self, ref_in_file, aligne_files, out_cvg_file,
                  regions, cmm=None):
         """
@@ -286,12 +281,12 @@ class BaseVarMultiProcess(multiprocessing.Process):
         # ``samples_id`` has the same size and order as ``aligne_files``
         samples_id = self._load_sample_id(aligne_files)
 
-        self.single_process = BaseVarSingleProcess(ref_in_file,
-                                                   aligne_files,
-                                                   out_cvg_file,
-                                                   regions,
-                                                   samples_id,
-                                                   cmm=cmm)
+        self.single_process = CvgSingleProcess(ref_in_file,
+                                               aligne_files,
+                                               out_cvg_file,
+                                               regions,
+                                               samples_id,
+                                               cmm=cmm)
 
     def _load_sample_id(self, aligne_files):
         """loading sample id in bam/cram files from RG tag"""
