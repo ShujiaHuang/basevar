@@ -109,9 +109,14 @@ def parser_commandline_args():
                               help="Sample id should be the first element in filename and been separated by '.' . "
                                    "This will save a lot of time if you have thousands of bamfiles. [False]")
 
+    # smart re-run
+    basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
+                              help='Re-run basetype process by checking batchfiles '
+                                   'when you set this parameter.')
+
     # special parameter to limit the function of BaseType
-    basetype_cmd.add_argument('--justdepth', dest='justdepth', metavar='bool', type=bool, default=False,
-                              help='Just output the depth information for each position [False]')
+    basetype_cmd.add_argument('--justdepth', dest='justdepth', action='store_true',
+                              help='Setting for just output genome coverage.')
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
@@ -174,6 +179,9 @@ def main():
     }
 
     args = parser_commandline_args()
+
+    sys.stderr.write('** %s Start at %s **\n\n' % (args.command, time.asctime()))
+
     runner[args.command](args)
 
     elasped_time = datetime.now() - START_TIME

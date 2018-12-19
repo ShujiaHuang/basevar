@@ -34,7 +34,17 @@ class BaseTypeBamRunner(object):
         self.pop_group_file = args.pop_group_file
         self.batchcount = args.batchcount
         self.outprefix = args.outprefix
+        self.smartrerun = True if args.smartrerun else False
         self.is_justdepth = args.justdepth
+
+        if self.smartrerun:
+            sys.stderr.write("***********************************************\n"
+                             "******************* WARNING *******************\n"
+                             "***********************************************\n"
+                             ">>>>>>>> You have setted `smart rerun` <<<<<<<<\n"
+                             "Please make sure that all the parameters are the "
+                             "same with your previous commands.\n"
+                             "***********************************************\n\n")
 
         # Loading positions or load all the genome regions
         self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)
@@ -145,6 +155,7 @@ class BaseTypeBamRunner(object):
                                                     batchcount=self.batchcount,
                                                     out_cvg_file=sub_cvg_file,
                                                     out_vcf_file=sub_vcf_file,
+                                                    rerun=self.smartrerun,
                                                     cmm=self.cmm))
 
         for p in processes:
@@ -299,12 +310,13 @@ class NearbyIndelRunner(object):
         self.in_cvg_file = args.in_cvg_file
         self.nearby_dis_around_indel = args.nearby_dis_around_indel
 
-        sys.stderr.write('[INFO] Parameters: python %s nbi'
+        sys.stderr.write('[INFO] basevar NearbyIndel'
                          '\n\t-i %s'
                          '\n\t-c %s'
-                         '\n\t-d %d' % (sys.argv[0], args.in_vcf_file, args.in_cvg_file,
+                         '\n\t-d %d' % (args.in_vcf_file,
+                                        args.in_cvg_file,
                                         args.nearby_dis_around_indel)
-                         )
+                        )
 
     def run(self):
         from .other import NearbyIndel

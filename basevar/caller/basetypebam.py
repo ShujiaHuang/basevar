@@ -19,7 +19,7 @@ class BaseVarSingleProcess(object):
     simple class to repesent a single BaseVar process.
     """
     def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, batchcount=1000,
-                 out_vcf_file=None, out_cvg_file=None, cmm=None):
+                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Store input file, options and output file name.
 
@@ -34,6 +34,7 @@ class BaseVarSingleProcess(object):
         self.out_cvg_file = out_cvg_file
         self.batchcount = batchcount
         self.samples = samples
+        self.smartrerun = rerun
         self.cmm = cmm
         self.regions = {}
 
@@ -106,8 +107,17 @@ class BaseVarSingleProcess(object):
                                                             ".".join(map(str, [chrid, bigstart, bigend])),
                                                             m,
                                                             part_num)
+            # store the name of batchfile into a list.
+            batchfiles.append(part_file_name)
 
-            sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
+            if self.smartrerun and os.path.isfile(part_file_name):
+                # ``part_file_name`` exists and we do not have create it again if setting `smartrerun`
+                sys.stderr.write("[INFO] %s has been created we don't need to create again, "
+                                 "when you set `smartrerun` %s\n" % (part_file_name, time.asctime()))
+                continue
+            else:
+                sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
+
             # One batch of alignment files
             sub_alignfiles = self.aligne_files[i:i+batchcount]
             ali_files_hd = self._open_aligne_files(sub_alignfiles)
@@ -172,7 +182,6 @@ class BaseVarSingleProcess(object):
                             ",".join(strands)
                         ]))
 
-            batchfiles.append(part_file_name)
             self._close_aligne_file(ali_files_hd)
             sys.stderr.write("[INFO] Done for batchfile %s at %s\n\n" % (part_file_name, time.asctime()))
 
@@ -303,8 +312,8 @@ class BaseVarMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id,
-                 batchcount=1000, out_vcf_file=None, out_cvg_file=None, cmm=None):
+    def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, batchcount=1000,
+                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Constructor.
 
@@ -323,6 +332,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
                                                    batchcount=batchcount,
                                                    out_cvg_file=out_cvg_file,
                                                    out_vcf_file=out_vcf_file,
+                                                   rerun=rerun,
                                                    cmm=cmm)
 
     def run(self):
