@@ -107,12 +107,12 @@ class BaseVarSingleProcess(object):
                                                             ".".join(map(str, [chrid, bigstart, bigend])),
                                                             m,
                                                             part_num)
-            # store the name of batchfile into a list.
+            # store the name of batchfiles into a list.
             batchfiles.append(part_file_name)
 
             if self.smartrerun and os.path.isfile(part_file_name):
-                # ``part_file_name`` exists and we do not have create it again if setting `smartrerun`
-                sys.stderr.write("[INFO] %s has been created we don't need to create again, "
+                # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
+                sys.stderr.write("[INFO] %s is exist we don't have to create it again, "
                                  "when you set `smartrerun` %s\n" % (part_file_name, time.asctime()))
                 continue
             else:
@@ -253,56 +253,72 @@ class BaseVarSingleProcess(object):
 
             batchfiles = self.create_batch_file_for_region(chrid, regions, self.batchcount)
             batch_files_hd = [open(f) for f in batchfiles]
-            _ = [utils.fetch_next(f) for f in batch_files_hd]  # ignore the header
 
             # get sequence of chrid from reference fasta
             fa = self.ref_file_hd.fetch(chrid)
-            for start, end in regions:
-                for position in range(start, end + 1):
+            while True:
 
-                    if n % 100000 == 0:
-                        sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
-                                         (n+1, chrid, position, time.asctime()))
-                    n += 1
+                eof = False
+                info = []
+                for fh in batch_files_hd:
+                    line = fh.readline()
+                    if line:
+                        if line.startswith("#"):
+                            continue
 
-                    ref_base = fa[position - 1]
-                    # ignore while ref base is 'N' base, very important
-                    if ref_base.upper() not in ['A', 'C', 'G', 'T']:
-                        continue
+                        info.append(line.strip())
+                    else:
+                        eof = True
+                        break
 
-                    # The order of position in all the batchfiles will be the same and match exactly
-                    # with `(start, end in regions)`
-                    info = [utils.fetch_next(it) for it in batch_files_hd]
+                # hit the end of a file
+                if eof:
+                    break
 
-                    (sample_bases,
-                     sample_base_quals,
-                     strands,
-                     mapqs,
-                     read_pos_rank) = self.fetch_baseinfo_by_position(chrid, position, ref_base, info)
+                # empty, may be header?
+                if not info:
+                    continue
 
-                    # # ignore positions if coverage=0
-                    if sum(read_pos_rank) == 0:
-                        continue
+                # [CHROM  POS REF MappingQuality  Readbases  ReadbasesQuality  ReadPositionRank Strand]
+                _, position = info[0].split()[:2]
+                position = int(position)
+                if n % 10000 == 0:
+                    sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
+                                     (n + 1, chrid, position, time.asctime()))
+                n += 1
 
-                    # Calling varaints by Basetypes and output VCF and Coverage files.
-                    basetypeprocess(chrid,
-                                    position,
-                                    ref_base,
-                                    sample_bases,
-                                    sample_base_quals,
-                                    mapqs,
-                                    strands,
-                                    read_pos_rank,
-                                    self.popgroup,
-                                    self.cmm,
-                                    CVG,
-                                    VCF)
+                ref_base = fa[position - 1]
+                (sample_bases,
+                 sample_base_quals,
+                 strands,
+                 mapqs,
+                 read_pos_rank) = self.fetch_baseinfo_by_position(chrid, position, ref_base, info)
+
+                # ignore positions if coverage=0
+                if sum(read_pos_rank) == 0:
+                    continue
+
+                sys.stderr.write("[Test] Start %s %d basetype process at\t%s\n" % (chrid, position, time.asctime()))
+                # Calling varaints by Basetypes and output VCF and Coverage files.
+                basetypeprocess(chrid,
+                                position,
+                                ref_base,
+                                sample_bases,
+                                sample_base_quals,
+                                mapqs,
+                                strands,
+                                read_pos_rank,
+                                self.popgroup,
+                                self.cmm,
+                                CVG,
+                                VCF)
 
             for fh in batch_files_hd:
                 fh.close()
 
         CVG.close()
         if VCF: VCF.close()
+
         self.ref_file_hd.close()
 
 
