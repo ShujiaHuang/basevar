@@ -107,14 +107,13 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='Group-List-File', type=str,
                               help='Calculating the allele frequency for specific population.')
 
-    basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', type=bool, default=False,
+    basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
                               help="Sample id should be the first element in filename and been separated by '.' . "
-                                   "This will save a lot of time if you have thousands of bamfiles. [False]")
+                                   "This will save a lot of time if you have thousands of bamfiles.")
 
     # smart re-run
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
-                              help='Re-run basetype process by checking batchfiles '
-                                   'when you set this parameter.')
+                              help='Re-run basetype process by checking batchfiles when you set this parameter.')
 
     # special parameter to limit the function of BaseType
     basetype_cmd.add_argument('--justdepth', dest='justdepth', action='store_true',

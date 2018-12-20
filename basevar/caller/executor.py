@@ -73,7 +73,7 @@ class BaseTypeBamRunner(object):
         sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
         if filename_has_samplename:
             sys.stderr.write('[INFO] loading samples\' id from filename because you '
-                             'set "--filename-has-samplename True"\n')
+                             'set "--filename-has-samplename"\n')
         sample_id = []
         for i, al in enumerate(self.alignefiles):
 
