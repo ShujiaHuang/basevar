@@ -169,7 +169,6 @@ class BaseType(object):
         self.af_by_lrt = {b : '%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
                           for b in bases if b != self._ref_base}
 
-        # calculate the variant quality
         # Todo: improve the calculation method for var_qual
         if len(self._alt_bases):
 
@@ -182,6 +181,11 @@ class BaseType(object):
                 chi_prob = chi2.sf(chi_sqrt_value, 1)
                 self._var_qual = round(-10 * np.log10(chi_prob), 2) \
                     if chi_prob else 10000.0
+
+            if self._var_qual == 0:
+                # _var_qual will been setted as -0.0 instand of 0.0 if it's 0,
+                # and I don't know why it so weird!
+                self._var_qual = 0.0
 
         return
 

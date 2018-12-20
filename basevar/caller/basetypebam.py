@@ -248,6 +248,7 @@ class BaseVarSingleProcess(object):
             VCF.write('\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\t'
                                  'INFO\tFORMAT'] + self.samples) + '\n')
 
+        is_empty = True
         n = 0
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
 
@@ -256,9 +257,9 @@ class BaseVarSingleProcess(object):
 
             # get sequence of chrid from reference fasta
             fa = self.ref_file_hd.fetch(chrid)
+            eof = False
             while True:
 
-                eof = False
                 info = []
                 for fh in batch_files_hd:
                     line = fh.readline()
@@ -284,7 +285,7 @@ class BaseVarSingleProcess(object):
                 position = int(position)
                 if n % 10000 == 0:
                     sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
-                                     (n + 1, chrid, position, time.asctime()))
+                                     (n if n > 0 else 1, chrid, position, time.asctime()))
                 n += 1
 
                 ref_base = fa[position - 1]
@@ -298,7 +299,9 @@ class BaseVarSingleProcess(object):
                 if sum(read_pos_rank) == 0:
                     continue
 
-                sys.stderr.write("[Test] Start %s %d basetype process at\t%s\n" % (chrid, position, time.asctime()))
+                # Not empty
+                is_empty = False
+
                 # Calling varaints by Basetypes and output VCF and Coverage files.
                 basetypeprocess(chrid,
                                 position,
@@ -317,9 +320,20 @@ class BaseVarSingleProcess(object):
                 fh.close()
 
         CVG.close()
-        if VCF: VCF.close()
+        if VCF:
+            VCF.close()
 
         self.ref_file_hd.close()
+
+        if is_empty:
+            sys.stderr.write("[WARNING] Nothing read is satisfy with the mapping quality in all your bamfiles.\n"
+                             "We get nothing in program %s " % self.out_cvg_file)
+            if VCF:
+                sys.stderr.write("and %s " % self.out_vcf_file)
+
+            sys.stderr.write("Now the time is %s\n" % time.asctime())
+
+        return
 
 
 ###############################################################################

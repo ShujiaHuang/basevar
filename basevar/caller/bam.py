@@ -142,9 +142,10 @@ def first_base(sample_pos_line, position, fa):
     """Just get first alignement base for each sample.
     """
     base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
-    for read in [al for al in sample_pos_line.pileups if al.alignment.mapq >= 30]:
-        # skip read which mapping quality less then 30
-
+    # for read in [al for al in sample_pos_line.pileups if (not al.alignment.is_secondary and
+    #                                                       not al.alignment.is_supplementary)]:
+    for read in [al for al in sample_pos_line.pileups if al.alignment.mapq >= 10]:
+        # skip read which mapping quality less then 10
         strand = '-' if read.alignment.is_reverse else '+'
         mapq = read.alignment.mapq
         if read.indel:
