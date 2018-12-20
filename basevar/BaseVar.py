@@ -90,6 +90,8 @@ def parser_commandline_args():
                                    '(chr:start-end). Could be a file contain the regions. This parameter could '
                                    'be provide with -L simultaneously')
 
+    basetype_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
+                              help='Only include reads with mapping quality >= INT. [10]')
     # The number of output subfiles
     basetype_cmd.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int, default=1000,
                               help='Number of samples in a batch file. [1000]')

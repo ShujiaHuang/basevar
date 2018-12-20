@@ -131,7 +131,7 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
     if phred_scale_value == np.inf:
         phred_scale_value = 10000.0
 
-    return phred_scale_value
+    return phred_scale_value if phred_scale_value != 0 else 0.0
 
 
 def strand_bias(ref_base, alt_base, bases, strands):
@@ -189,6 +189,11 @@ def strand_bias(ref_base, alt_base, bases, strands):
 
     if fs == np.inf:
         fs = 10000.0
+
+    if fs == 0:
+        # ``fs`` will been setted as -0.0 instand of 0.0 if it's 0,
+        # and I don't know why it so weird!
+        fs = 0.0
 
     # Strand bias estimated by the Symmetric Odds Ratio test
     # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php

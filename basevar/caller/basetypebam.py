@@ -18,7 +18,7 @@ class BaseVarSingleProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
-    def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, batchcount=1000,
+    def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Store input file, options and output file name.
@@ -32,6 +32,7 @@ class BaseVarSingleProcess(object):
         self.aligne_files = aligne_files
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
+        self.mapq = mapq
         self.batchcount = batchcount
         self.samples = samples
         self.smartrerun = rerun
@@ -168,6 +169,7 @@ class BaseVarSingleProcess(object):
                             position - 1,  # postion for pysam is 0-base
                             sample_info,
                             iter_tokes,
+                            self.mapq,
                             fa  # Fa sequence for indel sequence
                         )
 
@@ -276,7 +278,7 @@ class BaseVarSingleProcess(object):
                 if eof:
                     break
 
-                # empty, may be header?
+                # empty, may be just header.
                 if not info:
                     continue
 
@@ -326,8 +328,9 @@ class BaseVarSingleProcess(object):
         self.ref_file_hd.close()
 
         if is_empty:
-            sys.stderr.write("[WARNING] Nothing read is satisfy with the mapping quality in all your bamfiles.\n"
-                             "We get nothing in program %s " % self.out_cvg_file)
+            sys.stderr.write("\n************************************************************************\n"
+                             "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all your "
+                             "bamfiles.\nWe get nothing in %s " % (self.mapq, self.out_cvg_file))
             if VCF:
                 sys.stderr.write("and %s " % self.out_vcf_file)
 
@@ -342,7 +345,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
-    def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, batchcount=1000,
+    def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Constructor.
@@ -359,6 +362,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
                                                    pop_group_file,
                                                    regions,
                                                    samples_id,
+                                                   mapq=mapq,
                                                    batchcount=batchcount,
                                                    out_cvg_file=out_cvg_file,
                                                    out_vcf_file=out_vcf_file,

@@ -32,6 +32,7 @@ class BaseTypeBamRunner(object):
         self.referencefile = args.referencefile
         self.nCPU = args.nCPU
         self.pop_group_file = args.pop_group_file
+        self.mapq = args.mapq
         self.batchcount = args.batchcount
         self.outprefix = args.outprefix
         self.smartrerun = True if args.smartrerun else False
@@ -152,6 +153,7 @@ class BaseTypeBamRunner(object):
                                                     self.pop_group_file,
                                                     regions_for_each_process[i],
                                                     self.sample_id,
+                                                    mapq=self.mapq,
                                                     batchcount=self.batchcount,
                                                     out_cvg_file=sub_cvg_file,
                                                     out_vcf_file=sub_vcf_file,

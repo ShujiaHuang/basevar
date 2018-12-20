@@ -8,7 +8,7 @@ import sys
 from . import utils
 
 
-def fetch_base_by_position(position, sample_info, iter_tokes, fa):
+def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
     """
     """
     base_quals = []
@@ -19,7 +19,8 @@ def fetch_base_by_position(position, sample_info, iter_tokes, fa):
 
     for i, sample_pos_line in enumerate(sample_info):
 
-        bs, qs, strand, mapq, rpr, sample_info[i] = seek_position(position, sample_pos_line, iter_tokes[i], fa)
+        bs, qs, strand, mapq, rpr, sample_info[i] = seek_position(position, sample_pos_line,
+                                                                  iter_tokes[i], mapq_thd, fa)
 
         bases.append(bs)
         base_quals.append(qs)
@@ -30,7 +31,7 @@ def fetch_base_by_position(position, sample_info, iter_tokes, fa):
     return bases, base_quals, strands, mapqs, read_pos_rank
 
 
-def seek_position(target_pos, sample_pos_line, sample_iter, fa):
+def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa):
     """Get mapping info for specific position.
 
     `fa`: Use for scanning indels
@@ -52,7 +53,7 @@ def seek_position(target_pos, sample_pos_line, sample_iter, fa):
 
         # sample_pos_line may hit the end of file
         if sample_pos_line and sample_pos_line.pos == target_pos:
-            base, strand, qual, mapq, rpr = first_base(sample_pos_line, sample_pos_line.pos, fa)
+            base, strand, qual, mapq, rpr = first_base(sample_pos_line, sample_pos_line.pos, mapq_thd, fa)
 
     return base, qual, strand, mapq, rpr, sample_pos_line
 
@@ -138,14 +139,16 @@ def scan_indel(read, target_pos, fa):
     return indel if indel else 'N'
 
 
-def first_base(sample_pos_line, position, fa):
+def first_base(sample_pos_line, position, mapq_thd, fa):
     """Just get first alignement base for each sample.
     """
     base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
-    # for read in [al for al in sample_pos_line.pileups if (not al.alignment.is_secondary and
-    #                                                       not al.alignment.is_supplementary)]:
-    for read in [al for al in sample_pos_line.pileups if al.alignment.mapq >= 10]:
-        # skip read which mapping quality less then 10
+    for read in sample_pos_line.pileups:
+
+        if read.alignment.mapq < mapq_thd:
+            continue
+
+        # skip read which mapping quality less then ``mapq_thd``
         strand = '-' if read.alignment.is_reverse else '+'
         mapq = read.alignment.mapq
         if read.indel:
@@ -153,10 +156,6 @@ def first_base(sample_pos_line, position, fa):
             break
 
         elif not read.is_del and not read.is_refskip:
-            # skip the base which base_quality < 20
-            # if read.alignment.query_qualities[read.query_position] < 20:
-            #     continue
-
             rpr = read.query_position + 1
             base = read.alignment.query_sequence[read.query_position]
 
