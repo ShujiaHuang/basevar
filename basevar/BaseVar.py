@@ -82,10 +82,10 @@ def parser_commandline_args():
     basetype_cmd.add_argument('-O', '--outprefix', dest='outprefix', metavar='VCF_Prefix',
                               default='out', help='The prefix of output files. [out]')
 
-    basetype_cmd.add_argument('-L', '--positions', metavar='positions', type=str, dest='positions', default='',
-                              help='skip unlisted positions (chrid pos). -L and --region could be provided '
-                                   'simultaneously. [None]')
-    basetype_cmd.add_argument('--region', metavar='chr:start-end', type=str, dest='regions', default='',
+    basetype_cmd.add_argument('-p', '--positions', metavar='position-file', type=str, dest='positions',
+                              help='skip unlisted positions (chrid pos). -p and --region could be provided '
+                                   'simultaneously.')
+    basetype_cmd.add_argument('-R', '--region', metavar='chr:start-end', type=str, dest='regions', default='',
                               help='Skip positions which not in these regions. Comma delimited list of regions '
                                    '(chr:start-end). Could be a file contain the regions. This parameter could '
                                    'be provide with -L simultaneously')
@@ -96,9 +96,9 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int, default=1000,
                               help='Number of samples in a batch file. [1000]')
 
-    basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='Int', type=int, default=1,
+    basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
-    basetype_cmd.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='float', default=None,
+    basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
                               help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                    'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
                                    '[min(0.001, 100/x, cmm.MINAF)]. Probably you donot need to care about this parameter.')
@@ -138,9 +138,9 @@ def parser_commandline_args():
     coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE',
                               default='out', help='Output file. [out]')
 
-    coverage_cmd.add_argument('-P', '--positions', metavar='FILE', dest='positions',
+    coverage_cmd.add_argument('-P', '--positions', metavar='position-file', dest='positions',
                               help='skip unlisted positions (chr pos)', default='')
-    coverage_cmd.add_argument('-R', '--regions', metavar='chr:start-end', dest='regions',
+    coverage_cmd.add_argument('-R', '--region', metavar='chr_id:start-end', dest='regions',
                               help='skip positions not in (chr:start-end)', default='')
 
     coverage_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
@@ -174,9 +174,6 @@ def main():
         'merge': merge,
         'coverage': coverage,
         'NearByIndel': nearby_indel,
-        # 'VQSR': vqsr
-        # 'fusion': fusion,
-        # 'fusionbasetype': fusionbasetype,
     }
 
     args = parser_commandline_args()
