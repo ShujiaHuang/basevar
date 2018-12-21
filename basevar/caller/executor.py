@@ -67,7 +67,7 @@ class BaseTypeBamRunner(object):
 
         self.cmm.MINAF = args.min_af
         sys.stderr.write('[INFO] Finish loading parameters and we have %d BAM/CRAM files '
-                         'for variants calling %s\n' % (len(self.alignefiles), time.asctime()))
+                         'for variants calling at %s\n' % (len(self.alignefiles), time.asctime()))
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
