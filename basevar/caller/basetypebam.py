@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import multiprocessing
+from datetime import datetime
 
 import pysam
 
@@ -84,7 +85,8 @@ class BaseVarSingleProcess(object):
         ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
         """
         # Create a batch of temp files for variant discovery
-        # ``self.out_vcf_file`` may be None if just calculating position depth
+        START_TIME = datetime.now()
+
         batchfile_dir = utils.safe_makedir(os.path.split(os.path.realpath(self.out_cvg_file))[0] + "/batchfiles")
 
         # store all the batch files
@@ -185,7 +187,10 @@ class BaseVarSingleProcess(object):
                         ]))
 
             self._close_aligne_file(ali_files_hd)
-            sys.stderr.write("[INFO] Done for batchfile %s at %s\n\n" % (part_file_name, time.asctime()))
+
+            elasped_time = datetime.now() - START_TIME
+            sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
+                             "\n" % (part_file_name, time.asctime(), elasped_time.seconds))
 
         return batchfiles
 

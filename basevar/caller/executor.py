@@ -4,7 +4,7 @@ This module will contain all the executor steps of BaseVar.
 We have many important modules in BaseVar while this one is
 the lord to rule them all, in a word, it's "The Ring".
 
-``BaseVar.py`` is "Sauron", and this module could just be called by it.
+``BaseVar.py`` is "Sauron", and 'executor.py' module could just be called by it.
 """
 from __future__ import division
 
@@ -57,11 +57,10 @@ class BaseTypeBamRunner(object):
         self.cmm = cmm
 
         if args.min_af is None:
-            args.min_af = min(100.0 / len(self.alignefiles), 0.001, self.cmm.MINAF)
+            args.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)
 
         self.cmm.MINAF = args.min_af
-        sys.stderr.write('[INFO] Finish loading parameters and input file '
-                         'list %s\n' % time.asctime())
+        sys.stderr.write('[INFO] Finish loading parameters and input file list %s\n' % time.asctime())
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``

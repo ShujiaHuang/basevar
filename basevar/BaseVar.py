@@ -101,7 +101,8 @@ def parser_commandline_args():
     basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
                               help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                    'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                                   '[min(0.001, 100/x, cmm.MINAF)]. Probably you donot need to care about this parameter.')
+                                   '[min(0.001, 100/x, cmm.MINAF)]. '
+                                   'Probably you don\'t need to take care about this parameter.')
 
     # special parameter for calculating specific population allele frequence
     basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='Group-List-File', type=str,
@@ -121,12 +122,12 @@ def parser_commandline_args():
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
-    vqsr_cmd.add_argument('-i', '--InVcf', dest='vcfInfile', metavar='VCF',
-                          help='VCF for predict.', default=[])
-    vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='TRU',
-                          help='Traing data set at true category', default=[])
+    vqsr_cmd.add_argument('-i', '--InVcf', dest='vcfInfile', metavar='VCF', required=True,
+                          help='Input VCF file')
+    vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
+                          help='Traing data set at true category')
     vqsr_cmd.add_argument('-f', '--fig', dest='figure', metavar='FIG',
-                          help='The prefix of figure.', default='figtest')
+                          help='The prefix of figure. [figout]', default='figout')
 
     # For Coverage
     coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
