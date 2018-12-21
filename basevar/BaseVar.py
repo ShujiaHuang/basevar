@@ -75,23 +75,30 @@ def parser_commandline_args():
     commands = cmdparse.add_subparsers(dest="command", title="BaseVar Commands")
 
     basetype_cmd = commands.add_parser('basetype', help='Variants Caller')
-    basetype_cmd.add_argument('-I', '--aligne-file-list', dest='infilelist', metavar='Bamfiles', required=True,
-                              help='BAM/CRAM file list, one line per file.')
+    basetype_cmd.add_argument('-I', '--input', dest='input', metavar='BAM/CRAM', action='append', default=[],
+                              help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
+                                   'least once.')
+    basetype_cmd.add_argument('-L', '--aligne-file-list', dest='infilelist', metavar='BamfilesList',
+                              help='BAM/CRAM files list, one file per row.')
     basetype_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
                               help='Input reference fasta file.', default='')
-    basetype_cmd.add_argument('-O', '--outprefix', dest='outprefix', metavar='VCF_Prefix',
-                              default='out', help='The prefix of output files. [out]')
 
-    basetype_cmd.add_argument('-p', '--positions', metavar='position-file', type=str, dest='positions',
+    basetype_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
+                              help='Only include reads with mapping quality >= INT. [10]')
+
+    basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
+                              help='Output VCF file. If not provide will just output position coverage.')
+    basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
+                              help='Output position coverage file.')
+
+    basetype_cmd.add_argument('--positions', metavar='position-file', type=str, dest='positions',
                               help='skip unlisted positions (chrid pos). -p and --region could be provided '
                                    'simultaneously.')
-    basetype_cmd.add_argument('-R', '--region', metavar='chr:start-end', type=str, dest='regions', default='',
+    basetype_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
                               help='Skip positions which not in these regions. Comma delimited list of regions '
                                    '(chr:start-end). Could be a file contain the regions. This parameter could '
                                    'be provide with -L simultaneously')
 
-    basetype_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
-                              help='Only include reads with mapping quality >= INT. [10]')
     # The number of output subfiles
     basetype_cmd.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int, default=1000,
                               help='Number of samples in a batch file. [1000]')
@@ -105,43 +112,39 @@ def parser_commandline_args():
                                    'Probably you don\'t need to take care about this parameter.')
 
     # special parameter for calculating specific population allele frequence
-    basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='Group-List-File', type=str,
+    basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
                               help='Calculating the allele frequency for specific population.')
 
     basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
                               help="Sample id should be the first element in filename and been separated by '.' . "
                                    "This will save a lot of time if you have thousands of bamfiles.")
 
-    # smart re-run
+    # smart rerun
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
                               help='Re-run basetype process by checking batchfiles when you set this parameter.')
 
-    # special parameter to limit the function of BaseType
-    basetype_cmd.add_argument('--justdepth', dest='justdepth', action='store_true',
-                              help='Setting for just output genome coverage.')
-
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
-    vqsr_cmd.add_argument('-i', '--InVcf', dest='vcfInfile', metavar='VCF', required=True,
-                          help='Input VCF file')
+    vqsr_cmd.add_argument('-I', '--input', dest='vcfInfile', metavar='VCF', action='append', required=True,
+                          help='Input VCF file. This argument should be specified at least once.')
     vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
-                          help='Traing data set at true category')
+                          help='Traning data set at true category.')
     vqsr_cmd.add_argument('-f', '--fig', dest='figure', metavar='FIG',
                           help='The prefix of figure. [figout]', default='figout')
 
     # For Coverage
     coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
                                                         'or given regions/positions')
-    coverage_cmd.add_argument('-l', '--aligne-file-list', dest='infilelist', metavar='FILE', required=True,
+    coverage_cmd.add_argument('-L', '--aligne-file-list', dest='infilelist', metavar='FILE', required=True,
                               help='Input alignmernt file list.', default='')
-    coverage_cmd.add_argument('-r', '--reference', dest='referencefile', metavar='FILE', required=True,
+    coverage_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='FILE', required=True,
                               help='Input reference fasta file.')
     coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE',
                               default='out', help='Output file. [out]')
 
     coverage_cmd.add_argument('-P', '--positions', metavar='position-file', dest='positions',
                               help='skip unlisted positions (chr pos)', default='')
-    coverage_cmd.add_argument('-R', '--region', metavar='chr_id:start-end', dest='regions',
+    coverage_cmd.add_argument('--regions', metavar='chr_id:start-end', dest='regions',
                               help='skip positions not in (chr:start-end)', default='')
 
     coverage_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
@@ -179,7 +182,7 @@ def main():
 
     args = parser_commandline_args()
 
-    sys.stderr.write('** %s Start at %s **\n\n' % (args.command, time.asctime()))
+    sys.stderr.write('\n** %s Start at %s **\n\n' % (args.command, time.asctime()))
 
     runner[args.command](args)
 

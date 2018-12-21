@@ -34,10 +34,11 @@ class BaseTypeBamRunner(object):
         self.pop_group_file = args.pop_group_file
         self.mapq = args.mapq
         self.batchcount = args.batchcount
-        self.outprefix = args.outprefix
-        self.smartrerun = True if args.smartrerun else False
-        self.is_justdepth = args.justdepth
 
+        self.outvcf = args.outvcf if args.outvcf else None
+        self.outcvg = args.outcvg
+
+        self.smartrerun = True if args.smartrerun else False
         if self.smartrerun:
             sys.stderr.write("***********************************************\n"
                              "******************* WARNING *******************\n"
@@ -51,16 +52,22 @@ class BaseTypeBamRunner(object):
         self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)
 
         # Get all the input alignement files
-        self.alignefiles = utils.load_file_list(args.infilelist)
+        if not args.input and not args.infilelist:
+            sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
+            sys.exit(1)
+
+        self.alignefiles = args.input
+        if args.infilelist:
+            self.alignefiles += utils.load_file_list(args.infilelist)
 
         # setting the resolution of MAF
         self.cmm = cmm
-
         if args.min_af is None:
             args.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)
 
         self.cmm.MINAF = args.min_af
-        sys.stderr.write('[INFO] Finish loading parameters and input file list %s\n' % time.asctime())
+        sys.stderr.write('[INFO] Finish loading parameters and we have %d BAM/CRAM files '
+                         'for variants calling %s\n' % (len(self.alignefiles), time.asctime()))
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
@@ -134,11 +141,11 @@ class BaseTypeBamRunner(object):
 
         processes = []
         for i in range(self.nCPU):
-            sub_cvg_file = self.outprefix + '_temp_%s' % i + '.cvg.tsv'
+            sub_cvg_file = self.outcvg + '_temp_%s' % i
             out_cvg_names.add(sub_cvg_file)
 
-            if not self.is_justdepth:
-                sub_vcf_file = self.outprefix + '_temp_%s' % i + '.vcf'
+            if self.outvcf:
+                sub_vcf_file = self.outvcf + '_temp_%s' % i
                 out_vcf_names.add(sub_vcf_file)
             else:
                 sub_vcf_file = None
@@ -180,12 +187,10 @@ class BaseTypeBamRunner(object):
             p.join()
 
         # Final output file name
-        out_cvg_file = self.outprefix + '.cvg.tsv'  # position coverage
-        utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
+        utils.merge_files(out_cvg_names, self.outcvg, is_del_raw_file=True)
 
-        if not self.is_justdepth:
-            out_vcf_file = self.outprefix + '.vcf'
-            utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
+        if self.outvcf:
+            utils.merge_files(out_vcf_names, self.outvcf, is_del_raw_file=True)
 
         return
 
