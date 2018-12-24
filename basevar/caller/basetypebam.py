@@ -84,10 +84,8 @@ class BaseVarSingleProcess(object):
         """
         ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
         """
-        # Create a batch of temp files for variant discovery
-        START_TIME = datetime.now()
-
-        batchfile_dir = utils.safe_makedir(os.path.split(os.path.realpath(self.out_cvg_file))[0] + "/batchfiles")
+        d, n = os.path.split(os.path.realpath(self.out_cvg_file))
+        batchfile_dir = utils.safe_makedir(d + "/batchfiles.%s" % n.split(".cvg")[0])
 
         # store all the batch files
         batchfiles = []
@@ -104,6 +102,9 @@ class BaseVarSingleProcess(object):
 
         m = 0
         for i in range(0, len(self.aligne_files), batchcount):
+
+            # Create a batch of temp files for variant discovery
+            START_TIME = datetime.now()
 
             m += 1
             part_file_name = "%s/BaseVar.%s.%d_%d.batch" % (batchfile_dir,
@@ -138,7 +139,7 @@ class BaseVarSingleProcess(object):
                     iter_tokes.append("")
 
             with open(part_file_name, "w") as OUT:
-                OUT.write("%s\n" % "\t".join(["#CHROM", "POS", "REF", "MappingQuality", "Readbases", "ReadbasesQuality",
+                OUT.write("%s\n" % "\t".join(["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases", "ReadbasesQuality",
                                                "ReadPositionRank", "Strand"]))
 
                 # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
@@ -167,7 +168,8 @@ class BaseVarSingleProcess(object):
                         if ref_base.upper() not in ['A', 'C', 'G', 'T']:
                             continue
 
-                        sample_bases, sample_base_quals, strands, mapqs, read_pos_rank = bam.fetch_base_by_position(
+                        (depth, sample_bases, sample_base_quals,
+                         strands, mapqs, read_pos_rank) = bam.fetch_base_by_position(
                             position - 1,  # postion for pysam is 0-base
                             sample_info,
                             iter_tokes,
@@ -179,6 +181,7 @@ class BaseVarSingleProcess(object):
                             chrid,
                             str(position),
                             ref_base,
+                            str(depth),
                             ",".join(map(str, mapqs)),
                             ",".join(sample_bases),
                             ",".join(map(str, sample_base_quals)),
@@ -187,7 +190,6 @@ class BaseVarSingleProcess(object):
                         ]))
 
             self._close_aligne_file(ali_files_hd)
-
             elasped_time = datetime.now() - START_TIME
             sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
                              "\n" % (part_file_name, time.asctime(), elasped_time.seconds))
@@ -198,7 +200,7 @@ class BaseVarSingleProcess(object):
 
         sample_bases, sample_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
         for i, line in enumerate(infolines):
-            # <#CHROM  POS REF MappingQuality  Readbases  ReadbasesQuality  ReadPositionRank, Strand>
+            # <#CHROM  POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
             if len(line) == 0:
                 sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i+1))
                 sys.exit(1)
@@ -214,11 +216,11 @@ class BaseVarSingleProcess(object):
                                  (i+1, col[0], chrid, col[1], position, col[2], ref_base))
                 sys.exit(1)
 
-            mapqs.append(col[3])
-            sample_bases.append(col[4].upper())
-            sample_base_quals.append(col[5])
-            read_pos_rank.append(col[6])
-            strands.append(col[7])
+            mapqs.append(col[4])
+            sample_bases.append(col[5].upper())
+            sample_base_quals.append(col[6])
+            read_pos_rank.append(col[7])
+            strands.append(col[8])
 
         # cat all the info together and create ...
         mapqs = map(int, ",".join(mapqs).split(","))

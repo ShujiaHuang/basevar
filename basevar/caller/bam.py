@@ -16,6 +16,7 @@ def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
     strands = []
     mapqs = []
     read_pos_rank = []
+    depth = 0
 
     for i, sample_pos_line in enumerate(sample_info):
 
@@ -28,7 +29,10 @@ def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
         mapqs.append(mapq)
         read_pos_rank.append(rpr)
 
-    return bases, base_quals, strands, mapqs, read_pos_rank
+        if qs:
+            depth += 1
+
+    return depth, bases, base_quals, strands, mapqs, read_pos_rank
 
 
 def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa):
