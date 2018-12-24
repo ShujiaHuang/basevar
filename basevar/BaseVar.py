@@ -100,8 +100,8 @@ def parser_commandline_args():
                                    'be provide with -L simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('--batch-count', dest='batchcount', metavar='NUM', type=int, default=1000,
-                              help='Number of samples in a batch file. [1000]')
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='NUM', type=int, default=200,
+                              help='Simple size per batch. [200]')
 
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')

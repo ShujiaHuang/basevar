@@ -14,11 +14,14 @@ from . import utils
 from . import bam
 from .basetypeprocess import basetypeprocess
 
+REMOVE_BATCH_FILE = False
+
 
 class BaseVarSingleProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
+
     def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
@@ -34,9 +37,9 @@ class BaseVarSingleProcess(object):
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
         self.mapq = mapq
-        self.batchcount = batchcount
+        self.batch_count = batchcount
         self.samples = samples
-        self.smartrerun = rerun
+        self.smart_rerun = rerun
         self.cmm = cmm
         self.regions = {}
 
@@ -102,7 +105,6 @@ class BaseVarSingleProcess(object):
 
         m = 0
         for i in range(0, len(self.aligne_files), batchcount):
-
             # Create a batch of temp files for variant discovery
             START_TIME = datetime.now()
 
@@ -114,7 +116,7 @@ class BaseVarSingleProcess(object):
             # store the name of batchfiles into a list.
             batchfiles.append(part_file_name)
 
-            if self.smartrerun and os.path.isfile(part_file_name):
+            if self.smart_rerun and os.path.isfile(part_file_name):
                 # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
                 sys.stderr.write("[INFO] %s is exist we don't have to create it again, "
                                  "when you set `smartrerun` %s\n" % (part_file_name, time.asctime()))
@@ -123,7 +125,7 @@ class BaseVarSingleProcess(object):
                 sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
 
             # One batch of alignment files
-            sub_alignfiles = self.aligne_files[i:i+batchcount]
+            sub_alignfiles = self.aligne_files[i:i + batchcount]
             ali_files_hd = self._open_aligne_files(sub_alignfiles)
 
             # ``iter_tokes`` is a list of iterator for each sample's input file
@@ -131,16 +133,17 @@ class BaseVarSingleProcess(object):
             for i, bf in enumerate(ali_files_hd):
                 try:
                     # 0-base
-                    iter_tokes.append(bf.pileup(chrid, bigstart-1, bigend))
+                    iter_tokes.append(bf.pileup(chrid, bigstart - 1, bigend))
                 except ValueError:
                     if self.cmm.debug:
                         sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
-                                         (chrid, bigstart-1, bigend, self.aligne_files[i]))
+                                         (chrid, bigstart - 1, bigend, self.aligne_files[i]))
                     iter_tokes.append("")
 
             with open(part_file_name, "w") as OUT:
-                OUT.write("%s\n" % "\t".join(["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases", "ReadbasesQuality",
-                                               "ReadPositionRank", "Strand"]))
+                OUT.write("%s\n" % "\t".join(
+                    ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases", "ReadbasesQuality",
+                     "ReadPositionRank", "Strand"]))
 
                 # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
                 sample_info = [utils.fetch_next(it) for it in iter_tokes]
@@ -199,10 +202,11 @@ class BaseVarSingleProcess(object):
     def fetch_baseinfo_by_position(self, chrid, position, ref_base, infolines):
 
         sample_bases, sample_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
+        depth = 0
         for i, line in enumerate(infolines):
             # <#CHROM  POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
             if len(line) == 0:
-                sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i+1))
+                sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i + 1))
                 sys.exit(1)
 
             if line.startswith("#"):
@@ -213,9 +217,10 @@ class BaseVarSingleProcess(object):
             if col[0] != chrid or col[1] != position or col[2] != ref_base:
                 sys.stderr.write("[Error] %d lines, chromosome [%s and %s] or position [%d and %d] "
                                  "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
-                                 (i+1, col[0], chrid, col[1], position, col[2], ref_base))
+                                 (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
                 sys.exit(1)
 
+            depth += int(col[3])
             mapqs.append(col[4])
             sample_bases.append(col[5].upper())
             sample_base_quals.append(col[6])
@@ -229,7 +234,7 @@ class BaseVarSingleProcess(object):
         read_pos_rank = map(int, ",".join(read_pos_rank).split(","))
         strands = ",".join(strands).split(",")
 
-        return sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
+        return depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
 
     def run(self):
         """
@@ -249,7 +254,7 @@ class BaseVarSingleProcess(object):
         CVG.write('##Group information is the depth of A:C:G:T:Indel\n')
         CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
                             ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                             'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
+                                                   'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
 
         VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
         if VCF:  # set header if VCF is not None
@@ -261,7 +266,7 @@ class BaseVarSingleProcess(object):
         n = 0
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
 
-            batchfiles = self.create_batch_file_for_region(chrid, regions, self.batchcount)
+            batchfiles = self.create_batch_file_for_region(chrid, regions, self.batch_count)
             batch_files_hd = [open(f) for f in batchfiles]
 
             # get sequence of chrid from reference fasta
@@ -298,14 +303,15 @@ class BaseVarSingleProcess(object):
                 n += 1
 
                 ref_base = fa[position - 1]
-                (sample_bases,
+                (depth,
+                 sample_bases,
                  sample_base_quals,
                  strands,
                  mapqs,
                  read_pos_rank) = self.fetch_baseinfo_by_position(chrid, position, ref_base, info)
 
                 # ignore positions if coverage=0
-                if sum(read_pos_rank) == 0:
+                if depth == 0:
                     continue
 
                 # Not empty
@@ -327,6 +333,10 @@ class BaseVarSingleProcess(object):
 
             for fh in batch_files_hd:
                 fh.close()
+
+            if REMOVE_BATCH_FILE:
+                for f in batchfiles:
+                    os.remove(f)
 
         CVG.close()
         if VCF:
@@ -352,6 +362,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
     """
+
     def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
