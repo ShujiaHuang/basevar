@@ -15,9 +15,14 @@ from datetime import datetime
 def basetype(args):
     from caller.executor import BaseTypeBamRunner
     bt = BaseTypeBamRunner(args)
-    bt.run()
+    processer = bt.run()
 
-    return
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
+
+    return is_success
 
 
 # def vqsr():
@@ -33,7 +38,7 @@ def nearby_indel(args):
     nbi = NearbyIndelRunner(args)
     nbi.run()
 
-    return
+    return True
 
 
 def merge(args):
@@ -42,35 +47,26 @@ def merge(args):
     mg = MergeRunner(args)
     mg.run()
 
-    return
+    return True
 
 
 def coverage(args):
     from caller.executor import CoverageRunner
     cvg = CoverageRunner(args)
-    cvg.run()
+    processer = cvg.run()
 
-    return
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
 
-
-def fusion():
-    from caller.executor import FusionRunner
-    cf = FusionRunner()
-    cf.run()
-
-    return
-
-
-def fusionbasetype():
-    from caller.executor import BaseTypeFusionRunner
-    ft = BaseTypeFusionRunner()
-    ft.run()
-
-    return
+    return is_success
 
 
 def parser_commandline_args():
-    desc = "BaseVar: A python software for calling variants without calling genotype."
+    desc = "BaseVar: A python software to call variants without calling genotype for ultra low pass " \
+           "sequencing data."
+
     cmdparse = argparse.ArgumentParser(description=desc)
     commands = cmdparse.add_subparsers(dest="command", title="BaseVar Commands")
 
@@ -87,21 +83,24 @@ def parser_commandline_args():
                               help='Only include reads with mapping quality >= INT. [10]')
 
     basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
-                              help='Output VCF file. If not provide will just output position coverage.')
+                              help='Output VCF file. If not provide will skip variants discovery and just output '
+                                   'position coverage file which filename is provided by --output-cvg.')
     basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
                               help='Output position coverage file.')
 
-    basetype_cmd.add_argument('--positions', metavar='position-file', type=str, dest='positions',
-                              help='skip unlisted positions (chrid pos). -p and --region could be provided '
-                                   'simultaneously.')
+    basetype_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
+                              help='skip unlisted positions one per row. The position format in the file could '
+                                   'be (chrid pos) and (chrid  start  end) in mix. This parameter could be used '
+                                   'with --regions simultaneously.')
     basetype_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
-                              help='Skip positions which not in these regions. Comma delimited list of regions '
-                                   '(chr:start-end). Could be a file contain the regions. This parameter could '
-                                   'be provide with -L simultaneously')
+                              help='Skip positions which not in these regions. This parameter could be a list of '
+                                   'comma deleimited genome regions(e.g.: chr:start-end,chr:start-end) or a file '
+                                   'contain the list of regions. This parameter could be used with --positions '
+                                   'simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='NUM', type=int, default=200,
-                              help='Simple size per batch. [200]')
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
+                              help='INT simples per batchfile. [200]')
 
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
@@ -121,7 +120,7 @@ def parser_commandline_args():
 
     # smart rerun
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
-                              help='Re-run basetype process by checking batchfiles when you set this parameter.')
+                              help='Rerun basetype process by checking batchfiles when you set this parameter.')
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
@@ -129,8 +128,8 @@ def parser_commandline_args():
                           help='Input VCF file. This argument should be specified at least once.')
     vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
                           help='Traning data set at true category.')
-    vqsr_cmd.add_argument('-f', '--fig', dest='figure', metavar='FIG',
-                          help='The prefix of figure. [figout]', default='figout')
+    vqsr_cmd.add_argument('--fig', dest='figure', metavar='FIG', required=True,
+                          help='The prefix of figure. [figout]')
 
     # For Coverage
     coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
@@ -142,37 +141,44 @@ def parser_commandline_args():
     coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE',
                               default='out', help='Output file. [out]')
 
-    coverage_cmd.add_argument('-P', '--positions', metavar='position-file', dest='positions',
-                              help='skip unlisted positions (chr pos)', default='')
-    coverage_cmd.add_argument('--regions', metavar='chr_id:start-end', dest='regions',
-                              help='skip positions not in (chr:start-end)', default='')
+    coverage_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
+                              help='skip unlisted positions one per row. The position format in the file could '
+                                   'be (chrid pos) and (chrid  start  end) in mix. This parameter could be used '
+                                   'with --regions simultaneously.')
+    coverage_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
+                              help='Skip positions which not in these regions. This parameter could be a list of '
+                                   'comma deleimited genome regions(e.g.: chr:start-end,chr:start-end) or a file '
+                                   'contain the list of regions. This parameter could be used with --positions '
+                                   'simultaneously')
 
     coverage_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
                               help='Number of processer to use. [1]', default=1)
 
     # Merge files
     merge_cmd = commands.add_parser('merge', help='Merge bed/vcf files')
-    merge_cmd.add_argument('-L', '--file-list', dest='infilelist', metavar='FILE', required=True,
+    merge_cmd.add_argument('-I', '--input', dest='input', metavar='VCF', action='append', default=[],
+                           help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
+                                'least once.')
+    merge_cmd.add_argument('-L', '--file-list', dest='infilelist', metavar='VCF', required=True,
                            help='Input files\' list.', default='')
-    merge_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', default='out',
+    merge_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='VCF', required=True,
                            help='Output file. [out]')
 
     # Add nearby indels for variants
     nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
                                                       'indel type information for each variants in VCF')
-    nbi_cmd.add_argument('-i', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
+    nbi_cmd.add_argument('-I', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
                          help='The input vcf files')
-    nbi_cmd.add_argument('-c', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
+    nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
                          help='Input coverage file which has indel information')
-    nbi_cmd.add_argument('-d', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', type=int,
-                         help='The distance around indel. [16]', default=16)
+    nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
+                         type=int, default=16, help='The distance around indel. [16]')
 
     return cmdparse.parse_args()
 
 
 def main():
     START_TIME = datetime.now()
-
     runner = {
         'basetype': basetype,
         'merge': merge,
@@ -181,14 +187,18 @@ def main():
     }
 
     args = parser_commandline_args()
-
     sys.stderr.write('\n** %s Start at %s **\n\n' % (args.command, time.asctime()))
 
-    runner[args.command](args)
+    is_success = runner[args.command](args)
 
     elasped_time = datetime.now() - START_TIME
-    sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
-        args.command, time.asctime(), elasped_time.seconds))
+    if is_success:
+        sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
+            args.command, time.asctime(), elasped_time.seconds))
+    else:
+        sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
+            time.asctime(), args.command, elasped_time.seconds))
+        sys.exit(1)
 
 
 if __name__ == '__main__':

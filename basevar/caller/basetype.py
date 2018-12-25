@@ -110,7 +110,9 @@ class BaseType(object):
         bc, lr, bp = [], [], []
         for b in [i for i in itertools.combinations(bases, n)]:
             init_allele_frequecies = self._set_allele_frequence(b)
-            if sum(init_allele_frequecies) == 0: continue  ## The coverage is empty
+            if sum(init_allele_frequecies) == 0 :
+                ## The coverage is empty
+                continue
 
             _, marginal_likelihood, expect_allele_freq = EM(
                 np.tile(init_allele_frequecies, (self.ind_allele_likelihood.shape[0], 1)),

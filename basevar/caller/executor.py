@@ -10,15 +10,12 @@ from __future__ import division
 
 import os
 import sys
-import argparse
 import time
 
-from pysam import AlignmentFile, TabixFile
+from pysam import AlignmentFile
 
 from . import utils
-from .fusion import Fusion
 from .basetypebam import BaseVarMultiProcess as BamBaseVarMultiProcess
-from .basetypefusion import BaseVarFusionMultiProcess
 from .coverageprocess import CvgMultiProcess
 # from .vqsr import vqsr
 
@@ -29,10 +26,10 @@ class BaseTypeBamRunner(object):
         """init function
         """
         # setting parameters
-        self.referencefile = args.referencefile
         self.nCPU = args.nCPU
-        self.pop_group_file = args.pop_group_file
         self.mapq = args.mapq
+        self.referencefile = args.referencefile
+        self.pop_group_file = args.pop_group_file
         self.batchcount = args.batchcount
 
         self.outvcf = args.outvcf if args.outvcf else None
@@ -51,7 +48,7 @@ class BaseTypeBamRunner(object):
         # Loading positions or load all the genome regions
         self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)
 
-        # Get all the input alignement files
+        # Make sure you have input at least one bamfile.
         if not args.input and not args.infilelist:
             sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
             sys.exit(1)
@@ -188,11 +185,10 @@ class BaseTypeBamRunner(object):
 
         # Final output file name
         utils.merge_files(out_cvg_names, self.outcvg, is_del_raw_file=True)
-
         if self.outvcf:
             utils.merge_files(out_vcf_names, self.outvcf, is_del_raw_file=True)
 
-        return
+        return processes
 
 
 # class VQSRRuner(object):
@@ -288,7 +284,7 @@ class CoverageRunner(object):
         # Final output file name
         utils.merge_files(out_cvg_names, self.outputfile, is_del_raw_file=True)
 
-        return
+        return processes
 
 
 class MergeRunner(object):
@@ -331,236 +327,3 @@ class NearbyIndelRunner(object):
         nbi.run()
 
         return self
-
-
-class BaseTypeFusionRunner(object):
-    def __init__(self, cmm=utils.CommonParameter()):
-        """init function
-        """
-        optp = argparse.ArgumentParser()
-        optp.add_argument('basetypefusion')
-        optp.add_argument('-I', '--fusion-file-list', dest='infilelist', metavar='FILE',
-                          help='Fusion file list, one line per file.', default='')
-        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
-                          help='Input reference fasta file.', default='')
-        optp.add_argument('-O', '--outprefix', dest='outprefix', metavar='FILE',
-                          default='out', help='The prefix of output files. [out]')
-
-        optp.add_argument('-L', '--positions', metavar='FILE', dest='positions',
-                          help='skip unlisted positions (chr pos). [None]', default='')
-        optp.add_argument('--region', metavar='chr:start-end', dest='region',
-                          help='Skip position which not in these regions. Comma delimited '
-                               'list of regions (chr:start-end). Could be a file contain the '
-                               'regions.', default='')
-
-        optp.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
-                          help='Number of processer to use. [1]', default=1)
-        optp.add_argument('-m', '--min_af', dest='min_af', type=float, metavar='MINAF',
-                          help='By setting min AF to skip uneffective caller positions '
-                               'to accelerate program speed. Usually you can set it to '
-                               'be min(0.001, 100/x), x is the size of your population.'
-                               '[min(0.001, 100/x)]')
-
-        # special parameter for calculating specific population allele frequence
-        optp.add_argument('--pop-group', dest='pop_group_file', metavar='FILE', type=str,
-                          help='Calculating the allele frequency for specific population.')
-
-        # special parameter to limit the function of BaseType
-        optp.add_argument('--justdepth', dest='justdepth', type=bool,
-                          help='Just output the depth information for each position [False]',
-                          default=False)
-
-        opt = optp.parse_args()
-        self.opt = opt
-
-        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] Missing bamfile.\n')
-
-        if len(opt.referencefile) == 0:
-            optp.error('[ERROR] Missing reference fasta file.\n')
-
-        # Loading positions if not provid we'll load all the genome
-        self.regions = utils.load_target_position(opt.referencefile, opt.positions,
-                                                  opt.region)
-
-        # Get all the input align fusion files
-        self.fusionfiles = utils.load_file_list(opt.infilelist)
-
-        self.cmm = cmm
-        if self.opt.min_af is None:
-            self.opt.min_af = min(100.0 / len(self.fusionfiles), 0.001, self.cmm.MINAF)
-
-        # reset threshold of min allele frequence threshold by sample size
-        self.cmm.MINAF = self.opt.min_af
-
-        sys.stderr.write('[INFO] Finish loading parameters and input file '
-                         'list %s\n' % time.asctime())
-
-        # loading all the sample id from aligne_files
-        # ``samples_id`` has the same size and order as ``aligne_files``
-        self.sample_id = self._load_sample_id()
-
-    def _load_sample_id(self):
-        """loading sample id in BAM/CRMA files from RG tag"""
-
-        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
-        # loading sample'id from the header of fusion files
-        sample_id = []
-        for i, f in enumerate(self.fusionfiles):
-
-            tf = TabixFile(f)
-            try:
-                # get sample ID: '##RG\tSM:SAMPLE_ID'
-                header = [h for h in tf.header if h.startswith('##RG\tSM:')][0]
-                sample_id.append(header.split(':')[-1])
-                tf.close()
-
-            except IndexError:
-
-                sys.stderr.write('[ERROR] File header has no sample tag mark '
-                                 'by "SM:", Please check %s!' % f)
-                tf.close()
-                sys.exit(1)
-
-        sys.stderr.write('[INFO] Finish load all %d samples\' ID '
-                         'from RG tag\n\n' % len(sample_id))
-        return sample_id
-
-    def run(self):
-        """
-        Run variant caller
-        """
-        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' %
-                         time.asctime())
-
-        # Always create process manager even if nCPU==1, so that we can
-        # listen for signals from main thread
-        regions_for_each_process = [[] for _ in range(self.opt.nCPU)]
-        if len(self.regions) < self.opt.nCPU:
-            # We cut the region into pieces to fit nCPU if regions < nCPU
-            for chrid, start, end in self.regions:
-                delta = int((end - start + 1) / self.opt.nCPU)
-                if delta == 0:
-                    delta = 1
-
-                for i, pos in enumerate(xrange(start - 1, end, delta)):
-                    s = pos + 1 if pos + 1 < end else end
-                    e = pos + delta if pos + delta < end else end
-
-                    regions_for_each_process[i % self.opt.nCPU].append([chrid, s, e])
-
-        else:
-            for i, region in enumerate(self.regions):
-                regions_for_each_process[i % self.opt.nCPU].append(region)
-
-        out_vcf_names = set()
-        out_cvg_names = set()
-
-        processes = []
-        for i in range(self.opt.nCPU):
-            sub_cvg_file = self.opt.outprefix + '_temp_%s' % i + '.cvg.tsv'
-            out_cvg_names.add(sub_cvg_file)
-
-            if not self.opt.justdepth:
-                sub_vcf_file = self.opt.outprefix + '_temp_%s' % i + '.vcf'
-                out_vcf_names.add(sub_vcf_file)
-            else:
-                sub_vcf_file = None
-
-            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
-                             '[%s, %s]\n' % (i + 1, self.opt.nCPU, sub_vcf_file,
-                                             sub_cvg_file))
-
-            processes.append(BaseVarFusionMultiProcess(self.opt.referencefile,
-                                                       self.fusionfiles,
-                                                       self.opt.pop_group_file,
-                                                       regions_for_each_process[i],
-                                                       self.sample_id,
-                                                       out_cvg_file=sub_cvg_file,
-                                                       out_vcf_file=sub_vcf_file,
-                                                       cmm=self.cmm))
-
-        for p in processes:
-            p.start()
-
-        # listen for signal while any process is alive
-        while True in [p.is_alive() for p in processes]:
-            try:
-                time.sleep(1)
-
-            except KeyboardInterrupt:
-                sys.stderr.write('KeyboardInterrupt detected, terminating '
-                                 'all processes...\n')
-                for p in processes:
-                    p.terminate()
-
-                sys.exit(1)
-
-        # make sure all process are finished
-        for p in processes:
-            p.join()
-
-        # Final output file name
-        out_cvg_file = self.opt.outprefix + '.cvg.tsv'  # position coverage
-        utils.merge_files(out_cvg_names, out_cvg_file, is_del_raw_file=True)
-
-        if not self.opt.justdepth:
-            out_vcf_file = self.opt.outprefix + '.vcf'
-            utils.merge_files(out_vcf_names, out_vcf_file, is_del_raw_file=True)
-
-        return
-
-
-class FusionRunner(object):
-
-    def __init__(self):
-        """
-        init function
-        """
-        optp = argparse.ArgumentParser()
-
-        optp.add_argument('fusion')
-        optp.add_argument('-I', '--inputfile', dest='inbamfile', metavar='FILE',
-                          help='BAM/CRAM file list, one line per file.', default='')
-
-        optp.add_argument('-R', '--reference', dest='referencefile', metavar='FILE',
-                          help='Input reference fasta file.', default='')
-
-        optp.add_argument('-O', '--outputfile', dest='outfile', metavar='FILE',
-                          default='out.fusion', help='Output fusion file. [out.fusion]')
-
-        opt = optp.parse_args()
-        self.opt = opt
-
-        if len(sys.argv) == 2 and len(opt.infilelist) == 0:
-            optp.error('[ERROR] Missing input BAM/CRAM file.\n')
-
-        if len(opt.referencefile) == 0:
-            optp.error('[ERROR] Missing reference fasta file.\n')
-
-    def run(self):
-
-        # Get alignment sample ID
-        bf = AlignmentFile(self.opt.inbamfile)
-        sample_id = bf.header['RG'][0]['SM']
-        bf.close()
-
-        callfusion = Fusion(self.opt.referencefile, self.opt.inbamfile)
-        with open(self.opt.outfile, 'w') as OUT:
-            OUT.write('##fileformat=Fusion_v1.0 and the coordinate is 0-base system\n')
-            OUT.write('##RG\tSM:%s\n' % sample_id)
-            OUT.write('\t'.join(['#CHROM', 'START', 'END', 'TYPE', 'MAPQ',
-                                 'SO', 'Read_POS', 'BASE_QUAL']) + '\n')
-            for fusion in callfusion.generate_fusion():
-                info = '\t'.join(map(str, [fusion.chrid,
-                                           fusion.start,
-                                           fusion.end,
-                                           fusion.alt,
-                                           fusion.mapq,
-                                           fusion.strand_orientation,
-                                           fusion.read_first_position,
-                                           fusion.base_quality]
-                                     )
-                                 )
-
-                OUT.write(info + '\n')
