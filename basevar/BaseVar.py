@@ -192,13 +192,13 @@ def main():
 
     is_success = runner[args.command](args)
 
-    elasped_time = datetime.now() - START_TIME
+    elapsed_time = datetime.now() - START_TIME
     if is_success:
         sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
-            args.command, time.asctime(), elasped_time.seconds))
+            args.command, time.asctime(), elapsed_time.seconds))
     else:
         sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
-            time.asctime(), args.command, elasped_time.seconds))
+            time.asctime(), args.command, elapsed_time.seconds))
         sys.exit(1)
 
 

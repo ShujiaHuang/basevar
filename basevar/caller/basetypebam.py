@@ -197,9 +197,9 @@ class BaseVarSingleProcess(object):
                         ]))
 
             self._close_aligne_file(ali_files_hd)
-            elasped_time = datetime.now() - START_TIME
+            elapsed_time = datetime.now() - START_TIME
             sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
-                             "\n" % (part_file_name, time.asctime(), elasped_time.seconds))
+                             "\n" % (part_file_name, time.asctime(), elapsed_time.seconds))
 
         return batchfiles
 
