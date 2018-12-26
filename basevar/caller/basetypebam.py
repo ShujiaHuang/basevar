@@ -25,12 +25,17 @@ class BaseVarSingleProcess(object):
     def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
+        Constructor.
+
         Store input file, options and output file name.
 
         Parameters:
         ===========
             samples: list like
                 A list of sample id
+
+            regions: 2d-array like, required
+                    It's region info , format like: [[chrid, start, end], ...]
         """
         self.ref_file_hd = pysam.FastaFile(ref_file)
         self.aligne_files = aligne_files
@@ -115,10 +120,9 @@ class BaseVarSingleProcess(object):
                                                             part_num)
             # store the name of batchfiles into a list.
             batchfiles.append(part_file_name)
-
             if self.smart_rerun and os.path.isfile(part_file_name):
                 # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
-                sys.stderr.write("[INFO] %s is exist we don't have to create it again, "
+                sys.stderr.write("[INFO] %s already exists, we don't have to create it again, "
                                  "when you set `smartrerun` %s\n" % (part_file_name, time.asctime()))
                 continue
             else:
@@ -142,8 +146,8 @@ class BaseVarSingleProcess(object):
 
             with open(part_file_name, "w") as OUT:
                 OUT.write("%s\n" % "\t".join(
-                    ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases", "ReadbasesQuality",
-                     "ReadPositionRank", "Strand"]))
+                    ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
+                     "ReadbasesQuality", "ReadPositionRank", "Strand"]))
 
                 # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
                 sample_info = [utils.fetch_next(it) for it in iter_tokes]
@@ -204,7 +208,7 @@ class BaseVarSingleProcess(object):
         sample_bases, sample_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
         depth = 0
         for i, line in enumerate(infolines):
-            # <#CHROM  POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+            # <#CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
             if len(line) == 0:
                 sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i + 1))
                 sys.exit(1)
@@ -253,8 +257,8 @@ class BaseVarSingleProcess(object):
         CVG.write('##fileformat=CVGv1.0\n')
         CVG.write('##Group information is the depth of A:C:G:T:Indel\n')
         CVG.write('\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + self.cmm.BASE +
-                            ['Indel', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,'
-                                                   'REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
+                            ['Indel', 'FS', 'SOR',
+                             'Strand_Coverage(REF_FWD,REF_REV,ALT_FWD,ALT_REV)\t%s\n' % '\t'.join(group)]))
 
         VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
         if VCF:  # set header if VCF is not None
@@ -290,11 +294,12 @@ class BaseVarSingleProcess(object):
                 if eof:
                     break
 
-                # empty, may be just header.
+                # Empty! May just be header information.
                 if not info:
                     continue
 
-                # [CHROM  POS REF MappingQuality  Readbases  ReadbasesQuality  ReadPositionRank Strand]
+                # Loading ...
+                # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
                 _, position = info[0].split()[:2]
                 position = int(position)
                 if n % 10000 == 0:
@@ -361,6 +366,9 @@ class BaseVarMultiProcess(multiprocessing.Process):
     """
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
+
+    This class is much benefit than using ``BaseVarSingleProcess`` as a ``multiprocessing.Process`` directly
+    It's a shield for ``BaseVarSingleProcess``
     """
 
     def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, mapq=10, batchcount=1000,

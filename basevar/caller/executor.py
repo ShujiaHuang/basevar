@@ -15,8 +15,10 @@ import time
 from pysam import AlignmentFile
 
 from . import utils
-from .basetypebam import BaseVarMultiProcess as BamBaseVarMultiProcess
+from .basetypebam import BaseVarMultiProcess
 from .coverageprocess import CvgMultiProcess
+
+
 # from .vqsr import vqsr
 
 
@@ -60,7 +62,7 @@ class BaseTypeBamRunner(object):
         # setting the resolution of MAF
         self.cmm = cmm
         if args.min_af is None:
-            args.min_af = min(100.0/len(self.alignefiles), 0.001, self.cmm.MINAF)
+            args.min_af = min(100.0 / len(self.alignefiles), 0.001, self.cmm.MINAF)
 
         self.cmm.MINAF = args.min_af
         sys.stderr.write('[INFO] Finish loading parameters and we have %d BAM/CRAM files '
@@ -151,17 +153,17 @@ class BaseTypeBamRunner(object):
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file,
                                              sub_cvg_file))
 
-            processes.append(BamBaseVarMultiProcess(self.referencefile,
-                                                    self.alignefiles,
-                                                    self.pop_group_file,
-                                                    regions_for_each_process[i],
-                                                    self.sample_id,
-                                                    mapq=self.mapq,
-                                                    batchcount=self.batchcount,
-                                                    out_cvg_file=sub_cvg_file,
-                                                    out_vcf_file=sub_vcf_file,
-                                                    rerun=self.smartrerun,
-                                                    cmm=self.cmm))
+            processes.append(BaseVarMultiProcess(self.referencefile,
+                                                 self.alignefiles,
+                                                 self.pop_group_file,
+                                                 regions_for_each_process[i],
+                                                 self.sample_id,
+                                                 mapq=self.mapq,
+                                                 batchcount=self.batchcount,
+                                                 out_cvg_file=sub_cvg_file,
+                                                 out_vcf_file=sub_vcf_file,
+                                                 rerun=self.smartrerun,
+                                                 cmm=self.cmm))
 
         for p in processes:
             p.start()
@@ -256,10 +258,10 @@ class CoverageRunner(object):
 
             out_cvg_names.add(sub_cvg_file)
             processes.append(CvgMultiProcess(self.referencefile,
-                                                    self.alignefiles,
-                                                    sub_cvg_file,
-                                                    regions_for_each_process[i],
-                                                    cmm=self.cmm))
+                                             self.alignefiles,
+                                             sub_cvg_file,
+                                             regions_for_each_process[i],
+                                             cmm=self.cmm))
 
         for p in processes:
             p.start()
@@ -318,7 +320,7 @@ class NearbyIndelRunner(object):
                          '\n\t-d %d' % (args.in_vcf_file,
                                         args.in_cvg_file,
                                         args.nearby_dis_around_indel)
-                        )
+                         )
 
     def run(self):
         from .other import NearbyIndel
