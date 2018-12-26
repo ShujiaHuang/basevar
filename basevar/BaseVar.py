@@ -115,8 +115,9 @@ def parser_commandline_args():
                               help='Calculating the allele frequency for specific population.')
 
     basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
-                              help="Sample id should be the first element in filename and been separated by '.' . "
-                                   "This will save a lot of time if you have thousands of bamfiles.")
+                              help="If the name of bamfile is something like 'SampleID.xxxx.bam', "
+                                   "you can set this parameter to save a lot of time during get the "
+                                   "sample id from BAM header.")
 
     # smart rerun
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
@@ -129,7 +130,7 @@ def parser_commandline_args():
     vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
                           help='Traning data set at true category.')
     vqsr_cmd.add_argument('--fig', dest='figure', metavar='FIG', required=True,
-                          help='The prefix of figure. [figout]')
+                          help='The prefix of figure.')
 
     # For Coverage
     coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
