@@ -90,7 +90,7 @@ def parser_commandline_args():
 
     basetype_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
                               help='skip unlisted positions one per row. The position format in the file could '
-                                   'be (chrid pos) and (chrid  start  end) in mix. This parameter could be used '
+                                   'be (chrid pos) and (chrid start end) in mix. This parameter could be used '
                                    'with --regions simultaneously.')
     basetype_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
                               help='Skip positions which not in these regions. This parameter could be a list of '
