@@ -11,4 +11,5 @@
 .idea/
 .ipynb_checkpoints/
 *.egg-info/
+build/
 trash/
