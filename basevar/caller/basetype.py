@@ -1,7 +1,7 @@
 """
 This module contain functions of EM algorithm and Base genotype.
 """
-import itertools   # Use the combinations function
+import itertools  # Use the combinations function
 import numpy as np
 from scipy.stats.distributions import chi2
 
@@ -32,7 +32,7 @@ class BaseType(object):
         """
 
         self._alt_bases = []
-        self._var_qual = 0 # init the variant quality
+        self._var_qual = 0  # init the variant quality
         self._ref_base = ref_base
         self.cmm = cmm
 
@@ -42,18 +42,18 @@ class BaseType(object):
         # estimated allele frequency by EM and LRT
         self.af_by_lrt = {}
 
-        self.depth = {b:0 for b in self.cmm.BASE}
+        self.depth = {b: 0 for b in self.cmm.BASE}
 
         quals = np.array(quals)
         self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
         for i, b in enumerate(bases):
-            ## Individual likelihood for [A, C, G, T], one sample per row
+            # Individual likelihood for [A, C, G, T], one sample per row
             if b != 'N' and b[0] not in ['-', '+']:  # ignore all the 'N' bases and indels
                 self.ind_allele_likelihood.append([self.qual_pvalue[i]
-                                                   if b == t else (1.0-self.qual_pvalue[i])/3
+                                                   if b == t else (1.0 - self.qual_pvalue[i]) / 3
                                                    for t in self.cmm.BASE])
                 # record depth for [ACGT]
-                if b in self.depth: # ignore '*'
+                if b in self.depth:  # ignore '*'
                     self.depth[b] += 1
 
         self.ind_allele_likelihood = np.array(self.ind_allele_likelihood)
@@ -72,7 +72,7 @@ class BaseType(object):
 
         if total_depth > 0:
             for b in bases:
-                allele_frequence[self.cmm.BASE2IDX[b]] = self.depth[b]/total_depth
+                allele_frequence[self.cmm.BASE2IDX[b]] = self.depth[b] / total_depth
 
         return np.array(allele_frequence)
 
@@ -110,7 +110,7 @@ class BaseType(object):
         bc, lr, bp = [], [], []
         for b in [i for i in itertools.combinations(bases, n)]:
             init_allele_frequecies = self._set_allele_frequence(b)
-            if sum(init_allele_frequecies) == 0 :
+            if sum(init_allele_frequecies) == 0:
                 ## The coverage is empty
                 continue
 
@@ -120,7 +120,7 @@ class BaseType(object):
             )
 
             bc.append(b)
-            lr.append(np.log(marginal_likelihood).sum()) # sum the marginal likelihood
+            lr.append(np.log(marginal_likelihood).sum())  # sum the marginal likelihood
             bp.append(expect_allele_freq)
 
         return bc, lr, bp
@@ -137,11 +137,11 @@ class BaseType(object):
         if specific_base_comb:
             # get effective bases which count frequence >= self.cmm.MINAF
             bases = [b for b in specific_base_comb
-                     if self.depth[b]/self.total_depth >= self.cmm.MINAF]
+                     if self.depth[b] / self.total_depth >= self.cmm.MINAF]
         else:
             # get effective bases which count frequence >= self.cmm.MINAF
             bases = [b for b in self.cmm.BASE
-                     if self.depth[b]/self.total_depth >= self.cmm.MINAF]
+                     if self.depth[b] / self.total_depth >= self.cmm.MINAF]
 
         if len(bases) == 0: return
 
@@ -168,7 +168,7 @@ class BaseType(object):
                 break
 
         self._alt_bases = [b for b in bases if b != self._ref_base]
-        self.af_by_lrt = {b : '%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
+        self.af_by_lrt = {b: '%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
                           for b in bases if b != self._ref_base}
 
         # Todo: improve the calculation method for var_qual
@@ -203,6 +203,3 @@ class BaseType(object):
     def debug(self):
         print(self.ref_base(), self.alt_bases(),
               self.var_qual(), self.depth, self.af_by_lrt)
-
-
-
