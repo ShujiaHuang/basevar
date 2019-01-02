@@ -39,13 +39,13 @@ class BaseTypeBamRunner(object):
 
         self.smartrerun = True if args.smartrerun else False
         if self.smartrerun:
-            sys.stderr.write("***********************************************\n"
-                             "******************* WARNING *******************\n"
-                             "***********************************************\n"
-                             ">>>>>>>> You have setted `smart rerun` <<<<<<<<\n"
-                             "Please make sure that all the parameters are the "
+            sys.stderr.write("************************************************\n"
+                             "******************* WARNING ********************\n"
+                             "************************************************\n"
+                             ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
+                             "Please make sure that all the parameters are the\n"
                              "same with your previous commands.\n"
-                             "***********************************************\n\n")
+                             "************************************************\n\n")
 
         # Loading positions or load all the genome regions
         self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)

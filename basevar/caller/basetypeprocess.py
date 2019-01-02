@@ -2,13 +2,124 @@
 This is a Process module for BaseType by mpileup
 
 """
+import sys
+import time
+
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 
 
-def basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands,
-                    read_pos_rank, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def variantsdiscovery(chrid, batchfiles, fa, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+    batch_files_hd = [open(f) for f in batchfiles]
 
+    is_empty = True
+    n = 0
+    eof = False
+    while True:
+
+        info = []
+        for fh in batch_files_hd:
+            line = fh.readline()
+            if line:
+                if line.startswith("#"):
+                    continue
+
+                info.append(line.strip())
+            else:
+                eof = True
+                break
+
+        # hit the end of a file
+        if eof:
+            break
+
+        # Empty! Just have header information.
+        if not info:
+            continue
+
+        # Loading ...
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        _, position = info[0].split()[:2]
+        position = int(position)
+        if n % 10000 == 0:
+            sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
+                             (n if n > 0 else 1, chrid, position, time.asctime()))
+        n += 1
+
+        ref_base = fa[position - 1]
+        (depth,
+         sample_bases,
+         sample_base_quals,
+         strands,
+         mapqs,
+         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, info)
+
+        # ignore if coverage=0
+        if depth == 0:
+            continue
+
+        # Not empty
+        is_empty = False
+
+        # Calling varaints by Basetypes and output VCF and Coverage files.
+        _basetypeprocess(chrid,
+                         position,
+                         ref_base,
+                         sample_bases,
+                         sample_base_quals,
+                         mapqs,
+                         strands,
+                         read_pos_rank,
+                         popgroup,
+                         cmm,
+                         cvg_file_handle,
+                         vcf_file_handle)
+
+    for fh in batch_files_hd:
+        fh.close()
+
+    return is_empty
+
+
+def _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, infolines):
+    sample_bases, sample_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
+    depth = 0
+    for i, line in enumerate(infolines):
+        # <#CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+        if len(line) == 0:
+            sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i + 1))
+            sys.exit(1)
+
+        if line.startswith("#"):
+            continue
+
+        col = line.strip().split()
+        col[1] = int(col[1])
+        if col[0] != chrid or col[1] != position or col[2] != ref_base:
+            sys.stderr.write("[Error] %d lines, chromosome [%s and %s] or position [%d and %d] "
+                             "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
+                             (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
+            sys.exit(1)
+
+        depth += int(col[3])
+        mapqs.append(col[4])
+        sample_bases.append(col[5].upper())
+        sample_base_quals.append(col[6])
+        read_pos_rank.append(col[7])
+        strands.append(col[8])
+
+    # cat all the info together and create ...
+    mapqs = map(int, ",".join(mapqs).split(","))
+    sample_bases = ",".join(sample_bases).split(",")
+    sample_base_quals = map(int, ",".join(sample_base_quals).split(","))
+    read_pos_rank = map(int, ",".join(read_pos_rank).split(","))
+    strands = ",".join(strands).split(",")
+
+    return depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
+
+
+def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands,
+                     read_pos_rank, popgroup, cmm, cvg_file_handle, vcf_file_handle):
     _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle, cmm=cmm)
 
     # Call variant if ``vcf_file_handle`` is not None
@@ -125,7 +236,7 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
                   strands, bt, pop_group_bt, out_file_handle, cmm=None):
     """output vcf lines into `out_file_handle`"""
 
-    alt_gt = {b: './'+str(k+1) for k, b in enumerate(bt.alt_bases())}
+    alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases())}
     samples = []
 
     for k, b in enumerate(bases):
@@ -166,7 +277,7 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
         ref_base.upper(), bt.alt_bases(), bases, strands)
 
     # base=>[CAF, allele depth], CAF = Allele frequency by read count
-    caf = {b: ['%f' % round(bt.depth[b]/float(bt.total_depth), 6),
+    caf = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
                bt.depth[b]] for b in bt.alt_bases()}
 
     info = {'CM_DP': str(int(bt.total_depth)),
@@ -179,8 +290,8 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
             'QD': str(qd),
             'SOR': str(sor),
             'FS': str(fs),
-            'SB_REF': str(ref_fwd)+','+str(ref_rev),
-            'SB_ALT': str(alt_fwd)+','+str(alt_rev)}
+            'SB_REF': str(ref_fwd) + ',' + str(ref_rev),
+            'SB_ALT': str(alt_fwd) + ',' + str(alt_rev)}
 
     if pop_group_bt:
 
@@ -190,9 +301,9 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
             info[group] = af
 
     out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                          ','.join(bt.alt_bases()), str(bt.var_qual()),
-                          '.' if bt.var_qual() > cmm.QUAL_THRESHOLD else 'LowQual',
-                          ';'.join([k+'='+v for k, v in sorted(
-                              info.items(), key=lambda x:x[0])]),
-                              'GT:AB:SO:BP'] + samples) + '\n')
+                                     ','.join(bt.alt_bases()), str(bt.var_qual()),
+                                     '.' if bt.var_qual() > cmm.QUAL_THRESHOLD else 'LowQual',
+                                     ';'.join([k + '=' + v for k, v in sorted(
+                                         info.items(), key=lambda x: x[0])]),
+                                     'GT:AB:SO:BP'] + samples) + '\n')
     return

@@ -3,9 +3,165 @@ Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
+import os
 import sys
+import time
+from datetime import datetime
+
+import pysam
 
 from . import utils
+
+
+def open_aligne_files(bamfiles):
+    ali_files_hd = []
+    for f in bamfiles:
+
+        try:
+            bf = pysam.AlignmentFile(f)
+
+        except ValueError:
+            sys.stderr.write('[ERROR] Input file: %s is not BAM nor CRAM.\n' % f)
+            close_aligne_file(ali_files_hd)
+            sys.exit(1)
+
+        ali_files_hd.append(bf)
+
+    return ali_files_hd
+
+
+def close_aligne_file(ali_files_hd):
+    for bf in ali_files_hd:
+        bf.close()
+    return
+
+
+def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, mapq, outdir,
+                                  sample_ids=None, is_smart_rerun=False):
+    """
+    ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+    ``fa``:
+        # get sequence of chrid from reference fasta
+        fa = self.ref_file_hd.fetch(chrid)
+    """
+    # store all the batch files
+    batchfiles = []
+    part_num = len(aligne_files) / batchcount
+    if part_num * batchcount < len(aligne_files):
+        part_num += 1
+
+    tmp_region = []
+    for p in regions:
+        tmp_region.extend(p)
+
+    tmp_region = sorted(tmp_region)
+    bigstart, bigend = tmp_region[0], tmp_region[-1]
+
+    m = 0
+    for i in range(0, len(aligne_files), batchcount):
+        # Create a batch of temp files for variant discovery
+        start_time = datetime.now()
+
+        m += 1
+        part_file_name = "%s/BaseVar.%s.%d_%d.batch" % (outdir, ".".join(map(str, [chrid, bigstart, bigend])),
+                                                        m, part_num)
+        # store the name of batchfiles into a list.
+        batchfiles.append(part_file_name)
+        if is_smart_rerun and os.path.isfile(part_file_name):
+            # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
+            sys.stderr.write("[INFO] %s already exists, we don't have to create it again, "
+                             "when you set `smartrerun` %s\n" % (part_file_name, time.asctime()))
+            continue
+        else:
+            sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
+
+        # One batch of alignment files
+        sub_alignfiles = aligne_files[i:i + batchcount]
+        batch_sample_ids = None
+        if sample_ids:
+            batch_sample_ids = sample_ids[i:i + batchcount]
+
+        create_single_batchfile(chrid, bigstart, bigend, regions, sub_alignfiles, fa, mapq, part_file_name,
+                                batch_sample_ids=batch_sample_ids)
+
+        elapsed_time = datetime.now() - start_time
+        sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
+                         "\n" % (part_file_name, time.asctime(), elapsed_time.seconds))
+
+    return batchfiles
+
+
+def create_single_batchfile(chrid, bigstart, bigend, regions, batch_aligne_files, fa, mapq,
+                            out_batch_file, batch_sample_ids=None):
+    # One batch of alignment files
+    ali_files_hd = open_aligne_files(batch_aligne_files)
+
+    # ``iter_tokes`` is a list of iterator for each sample's input file
+    iter_tokes = []
+    for j, bf in enumerate(ali_files_hd):
+        try:
+            # 0-base
+            iter_tokes.append(bf.pileup(chrid, bigstart - 1, bigend))
+        except ValueError:
+            sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
+                             (chrid, bigstart - 1, bigend, batch_aligne_files[j]))
+            iter_tokes.append("")
+
+    with open(out_batch_file, "w") as OUT:
+        OUT.write("##fileformat=BaseVarBatchFile_v1.0\n")
+        if batch_sample_ids:
+            OUT.write("##SampleIDs=%s\n" % ",".join(batch_sample_ids))
+
+        OUT.write("%s\n" % "\t".join(
+            ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
+             "ReadbasesQuality", "ReadPositionRank", "Strand"]))
+
+        # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
+        sample_info = [utils.fetch_next(it) for it in iter_tokes]
+
+        n = 0
+        for start, end in regions:
+
+            sys.stderr.write('[INFO] Fetching information in region %s for %s, '
+                             'at %s\n' % (chrid + ":" + str(start) + "-" + str(end),
+                                          out_batch_file,
+                                          time.asctime()))
+
+            for position in range(start, end + 1):
+
+                if n % 100000 == 0:
+                    sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
+                                     (n + 1, chrid, position, time.asctime()))
+                n += 1
+
+                ref_base = fa[position - 1]
+                # ignore 'N' bases in reference
+                if ref_base.upper() not in ['A', 'C', 'G', 'T']:
+                    continue
+
+                (depth, sample_bases, sample_base_quals,
+                 strands, mapqs, read_pos_rank) = fetch_base_by_position(
+                    position - 1,  # position for pysam is 0-base
+                    sample_info,
+                    iter_tokes,
+                    mapq,
+                    fa  # Fa sequence for indel sequence
+                )
+
+                OUT.write("%s\n" % "\t".join([
+                    chrid,
+                    str(position),
+                    ref_base,
+                    str(depth),
+                    ",".join(map(str, mapqs)),
+                    ",".join(sample_bases),
+                    ",".join(map(str, sample_base_quals)),
+                    ",".join(map(str, read_pos_rank)),
+                    ",".join(strands)
+                ]))
+
+    close_aligne_file(ali_files_hd)
+    return
 
 
 def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
@@ -106,7 +262,7 @@ def scan_indel(read, target_pos, fa):
         # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
         # But we should find the position of Insertion, which is the next one.
 
-        if cigar_type in [3,4,5,6]:  # 'SHPN'
+        if cigar_type in [3, 4, 5, 6]:  # 'SHPN'
             delta += 1
             continue
 
@@ -127,11 +283,11 @@ def scan_indel(read, target_pos, fa):
     if cigar_type == 1:  # Insertion
 
         qpos = read.query_position + 1
-        indel = '+' + read.alignment.query_sequence[qpos:qpos+cigar_len]
+        indel = '+' + read.alignment.query_sequence[qpos:qpos + cigar_len]
     elif cigar_type == 2:  # Deletion
 
         tpos = target_pos + 1
-        indel = '-' + fa[tpos:tpos+cigar_len]
+        indel = '-' + fa[tpos:tpos + cigar_len]
     else:
         # Must just be 1 or 2
         sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s %s %s %s (at) %d in %s\n" %

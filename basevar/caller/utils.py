@@ -53,8 +53,9 @@ def file_exists(fname):
         return False
 
 
-def vcf_header_define():
+def vcf_header_define(ref_file_path):
     header=['##fileformat=VCFv4.2',
+            '##reference=file://{}'.format(os.path.realpath(ref_file_path)),
 
             '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
