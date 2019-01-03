@@ -54,9 +54,10 @@ def file_exists(fname):
 
 
 def vcf_header_define(ref_file_path):
-    header=['##fileformat=VCFv4.2',
-            '##reference=file://{}'.format(os.path.realpath(ref_file_path)),
-
+    fa = FastaFile(ref_file_path)
+    fa_name = os.path.basename(fa.filename)
+    contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.references, fa.lengths)]
+    header=['##fileformat=VCFv4.1',
             '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
             '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
@@ -74,8 +75,12 @@ def vcf_header_define(ref_file_path):
             '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
             '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
             '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
-            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">'
+            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">',
+            '\n'.join(contigs),
+            '##reference=file://{}'.format(os.path.realpath(fa.filename)),
             ]
+
+    fa.close()
 
     return header
 
