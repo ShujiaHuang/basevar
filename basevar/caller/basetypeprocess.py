@@ -1,5 +1,5 @@
 """
-This is a Process module for BaseType by mpileup
+This is a Process module for BaseType
 
 """
 import sys

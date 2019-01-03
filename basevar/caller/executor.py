@@ -55,18 +55,18 @@ class BaseTypeBamRunner(object):
             sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
             sys.exit(1)
 
-        self.alignefiles = args.input
+        self.alignfiles = args.input
         if args.infilelist:
-            self.alignefiles += utils.load_file_list(args.infilelist)
+            self.alignfiles += utils.load_file_list(args.infilelist)
 
         # setting the resolution of MAF
         self.cmm = cmm
         if args.min_af is None:
-            args.min_af = min(100.0 / len(self.alignefiles), 0.001, self.cmm.MINAF)
+            args.min_af = min(100.0 / len(self.alignfiles), 0.001, self.cmm.MINAF)
 
         self.cmm.MINAF = args.min_af
         sys.stderr.write('[INFO] Finish loading parameters and we have %d BAM/CRAM files '
-                         'for variants calling at %s\n' % (len(self.alignefiles), time.asctime()))
+                         'for variants calling at %s\n' % (len(self.alignfiles), time.asctime()))
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
@@ -80,11 +80,11 @@ class BaseTypeBamRunner(object):
             sys.stderr.write('[INFO] loading samples\' id from filename because you '
                              'set "--filename-has-samplename"\n')
         sample_id = []
-        for i, al in enumerate(self.alignefiles):
+        for i, al in enumerate(self.alignfiles):
 
             if i % 1000 == 0:
                 sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
-                                 (i + 1, len(self.alignefiles), time.asctime()))
+                                 (i + 1, len(self.alignfiles), time.asctime()))
 
             if filename_has_samplename:
                 filename = os.path.basename(al)
@@ -154,7 +154,7 @@ class BaseTypeBamRunner(object):
                                              sub_cvg_file))
 
             processes.append(BaseVarMultiProcess(self.referencefile,
-                                                 self.alignefiles,
+                                                 self.alignfiles,
                                                  self.pop_group_file,
                                                  regions_for_each_process[i],
                                                  self.sample_id,

@@ -36,7 +36,7 @@ def close_aligne_file(ali_files_hd):
     return
 
 
-def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, mapq, outdir,
+def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, mapq, outdir,
                                   sample_ids=None, is_smart_rerun=False):
     """
     ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -46,8 +46,8 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, 
     """
     # store all the batch files
     batchfiles = []
-    part_num = len(aligne_files) / batchcount
-    if part_num * batchcount < len(aligne_files):
+    part_num = len(align_files) / batchcount
+    if part_num * batchcount < len(align_files):
         part_num += 1
 
     tmp_region = []
@@ -58,7 +58,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, 
     bigstart, bigend = tmp_region[0], tmp_region[-1]
 
     m = 0
-    for i in range(0, len(aligne_files), batchcount):
+    for i in range(0, len(align_files), batchcount):
         # Create a batch of temp files for variant discovery
         start_time = datetime.now()
 
@@ -76,7 +76,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, 
             sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
 
         # One batch of alignment files
-        sub_alignfiles = aligne_files[i:i + batchcount]
+        sub_alignfiles = align_files[i:i + batchcount]
         batch_sample_ids = None
         if sample_ids:
             batch_sample_ids = sample_ids[i:i + batchcount]
@@ -91,10 +91,10 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, aligne_files, fa, 
     return batchfiles
 
 
-def create_single_batchfile(chrid, bigstart, bigend, regions, batch_aligne_files, fa, mapq,
+def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files, fa, mapq,
                             out_batch_file, batch_sample_ids=None):
     # One batch of alignment files
-    ali_files_hd = open_aligne_files(batch_aligne_files)
+    ali_files_hd = open_aligne_files(batch_align_files)
 
     # ``iter_tokes`` is a list of iterator for each sample's input file
     iter_tokes = []
@@ -104,7 +104,7 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_aligne_files
             iter_tokes.append(bf.pileup(chrid, bigstart - 1, bigend))
         except ValueError:
             sys.stderr.write("# [WARMING] Empty region %s:%d-%d in %s" %
-                             (chrid, bigstart - 1, bigend, batch_aligne_files[j]))
+                             (chrid, bigstart - 1, bigend, batch_align_files[j]))
             iter_tokes.append("")
 
     with open(out_batch_file, "w") as OUT:

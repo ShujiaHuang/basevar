@@ -21,7 +21,7 @@ class BaseVarSingleProcess(object):
     simple class to repesent a single BaseVar process.
     """
 
-    def __init__(self, ref_file, aligne_files, in_popgroup_file, regions, samples, mapq=10, batchcount=1000,
+    def __init__(self, ref_file, align_files, in_popgroup_file, regions, samples, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Constructor.
@@ -38,7 +38,7 @@ class BaseVarSingleProcess(object):
         """
         self.ref_file_path = ref_file
         self.ref_file_hd = FastaFile(ref_file)
-        self.aligne_files = aligne_files
+        self.align_files = align_files
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
         self.batch_count = batchcount
@@ -98,7 +98,7 @@ class BaseVarSingleProcess(object):
             batchfiles = bam.create_batchfiles_for_regions(chrid,
                                                            regions,
                                                            self.batch_count,
-                                                           self.aligne_files,
+                                                           self.align_files,
                                                            self.ref_file_hd.fetch(chrid),
                                                            self.mapq,
                                                            batchfile_dir,
@@ -144,7 +144,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
     It's a shield for ``BaseVarSingleProcess``
     """
 
-    def __init__(self, ref_in_file, aligne_files, pop_group_file, regions, samples_id, mapq=10, batchcount=1000,
+    def __init__(self, ref_in_file, align_files, pop_group_file, regions, samples_id, mapq=10, batchcount=1000,
                  out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
         """
         Constructor.
@@ -157,7 +157,7 @@ class BaseVarMultiProcess(multiprocessing.Process):
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.single_process = BaseVarSingleProcess(ref_in_file,
-                                                   aligne_files,
+                                                   align_files,
                                                    pop_group_file,
                                                    regions,
                                                    samples_id,
