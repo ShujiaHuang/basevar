@@ -74,7 +74,7 @@ def parser_commandline_args():
     basetype_cmd.add_argument('-I', '--input', dest='input', metavar='BAM/CRAM', action='append', default=[],
                               help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
                                    'least once.')
-    basetype_cmd.add_argument('-L', '--aligne-file-list', dest='infilelist', metavar='BamfilesList',
+    basetype_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='BamfilesList',
                               help='BAM/CRAM files list, one file per row.')
     basetype_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
                               help='Input reference fasta file.', default='')
@@ -135,7 +135,7 @@ def parser_commandline_args():
     # For Coverage
     coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
                                                         'or given regions/positions')
-    coverage_cmd.add_argument('-L', '--aligne-file-list', dest='infilelist', metavar='FILE', required=True,
+    coverage_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='FILE', required=True,
                               help='Input alignmernt file list.', default='')
     coverage_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='FILE', required=True,
                               help='Input reference fasta file.')
