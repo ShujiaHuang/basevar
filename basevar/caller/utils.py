@@ -11,12 +11,13 @@ class CommonParameter(object):
     """
     defined some globle common parameters
     """
+
     def __init__(self):
-        self.LRT_THRESHOLD = 24   ## 24 corresponding to a chi-pvalue of 10^-6
+        self.LRT_THRESHOLD = 24  ## 24 corresponding to a chi-pvalue of 10^-6
         self.QUAL_THRESHOLD = 60  ## -10 * lg(10^-6)
-        self.MLN10TO10 = -0.23025850929940458 # -np.log(10)/10
+        self.MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
         self.BASE = ['A', 'C', 'G', 'T']
-        self.BASE2IDX = {'A':0, 'C':1, 'G':2, 'T':3}
+        self.BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
         self.debug = False
         self.MINAF = 0.0001  # The effective base freqence threshold
 
@@ -53,32 +54,32 @@ def file_exists(fname):
         return False
 
 
-def vcf_header_define(ref_file_path):
+def vcf_header_define(ref_file_path, info=None):
     fa = FastaFile(ref_file_path)
     fa_name = os.path.basename(fa.filename)
     contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.references, fa.lengths)]
-    header=['##fileformat=VCFv4.1',
-            '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
-            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-            '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
-            '##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">',
-            '##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">',
+    header = ['##fileformat=VCFv4.2',
+              '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
+              '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+              '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
+              '##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">',
+              '##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">',
 
-            '##INFO=<ID=CM_AF,Number=.,Type=Float,Description="An ordered, comma delimited list of allele frequencies base on LRT algorithm">',
-            '##INFO=<ID=CM_CAF,Number=.,Type=Float,Description="An ordered, comma delimited list of allele frequencies just base on read count">',
-            '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
-            '##INFO=<ID=CM_AC,Number=.,Type=Float,Description="An ordered, comma delimited allele depth in CMDB">',
-            '##INFO=<ID=CM_DP,Number=.,Type=Float,Description="Total Depth in CMDB">',
-            '##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher\'s exact test to detect strand bias">',
-            '##INFO=<ID=SB_REF,Number=.,Type=Integer,Description="Read number support REF: Forward,Reverse">',
-            '##INFO=<ID=SB_ALT,Number=.,Type=Integer,Description="Read number support ALT: Forward,Reverse">',
-            '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
-            '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
-            '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
-            '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">',
-            '\n'.join(contigs),
-            '##reference=file://{}'.format(os.path.realpath(fa.filename)),
-            ]
+              '##INFO=<ID=CM_AF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies base on LRT algorithm">',
+              '##INFO=<ID=CM_CAF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies just base on read count">',
+              '##INFO=<ID=CM_AC,Number=A,Type=Integer,Description="An ordered, comma delimited allele depth in CMDB">',
+              '##INFO=<ID=CM_DP,Number=A,Type=Integer,Description="Total Depth in CMDB">',
+              '##INFO=<ID=SB_REF,Number=A,Type=Integer,Description="Read number support REF: Forward,Reverse">',
+              '##INFO=<ID=SB_ALT,Number=A,Type=Integer,Description="Read number support ALT: Forward,Reverse">',
+              '##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher\'s exact test to detect strand bias">',
+              '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
+              '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
+              '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
+              '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
+              '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">',
+              '\n'.join([info] + contigs if info else contigs),
+              '##reference=file://{}'.format(os.path.realpath(fa.filename))
+              ]
 
     fa.close()
 
@@ -103,7 +104,6 @@ def fetch_next(iter_fh):
 
 
 def load_file_list(in_file):
-
     with open(in_file) as fh:
         files = [r.strip().split()[0] for r in fh if r[0] != '#']
 
@@ -174,7 +174,6 @@ def get_list_position(in_site_file):
 
 
 def get_region_fromfile(in_region_file):
-
     regions = []
     with open(in_region_file) as f:
         for r in f:
@@ -205,7 +204,7 @@ def merge_region(position_region, delta=1):
     """
 
     # sorted
-    position_region.sort(key=lambda x:x[0])
+    position_region.sort(key=lambda x: x[0])
 
     m_region = []
     prepos, start, end = '', '', ''
@@ -252,7 +251,7 @@ def get_minor_major(base):
             bc[b] = bc.get(b, 0) + 1
 
     # It's a 2D list of tuple after sorting
-    sorted_bc = sorted(bc.items(), key = lambda x:x[1], reverse=True)
+    sorted_bc = sorted(bc.items(), key=lambda x: x[1], reverse=True)
 
     if len(sorted_bc):
         mi, mj = sorted_bc[-1][0], sorted_bc[0][0]
@@ -289,6 +288,7 @@ def Open(fileName, mode, compressLevel=9):
 class FileForQueueing(object):
     """
     """
+
     def __init__(self, the_file, line, is_del_raw_file=False):
         """
         Store the file, and init current value
@@ -434,6 +434,103 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
             heapq.heappush(the_heap, next_file)
         except StopIteration:
             continue
+
+    # Close final output file
+    if final_file_name != "-":
+        output_file.close()
+
+    return
+
+
+def merge_batch_files(temp_file_names, final_file_name, is_del_raw_file=False):
+    """
+    Merging output batch files into a final big one.
+
+    ``temp_file_names``: must contain the same positions but different samples per file
+    """
+    # Final output file
+    if final_file_name == "-":
+        output_file = sys.stdout
+    else:
+        output_file = Open(final_file_name, 'wb')
+
+    batch_files_hd = [Open(f, 'rb') for f in temp_file_names]
+    eof = False
+    while not eof:
+
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        sampleinfos = []
+        for fh in batch_files_hd:
+
+            line = fh.readline()
+            if line:
+                sampleinfos.append(line.strip())
+            else:
+                sampleinfos.append(None)
+                eof = True
+
+        # hit the end of files
+        if eof:
+            is_error = True if any(sampleinfos) else False
+            if is_error:
+                sys.stderr.write("[ERROR] %s\n[ERROR]Error happen when 'merge_batch_files', they don't have the same "
+                                 "positions in above files.\n" % "\n".join(temp_file_names))
+            continue
+
+        if sampleinfos[0].startswith("#"):
+            # Header line
+            if sampleinfos[0].startswith("##SampleIDs="):
+                sampleid_info = [s.split("=")[1] for s in sampleinfos]
+                output_file.write("##SampleIDs=%s\n" % ",".join(sampleid_info))
+            else:
+                output_file.write("%s\n" % sampleinfos[0])
+
+        else:
+            chrid, position, ref_base = sampleinfos[0].split()[0:3]
+
+            read_bases, read_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
+            depth = 0
+            for i, line in enumerate(sampleinfos):
+                # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+                col = line.split()
+                if len(col) == 0:
+                    sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i + 1))
+                    sys.exit(1)
+
+                col[1], col[3] = col[1], col[3]
+                if col[0] != chrid or col[1] != position or col[2] != ref_base:
+                    sys.stderr.write("[Error] Error happen when 'merge_batch_files' in %d lines, chromosome "
+                                     "[%s and %s] or position [%s and %s] or ref-base [%s and %s] in batchfiles "
+                                     "not match with each other!\n" % (i + 1, col[0], chrid, col[1],
+                                                                       position, col[2], ref_base))
+                    sys.exit(1)
+
+                depth += int(col[3])
+                mapqs.append(col[4])
+                read_bases.append(col[5])
+                read_base_quals.append(col[6])
+                read_pos_rank.append(col[7])
+                strands.append(col[8])
+
+            # cat all the info together and create ...
+            depth = str(depth)
+            mapqs = ",".join(mapqs)
+            read_bases = ",".join(read_bases)
+            read_base_quals = ",".join(read_base_quals)
+            read_pos_rank = ",".join(read_pos_rank)
+            strands = ",".join(strands)
+
+            # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+            output_file.write("%s\n" % "\t".join([chrid, position, ref_base, depth, mapqs, read_bases,
+                                                  read_base_quals, read_pos_rank, strands]))
+
+    else:
+
+        for i, fh in enumerate(batch_files_hd):
+            fh.close()
+
+            if is_del_raw_file:
+                os.remove(temp_file_names[i])
 
     # Close final output file
     if final_file_name != "-":
