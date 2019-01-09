@@ -4,7 +4,7 @@ import heapq
 import gzip
 import time
 
-from pysam import FastaFile
+from pysam import FastaFile, BGZFile
 
 
 class CommonParameter(object):
@@ -12,14 +12,13 @@ class CommonParameter(object):
     defined some globle common parameters
     """
 
-    def __init__(self):
-        self.LRT_THRESHOLD = 24  ## 24 corresponding to a chi-pvalue of 10^-6
-        self.QUAL_THRESHOLD = 60  ## -10 * lg(10^-6)
-        self.MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
-        self.BASE = ['A', 'C', 'G', 'T']
-        self.BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
-        self.debug = False
-        self.MINAF = 0.0001  # The effective base freqence threshold
+    LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
+    QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
+    MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
+    BASE = ['A', 'C', 'G', 'T']
+    BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+    debug = False
+    MINAF = 0.0001  # The effective base freqence threshold
 
 
 def safe_makedir(dname):
@@ -54,34 +53,55 @@ def file_exists(fname):
         return False
 
 
-def vcf_header_define(ref_file_path, info=None):
+def vcf_header_define(ref_file_path, info=None, samples=None):
+    """define header for VCF"""
+
+    if not samples:
+        samples = []
+
     fa = FastaFile(ref_file_path)
     fa_name = os.path.basename(fa.filename)
     contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.references, fa.lengths)]
-    header = ['##fileformat=VCFv4.2',
-              '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
-              '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-              '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
-              '##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">',
-              '##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">',
+    header = [
+        '##fileformat=VCFv4.2',
+        '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
+        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+        '##FORMAT=<ID=AB,Number=1,Type=String,Description="Allele Base">',
+        '##FORMAT=<ID=SO,Number=1,Type=String,Description="Strand orientation of the mapping base. Marked as + or -">',
+        '##FORMAT=<ID=BP,Number=1,Type=String,Description="Base Probability which calculate by base quality">',
 
-              '##INFO=<ID=CM_AF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies base on LRT algorithm">',
-              '##INFO=<ID=CM_CAF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies just base on read count">',
-              '##INFO=<ID=CM_AC,Number=A,Type=Integer,Description="An ordered, comma delimited allele depth in CMDB">',
-              '##INFO=<ID=CM_DP,Number=A,Type=Integer,Description="Total Depth in CMDB">',
-              '##INFO=<ID=SB_REF,Number=A,Type=Integer,Description="Read number support REF: Forward,Reverse">',
-              '##INFO=<ID=SB_ALT,Number=A,Type=Integer,Description="Read number support ALT: Forward,Reverse">',
-              '##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher\'s exact test to detect strand bias">',
-              '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
-              '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
-              '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
-              '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
-              '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">',
-              '\n'.join([info] + contigs if info else contigs),
-              '##reference=file://{}'.format(os.path.realpath(fa.filename))
-              ]
+        '##INFO=<ID=CM_AF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies base on LRT algorithm">',
+        '##INFO=<ID=CM_CAF,Number=A,Type=Float,Description="An ordered, comma delimited list of allele frequencies just base on read count">',
+        '##INFO=<ID=CM_AC,Number=A,Type=Integer,Description="An ordered, comma delimited allele depth in CMDB">',
+        '##INFO=<ID=CM_DP,Number=A,Type=Integer,Description="Total Depth in CMDB">',
+        '##INFO=<ID=SB_REF,Number=A,Type=Integer,Description="Read number support REF: Forward,Reverse">',
+        '##INFO=<ID=SB_ALT,Number=A,Type=Integer,Description="Read number support ALT: Forward,Reverse">',
+        '##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher\'s exact test to detect strand bias">',
+        '##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">',
+        '##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">',
+        '##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Phred-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">',
+        '##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Phred-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">',
+        '##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence Quality by Depth">',
+        '\n'.join([info] + contigs if info else contigs),
+        '##reference=file://{}'.format(os.path.realpath(fa.filename)),
+        '\t'.join(['#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT'] + samples)
+    ]
 
     fa.close()
+
+    return header
+
+
+def cvg_header_define(group_info):
+    """define header for coverage file"""
+    h = '\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + CommonParameter().BASE +
+                  ['Indels', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,REF_REV,ALT_FWD,ALT_REV)'])
+
+    header = [
+        "##fileformat=CVGv1.0",
+        "##Group information is the depth of A:C:G:T:Indel",
+        "%s\t%s" % (h, '\t'.join(group_info)) if group_info else h
+    ]
 
     return header
 
@@ -200,7 +220,6 @@ def merge_region(position_region, delta=1):
     >>> from basevar.caller import utils
     >>> utils.merge_region([[1,1], [2,3], [4,6], [4,5], [8, 20], [9, 12]])
     ... [[1, 6], [8, 20]]
-
     """
 
     # sorted
@@ -211,7 +230,8 @@ def merge_region(position_region, delta=1):
     flag = False
     for s, e in position_region:
         if s > e:
-            sys.stderr.write(('[ERROR]Your region start > end. It is not allow when call Merge function\n'))
+            sys.stderr.write(('[ERROR]Your region start > end. It is not allow '
+                              'when call Merge function\n'))
             sys.exit(1)
 
         if prepos == '':
@@ -222,7 +242,7 @@ def merge_region(position_region, delta=1):
 
         else:
             if prepos > s:
-                sys.stderr.write(('[ERROR]The array hasn\'t been sorted.\n'))
+                sys.stderr.write('[ERROR] Array is un-sorted.\n')
                 sys.exit(1)
 
             if delta + end >= s:
@@ -269,20 +289,19 @@ def expandedOpen(path, mode):
         return open(os.path.expanduser(path), mode)
 
 
-def Open(fileName, mode, compressLevel=9):
+def Open(file_name, mode, compress_level=9, isbgz=False):
     """
     Function that allows transparent usage of dictzip, gzip and
     ordinary files
     """
-    if fileName.endswith(".gz") or fileName.endswith(".GZ"):
-        fileDir = os.path.dirname(fileName)
-        if os.path.exists(fileDir):
-            return gzip.GzipFile(fileName, mode, compressLevel)
-        else:
-            return gzip.GzipFile(os.path.expanduser(fileName), mode,
-                                 compressLevel)
+    if file_name.endswith(".gz") or file_name.endswith(".GZ"):
+        file_dir = os.path.dirname(file_name)
+        if not os.path.exists(file_dir):
+            file_name = os.path.expanduser(file_name)
+
+        return BGZFile(file_name, mode) if isbgz else gzip.GzipFile(file_name, mode, compress_level)
     else:
-        return expandedOpen(fileName, mode)
+        return expandedOpen(file_name, mode)
 
 
 class FileForQueueing(object):
@@ -384,7 +403,7 @@ class FileForQueueing(object):
             raise StopIteration
 
 
-def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
+def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False):
     """
     Merging output VCF/CVG files into a final big one
     log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
@@ -394,7 +413,7 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     if final_file_name == "-":
         output_file = sys.stdout
     else:
-        output_file = Open(final_file_name, 'wb')
+        output_file = Open(final_file_name, 'wb', isbgz=output_isbgz)
 
     the_heap = []
 

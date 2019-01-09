@@ -21,7 +21,7 @@ def open_aligne_files(bamfiles):
             bf = pysam.AlignmentFile(f)
 
         except ValueError:
-            sys.stderr.write('[ERROR] Input file: %s is not BAM nor CRAM.\n' % f)
+            sys.stderr.write('[ERROR] Input file: %s is not BAM/CRAM.\n' % f)
             close_aligne_file(ali_files_hd)
             sys.exit(1)
 
@@ -323,7 +323,7 @@ def first_base(sample_pos_line, position, mapq_thd, fa):
             #  and I don't know why.
             qual = read.alignment.query_qualities[read.query_position]
 
-            # Just get the first one and skip other reads which covereds this position,
+            # Just get base from first read and skip others,
             # no matter the first one it's indel or not.
             break
 

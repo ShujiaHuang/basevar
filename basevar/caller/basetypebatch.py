@@ -2,26 +2,23 @@
 This is a Process module for BaseType by BAM/CRAM
 
 """
-import os
 import sys
+import time
 import multiprocessing
 
 from pysam import FastaFile
 
 from . import utils
-from . import bam
-from .basetypeprocess import variants_discovery
-
-REMOVE_BATCH_FILE = True
+from .basetypeprocess import batchfile_variants_discovery
 
 
-class BaseVarProcess(object):
+class BaseVarBatchProcess(object):
     """
     simple class to repesent a single BaseVar process.
     """
 
-    def __init__(self, ref_file, align_files, in_popgroup_file, regions, samples, mapq=10, batchcount=50,
-                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
+    def __init__(self, ref_file, batch_files, in_popgroup_file, regions, samples,
+                 out_vcf_file=None, out_cvg_file=None, cmm=None):
         """
         Constructor.
 
@@ -36,17 +33,14 @@ class BaseVarProcess(object):
                     It's region info , format like: [[chrid, start, end], ...]
         """
         self.fa_file_hd = FastaFile(ref_file)
-        self.align_files = align_files
+        self.batch_files = batch_files
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
 
-        self.batch_count = batchcount
         self.samples = samples
-        self.smart_rerun = rerun
-        self.mapq = mapq
         self.cmm = cmm
-        self.regions = {}
 
+        self.regions = {}
         # store the region into a dict
         for chrid, start, end in regions:
 
@@ -83,33 +77,15 @@ class BaseVarProcess(object):
         CVG.write('%s\n' % "\n".join(utils.cvg_header_define(group)))
 
         is_empty = True
-        tmpd, name = os.path.split(os.path.realpath(self.out_cvg_file))
-        cache_dir = utils.safe_makedir(tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name)
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
 
-            # get fasta sequence of chrid
-            fa = self.fa_file_hd.fetch(chrid)
-
-            # create batch file for variant discovery
-            batchfiles = bam.create_batchfiles_for_regions(chrid,
-                                                           regions,
-                                                           self.batch_count,
-                                                           self.align_files,
-                                                           fa,
-                                                           self.mapq,
-                                                           cache_dir,
-                                                           sample_ids=self.samples,
-                                                           is_smart_rerun=self.smart_rerun)
-
             # Process of variants discovery
-            _is_empty = variants_discovery(chrid, fa, batchfiles, self.popgroup, self.cmm, CVG, VCF)
+            fa = self.fa_file_hd.fetch(chrid)
+            _is_empty = batchfile_variants_discovery(chrid, regions, fa, self.batch_files, self.popgroup,
+                                                     self.cmm, CVG, VCF)
 
             if not _is_empty:
                 is_empty = False
-
-            if REMOVE_BATCH_FILE:
-                for f in batchfiles:
-                    os.remove(f)
 
         CVG.close()
         if VCF:
@@ -119,19 +95,17 @@ class BaseVarProcess(object):
 
         if is_empty:
             sys.stderr.write("\n************************************************************************\n"
-                             "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all your\n"
-                             "input files.\n We get nothing in %s " % (self.mapq, self.out_cvg_file))
+                             "[WARNING] No reads are satisfy with the mapping quality in all your\n"
+                             "input files.\n We get nothing in %s " % (self.out_cvg_file))
             if VCF:
                 sys.stderr.write("and %s " % self.out_vcf_file)
 
-        if REMOVE_BATCH_FILE:
-            os.removedirs(cache_dir)
-
+        sys.stderr.write("%s\n" % time.asctime())
         return
 
 
 ###############################################################################
-class BaseVarMultiProcess(multiprocessing.Process):
+class BaseVarBatchMultiProcess(multiprocessing.Process):
     """
     simple class to represent a single BaseVar process, which is run as part of
     a multi-process job.
@@ -140,8 +114,8 @@ class BaseVarMultiProcess(multiprocessing.Process):
     It's a shield for ``BaseVarSingleProcess``
     """
 
-    def __init__(self, ref_in_file, align_files, pop_group_file, regions, samples_id, mapq=10, batchcount=50,
-                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
+    def __init__(self, ref_in_file, align_files, pop_group_file, regions, samples_id,
+                 out_vcf_file=None, out_cvg_file=None, cmm=None):
         """
         Constructor.
 
@@ -152,17 +126,14 @@ class BaseVarMultiProcess(multiprocessing.Process):
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
-        self.single_process = BaseVarProcess(ref_in_file,
-                                             align_files,
-                                             pop_group_file,
-                                             regions,
-                                             samples_id,
-                                             mapq=mapq,
-                                             batchcount=batchcount,
-                                             out_cvg_file=out_cvg_file,
-                                             out_vcf_file=out_vcf_file,
-                                             rerun=rerun,
-                                             cmm=cmm)
+        self.single_process = BaseVarBatchProcess(ref_in_file,
+                                                  align_files,
+                                                  pop_group_file,
+                                                  regions,
+                                                  samples_id,
+                                                  out_cvg_file=out_cvg_file,
+                                                  out_vcf_file=out_vcf_file,
+                                                  cmm=cmm)
 
     def run(self):
         """ Run the BaseVar process"""

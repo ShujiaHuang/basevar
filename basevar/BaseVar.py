@@ -13,9 +13,44 @@ from datetime import datetime
 
 
 def basetype(args):
-    from caller.executor import BaseTypeBamRunner
-    bt = BaseTypeBamRunner(args)
-    processer = bt.run()
+    from caller.executor import BaseTypeRunner
+
+    if args.outbatchfile and (args.outvcf or args.outcvg):
+        sys.stderr.write("[ERROR] Don't set '--output-vcf' or '--output-cvg' if you have set "
+                         "'--output-batch-file'.\n\n")
+        sys.exit(1)
+
+    # Make sure you have set at least one output parameter.
+    if not (args.outbatchfile or args.outvcf or args.outcvg):
+        sys.stderr.write("[ERROR] Missing '--output-vcf' or '--output-cvg' or "
+                         "'--output-batch-file'.\n\n")
+        sys.exit(1)
+
+    if not args.outbatchfile and not args.outcvg:
+        sys.stderr.write("[ERROR] argument '--output-cvg' is required if not set '--output-batch-file'\n\n")
+        sys.exit(1)
+
+    if args.smartrerun:
+        sys.stderr.write("************************************************\n"
+                         "******************* WARNING ********************\n"
+                         "************************************************\n"
+                         ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
+                         "Please make sure that all the parameters are the\n"
+                         "same with your previous commands.\n"
+                         "************************************************\n\n")
+
+    # Make sure you have set at least one bamfile.
+    if not args.input and not args.infilelist:
+        sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
+        sys.exit(1)
+
+    # The main function
+    bt = BaseTypeRunner(args)
+
+    if not args.outbatchfile:
+        processer = bt.basevar_caller()
+    else:
+        processer = bt.batch_generator()
 
     is_success = True
     for p in processer:
@@ -23,6 +58,27 @@ def basetype(args):
             is_success = False
 
     return is_success
+
+
+def basetypebatch(args):
+    from caller.executor import BaseTypeBatchRunner
+
+    # Make sure you have set at least one input file.
+    if not args.input and not args.infilelist:
+        sys.stderr.write("[ERROR] Missing input batch files.\n\n")
+        sys.exit(1)
+
+    bt = BaseTypeBatchRunner(args)
+
+    processer = bt.basevar_caller()
+
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
+
+    return is_success
+
 
 
 # def vqsr():
@@ -77,7 +133,7 @@ def parser_commandline_args():
     basetype_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='BamfilesList',
                               help='BAM/CRAM files list, one file per row.')
     basetype_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
-                              help='Input reference fasta file.', default='')
+                              help='Input reference fasta file.')
 
     basetype_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
                               help='Only include reads with mapping quality >= INT. [10]')
@@ -85,8 +141,8 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
                               help='Output VCF file. If not provide will skip variants discovery and just output '
                                    'position coverage file which filename is provided by --output-cvg.')
-    basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
-                              help='Output position coverage file.')
+    basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, help='Output position coverage file.')
+    basetype_cmd.add_argument('--output-batch-file', dest='outbatchfile', type=str, help='Just emitting batch-file.')
 
     basetype_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
                               help='skip unlisted positions one per row. The position format in the file could '
@@ -101,7 +157,6 @@ def parser_commandline_args():
     # The number of output subfiles
     basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
                               help='INT simples per batchfile. [200]')
-
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
     basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
@@ -119,9 +174,48 @@ def parser_commandline_args():
                                    "you can set this parameter to save a lot of time during get the "
                                    "sample id from BAM header.")
 
-    # smart rerun
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
-                              help='Rerun basetype process by checking batchfiles when you set this parameter.')
+                              help='Rerun process by checking batchfiles.')
+
+    # For discovery variants from batchfiles
+    btb_cmd = commands.add_parser('basetypebatch',
+                                  help='Variants discovery on one or more samples pre-call by basetype')
+    btb_cmd.add_argument('-I', '--input', dest='input', metavar='BatchFile', action='append', default=[],
+                         help='Input batchfile pre-call by basetype and must be compressed by bgzip algorithm. '
+                              'This argument could be specified at least once.')
+    btb_cmd.add_argument('-L', '--batch-file-list', dest='infilelist', metavar='BamfilesList',
+                         help='batchfiles list pre-call by basetype and must be compressed by bgzip algorithm. '
+                              'One file per row.')
+    btb_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
+                         help='Input reference fasta file.')
+
+    btb_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
+                         help='Output VCF file. If not provide will skip variants discovery and just output '
+                              'position coverage file which filename is provided by --output-cvg.')
+    btb_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
+                         help='Output position coverage file.')
+
+    btb_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
+                         help='skip unlisted positions one per row. The position format in the file could '
+                              'be (chrid pos) and (chrid start end) in mix. This parameter could be used '
+                              'with --regions simultaneously.')
+    btb_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
+                         help='Skip positions which not in these regions. This parameter could be a list of '
+                              'comma deleimited genome regions(e.g.: chr:start-end,chr:start-end) or a file '
+                              'contain the list of regions. This parameter could be used with --positions '
+                              'simultaneously')
+
+    btb_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
+                         help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
+                              'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
+                              '[min(0.001, 100/x, cmm.MINAF)]. '
+                              'Probably you don\'t need to take care about this parameter.')
+
+    # special parameter for calculating specific population allele frequence
+    btb_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
+                         help='Calculating the allele frequency for specific population.')
+    btb_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
+                         help='Number of processer to use. [1]')
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
@@ -182,6 +276,7 @@ def main():
     START_TIME = datetime.now()
     runner = {
         'basetype': basetype,
+        'basetypebatch': basetypebatch,
         'merge': merge,
         'coverage': coverage,
         'NearByIndel': nearby_indel,

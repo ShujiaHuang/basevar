@@ -12,17 +12,127 @@ import os
 import sys
 import time
 
-from pysam import AlignmentFile
+from pysam import AlignmentFile, TabixFile, tabix_index
 
 from . import utils
 from .basetypebam import BaseVarMultiProcess
+from .batchgenerator import BatchMultiProcess
+from .basetypebatch import BaseVarBatchMultiProcess
 from .coverageprocess import CvgMultiProcess
 
 
-# from .vqsr import vqsr
+def _generate_regions_for_each_process(regions, process_num=1):
+    # Always create process manager even if nCPU==1, so that we can
+    # listen signals from main thread
+    regions_for_each_process = [[] for _ in range(process_num)]
+
+    # calculate delta for each process
+    delta = int(float(sum([e - s + 1 for _, s, e in regions])) / process_num + 0.5)
+    total_regions_size = 0
+    for chrid, start, end in regions:
+
+        sub_region_size = end - start + 1
+        # find index of regions_for_each_process by the total_store_size
+        i = int(total_regions_size / delta)
+        total_regions_size += sub_region_size
+
+        pre_size = 0
+        if len(regions_for_each_process[i]):
+            pre_size = sum([e - s + 1 for _, s, e in regions_for_each_process[i]])
+
+        if sub_region_size + pre_size > delta:
+            d = delta - pre_size
+            regions_for_each_process[i].append([chrid, start, start + d - 1])
+
+            i += 1
+            for k, pos in enumerate(range(start + d - 1, end, delta)):
+                s = pos + 1 if pos + 1 < end else end
+                e = pos + delta if pos + delta < end else end
+
+                regions_for_each_process[i + k].append([chrid, s, e])
+
+        else:
+            regions_for_each_process[i].append([chrid, start, end])
+
+    return regions_for_each_process
 
 
-class BaseTypeBamRunner(object):
+# def _generate_regions_for_each_process_old(regions, process_num=1):
+#     # Always create process manager even if nCPU==1, so that we can
+#     # listen signals from main thread
+#     regions_for_each_process = [[] for _ in range(process_num)]
+#     if len(regions) < process_num:
+#         # We cut the region into pieces to fit nCPU if regions < nCPU
+#         for chrid, start, end in regions:
+#             delta = int((end - start + 1) / process_num)
+#             if delta == 0:
+#                 delta = 1
+#
+#             for i, pos in enumerate(range(start - 1, end, delta)):
+#                 s = pos + 1 if pos + 1 < end else end
+#                 e = pos + delta if pos + delta < end else end
+#
+#                 regions_for_each_process[i % process_num].append([chrid, s, e])
+#
+#     else:
+#         for i, region in enumerate(regions):
+#             regions_for_each_process[i % process_num].append(region)
+#
+#     return regions_for_each_process
+
+
+def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
+
+    for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
+
+        if out_final_file:
+            _output_file(sub_file_list, out_final_file)
+
+    return
+
+
+def _output_file(sub_files, out_file_name):
+    """CVG file and VCF file could use the same tabix strategy."""
+
+    if out_file_name.endswith(".gz"):
+        utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=True)
+
+        # Column indices are 0-based. Note: this is different from the tabix command line
+        # utility where column indices start at 1.
+        tabix_index(out_file_name, force=True, seq_col=0, start_col=1, end_col=1)
+    else:
+        utils.merge_files(sub_files, out_file_name, is_del_raw_file=True)
+
+    return
+
+
+def _process_runner(processes):
+    """run and monitor the process"""
+
+    for p in processes:
+        p.start()
+
+    # listen for signal while any process is alive
+    while True in [p.is_alive() for p in processes]:
+        try:
+            time.sleep(1)
+
+        except KeyboardInterrupt:
+            sys.stderr.write('KeyboardInterrupt detected, terminating '
+                             'all processes...\n')
+            for p in processes:
+                p.terminate()
+
+            sys.exit(1)
+
+    # Make sure all process are finished
+    for p in processes:
+        p.join()
+
+    return
+
+
+class BaseTypeRunner(object):
 
     def __init__(self, args, cmm=utils.CommonParameter()):
         """init function
@@ -30,30 +140,19 @@ class BaseTypeBamRunner(object):
         # setting parameters
         self.nCPU = args.nCPU
         self.mapq = args.mapq
-        self.referencefile = args.referencefile
+        self.reference_file = args.referencefile
         self.pop_group_file = args.pop_group_file
         self.batchcount = args.batchcount
 
         self.outvcf = args.outvcf if args.outvcf else None
-        self.outcvg = args.outcvg
+        self.outcvg = args.outcvg if args.outcvg else None
+        self.outbatchfile = args.outbatchfile if args.outbatchfile else None
 
         self.smartrerun = True if args.smartrerun else False
-        if self.smartrerun:
-            sys.stderr.write("************************************************\n"
-                             "******************* WARNING ********************\n"
-                             "************************************************\n"
-                             ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
-                             "Please make sure that all the parameters are the\n"
-                             "same with your previous commands.\n"
-                             "************************************************\n\n")
 
         # Loading positions or load all the genome regions
-        self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)
-
-        # Make sure you have input at least one bamfile.
-        if not args.input and not args.infilelist:
-            sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
-            sys.exit(1)
+        regions = utils.load_target_position(self.reference_file, args.positions, args.regions)
+        self.regions_for_each_process = _generate_regions_for_each_process(regions, process_num=self.nCPU)
 
         self.alignfiles = args.input
         if args.infilelist:
@@ -65,8 +164,8 @@ class BaseTypeBamRunner(object):
             args.min_af = min(100.0 / len(self.alignfiles), 0.001, self.cmm.MINAF)
 
         self.cmm.MINAF = args.min_af
-        sys.stderr.write('[INFO] Finish loading parameters and we have %d BAM/CRAM files '
-                         'for variants calling at %s\n' % (len(self.alignfiles), time.asctime()))
+        sys.stderr.write('[INFO] Finish loading arguments and we have %d BAM/CRAM files for '
+                         'variants calling. %s\n' % (len(self.alignfiles), time.asctime()))
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
@@ -109,43 +208,57 @@ class BaseTypeBamRunner(object):
                          'from RG tag\n\n' % len(sample_id))
         return sample_id
 
-    def run(self):
+    def batch_generator(self):
+        """Create batchfile for the input align files"""
+        sys.stderr.write('[INFO] Start create batch file ... %s\n' % time.asctime())
+
+        out_batch_names = []
+        processes = []
+        # Always create process manager even if nCPU==1, so that we can
+        # listen signals from main thread
+        for i in range(self.nCPU):
+            sub_batch_file = self.outbatchfile + '_temp_%s' % i
+            out_batch_names.append(sub_batch_file)
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s]\n' % (i + 1, self.nCPU, sub_batch_file))
+
+            processes.append(BatchMultiProcess(self.reference_file,
+                                               self.alignfiles,
+                                               self.regions_for_each_process[i],
+                                               self.sample_id,
+                                               mapq=self.mapq,
+                                               batchcount=self.batchcount,
+                                               out_batch_file=sub_batch_file,
+                                               rerun=self.smartrerun))
+
+        _process_runner(processes)
+
+        # Final output
+        _output_file(out_batch_names, self.outbatchfile)
+
+        return processes
+
+    def basevar_caller(self):
         """
         Run variant caller
         """
         sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' % time.asctime())
 
-        # Always create process manager even if nCPU==1, so that we can
-        # listen signals from main thread
-        regions_for_each_process = [[] for _ in range(self.nCPU)]
-        if len(self.regions) < self.nCPU:
-            # We cut the region into pieces to fit nCPU if regions < nCPU
-            for chrid, start, end in self.regions:
-                delta = int((end - start + 1) / self.nCPU)
-                if delta == 0:
-                    delta = 1
-
-                for i, pos in enumerate(xrange(start - 1, end, delta)):
-                    s = pos + 1 if pos + 1 < end else end
-                    e = pos + delta if pos + delta < end else end
-
-                    regions_for_each_process[i % self.nCPU].append([chrid, s, e])
-
-        else:
-            for i, region in enumerate(self.regions):
-                regions_for_each_process[i % self.nCPU].append(region)
-
-        out_vcf_names = set()
-        out_cvg_names = set()
+        out_vcf_names = []
+        out_cvg_names = []
 
         processes = []
+        # Always create process manager even if nCPU==1, so that we can
+        # listen signals from main thread
+
         for i in range(self.nCPU):
             sub_cvg_file = self.outcvg + '_temp_%s' % i
-            out_cvg_names.add(sub_cvg_file)
+            out_cvg_names.append(sub_cvg_file)
 
             if self.outvcf:
                 sub_vcf_file = self.outvcf + '_temp_%s' % i
-                out_vcf_names.add(sub_vcf_file)
+                out_vcf_names.append(sub_vcf_file)
             else:
                 sub_vcf_file = None
 
@@ -153,10 +266,10 @@ class BaseTypeBamRunner(object):
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file,
                                              sub_cvg_file))
 
-            processes.append(BaseVarMultiProcess(self.referencefile,
+            processes.append(BaseVarMultiProcess(self.reference_file,
                                                  self.alignfiles,
                                                  self.pop_group_file,
-                                                 regions_for_each_process[i],
+                                                 self.regions_for_each_process[i],
                                                  self.sample_id,
                                                  mapq=self.mapq,
                                                  batchcount=self.batchcount,
@@ -165,30 +278,116 @@ class BaseTypeBamRunner(object):
                                                  rerun=self.smartrerun,
                                                  cmm=self.cmm))
 
-        for p in processes:
-            p.start()
+        _process_runner(processes)
 
-        # listen for signal while any process is alive
-        while True in [p.is_alive() for p in processes]:
-            try:
-                time.sleep(1)
+        # Final output
+        _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
 
-            except KeyboardInterrupt:
-                sys.stderr.write('KeyboardInterrupt detected, terminating '
-                                 'all processes...\n')
-                for p in processes:
-                    p.terminate()
+        return processes
 
+
+class BaseTypeBatchRunner(object):
+
+    def __init__(self, args, cmm=utils.CommonParameter()):
+        """init function
+        """
+        # setting parameters
+
+        self.reference_file = args.referencefile
+        self.outcvg = args.outcvg
+        self.outvcf = args.outvcf if args.outvcf else None
+
+        self.nCPU = args.nCPU
+        self.pop_group_file = args.pop_group_file
+
+        # Loading positions or load all the genome regions
+        regions = utils.load_target_position(self.reference_file, args.positions, args.regions)
+        self.regions_for_each_process = _generate_regions_for_each_process(regions, process_num=self.nCPU)
+
+        self.batch_files = args.input
+        if args.infilelist:
+            self.batch_files += utils.load_file_list(args.infilelist)
+
+        # loading all the sample id from batch_files
+        self.sample_id = self._load_sample_id_from_batchheader()
+
+        # setting the resolution of MAF
+        self.cmm = cmm
+        if args.min_af is None:
+            args.min_af = min(100.0 / len(self.sample_id), 0.001, self.cmm.MINAF)
+
+        self.cmm.MINAF = args.min_af
+        sys.stderr.write('[INFO] Finish loading arguments and we have %d BAM/CRAM files for '
+                         'variants calling. %s\n' % (len(self.batch_files), time.asctime()))
+
+    def _load_sample_id_from_batchheader(self):
+        """loading sample id from header of batchfile"""
+
+        sys.stderr.write('[INFO] Start loading all samples\' id from header of batch files\n')
+        sample_id = []
+        for i, al in enumerate(self.batch_files):
+
+            if i % 1000 == 0:
+                sys.stderr.write("[INFO] loading %d/%d batch files ... %s\n" %
+                                 (i + 1, len(self.batch_files), time.asctime()))
+
+            bf = TabixFile(al)
+            get_sample_id = False
+            for h in bf.header:
+                if h.startswith("##SampleIDs"):
+                    get_sample_id = True
+                    for sample in h.split("=")[-1].split(","):
+                        sample_id.append(sample)
+
+                    break
+            bf.close()
+
+            if not get_sample_id:
+                sys.stderr.write('[ERROR] batch file format error: missing ##SampleIDs in %s header.\n' % al)
                 sys.exit(1)
 
-        # Make sure all process are finished
-        for p in processes:
-            p.join()
+        sys.stderr.write('[INFO] Finish load all %d samples\' ID '
+                         'from file header\n\n' % len(sample_id))
+        return sample_id
 
-        # Final output file name
-        utils.merge_files(out_cvg_names, self.outcvg, is_del_raw_file=True)
-        if self.outvcf:
-            utils.merge_files(out_vcf_names, self.outvcf, is_del_raw_file=True)
+    def basevar_caller(self):
+        """Run variant caller"""
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' % time.asctime())
+
+        out_vcf_names = []
+        out_cvg_names = []
+
+        processes = []
+        # Always create process manager even if nCPU==1, so that we can
+        # listen signals from main thread
+        for i in range(self.nCPU):
+
+            sub_cvg_file = self.outcvg + '_temp_%s' % i
+            out_cvg_names.append(sub_cvg_file)
+
+            if self.outvcf:
+                sub_vcf_file = self.outvcf + '_temp_%s' % i
+                out_vcf_names.append(sub_vcf_file)
+            else:
+                sub_vcf_file = None
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file,
+                                             sub_cvg_file))
+
+            processes.append(BaseVarBatchMultiProcess(self.reference_file,
+                                                      self.batch_files,
+                                                      self.pop_group_file,
+                                                      self.regions_for_each_process[i],
+                                                      self.sample_id,
+                                                      out_cvg_file=sub_cvg_file,
+                                                      out_vcf_file=sub_vcf_file,
+                                                      cmm=self.cmm))
+
+        _process_runner(processes)
+
+        # Final output
+        _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
 
         return processes
 
@@ -263,25 +462,7 @@ class CoverageRunner(object):
                                              regions_for_each_process[i],
                                              cmm=self.cmm))
 
-        for p in processes:
-            p.start()
-
-        # listen for signal while any process is alive
-        while True in [p.is_alive() for p in processes]:
-            try:
-                time.sleep(1)
-
-            except KeyboardInterrupt:
-                sys.stderr.write('KeyboardInterrupt detected, terminating '
-                                 'all processes...\n')
-                for p in processes:
-                    p.terminate()
-
-                sys.exit(1)
-
-        # make sure all process are finished
-        for p in processes:
-            p.join()
+        _process_runner(processes)
 
         # Final output file name
         utils.merge_files(out_cvg_names, self.outputfile, is_del_raw_file=True)

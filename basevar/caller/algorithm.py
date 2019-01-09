@@ -113,19 +113,6 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
         elif b in alt_base:
             alt.append(d)
 
-    # ref = robjects.FloatVector(ref)
-    # alt = robjects.FloatVector(alt)
-    #
-    # try:
-    #     pvalue = R['wilcox.test'](ref, alt)[2][0]
-    #     phred_scale_value = round(-10 * np.log10(pvalue), 3)
-    #
-    # except rinterface.RRuntimeError:
-    #     sys.stderr.write('[WARNING] The array number is too samll for '
-    #                      'wilcox.test and set phred_scale_value = 0 :\n'
-    #                      '%s\n%s\n' % (ref, alt))
-    #     phred_scale_value = 0
-
     _, pvalue = ranksums(ref, alt)
     phred_scale_value = round(-10 * np.log10(pvalue), 3)
     if phred_scale_value == np.inf:

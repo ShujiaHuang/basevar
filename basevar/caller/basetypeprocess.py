@@ -5,54 +5,60 @@ This is a Process module for BaseType
 import sys
 import time
 
+from pysam import TabixFile
+
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
+from .utils import fetch_next
 
 
-def variantsdiscovery(chrid, batchfiles, fa, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+    """Function for variants discovery.
+    """
     batch_files_hd = [open(f) for f in batchfiles]
-
-    is_empty = True
-    n = 0
-    eof = False
+    n, is_empty, eof = 0, True, False
     while True:
-
-        info = []
+        # Loading ...
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        sampleinfos = []
         for fh in batch_files_hd:
             line = fh.readline()
             if line:
                 if line.startswith("#"):
                     continue
 
-                info.append(line.strip())
+                sampleinfos.append(line.strip().split())
             else:
+                sampleinfos.append(None)
                 eof = True
-                break
 
-        # hit the end of a file
+        # hit the end of files
         if eof:
+            is_error = True if any(sampleinfos) else False
+            if is_error:
+                sys.stderr.write(
+                    "[ERROR] %s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
+                    "positions in above files.\n" % "\n".join(batchfiles))
             break
 
         # Empty! Just have header information.
-        if not info:
+        if not sampleinfos:
             continue
 
-        # Loading ...
-        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
-        _, position = info[0].split()[:2]
-        position = int(position)
+        position = int(sampleinfos[0][1])
         if n % 10000 == 0:
             sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
                              (n if n > 0 else 1, chrid, position, time.asctime()))
         n += 1
 
         ref_base = fa[position - 1]
+
         (depth,
          sample_bases,
          sample_base_quals,
          strands,
          mapqs,
-         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, info)
+         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, sampleinfos)
 
         # ignore if coverage=0
         if depth == 0:
@@ -81,27 +87,103 @@ def variantsdiscovery(chrid, batchfiles, fa, popgroup, cmm, cvg_file_handle, vcf
     return is_empty
 
 
+def batchfile_variants_discovery(chrid, regions, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+    """Function for variants discovery.
+    """
+    tmp_region = []
+    for p in regions:
+        tmp_region.extend(p)
+
+    tmp_region = sorted(tmp_region)
+    bigstart, bigend = tmp_region[0], tmp_region[-1]
+
+    tbfs = [TabixFile(f) for f in batchfiles]
+    batch_files_hd = [f.fetch(chrid, bigstart-1, bigend) for f in tbfs]
+    n, is_empty, eof = 0, True, False
+    while True:
+        # Loading ...
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        sampleinfos = []
+        for fh in batch_files_hd:
+            line = fetch_next(fh)
+            if line:
+                sampleinfos.append(line.strip().split())
+            else:
+                sampleinfos.append(None)
+                eof = True
+
+        # hit the end of files
+        if eof:
+            is_error = True if any(sampleinfos) else False
+            if is_error:
+                sys.stderr.write(
+                    "[ERROR] %s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
+                    "positions in above files.\n" % "\n".join(batchfiles))
+            break
+
+        # Empty! Just have header information.
+        if not sampleinfos:
+            continue
+
+        chrid, position = sampleinfos[0][0], int(sampleinfos[0][1])
+        if n % 10000 == 0:
+            sys.stderr.write("[INFO] Have been loading %d lines when hit position %s:%d\t%s\n" %
+                             (n if n > 0 else 1, chrid, position, time.asctime()))
+        n += 1
+
+        ref_base = fa[position - 1]
+
+        (depth,
+         sample_bases,
+         sample_base_quals,
+         strands,
+         mapqs,
+         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, sampleinfos)
+
+        # ignore if coverage=0
+        if depth == 0:
+            continue
+
+        # Not empty
+        is_empty = False
+
+        # Calling varaints by Basetypes and output VCF and Coverage files.
+        _basetypeprocess(chrid,
+                         position,
+                         ref_base,
+                         sample_bases,
+                         sample_base_quals,
+                         mapqs,
+                         strands,
+                         read_pos_rank,
+                         popgroup,
+                         cmm,
+                         cvg_file_handle,
+                         vcf_file_handle)
+
+    for fh in tbfs:
+        fh.close()
+
+    return is_empty
+
+
 def _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, infolines):
     sample_bases, sample_base_quals, mapqs, read_pos_rank, strands = [], [], [], [], []
     depth = 0
-    for i, line in enumerate(infolines):
-        # <#CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
-        if len(line) == 0:
+    for i, col in enumerate(infolines):
+        # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+        if len(col) == 0:
             sys.stderr.write("[Error] %d lines happen to be empty in batchfiles!\n" % (i + 1))
             sys.exit(1)
 
-        if line.startswith("#"):
-            continue
-
-        col = line.strip().split()
-        col[1] = int(col[1])
+        col[1], col[3] = map(int, [col[1], col[3]])
         if col[0] != chrid or col[1] != position or col[2] != ref_base:
             sys.stderr.write("[Error] %d lines, chromosome [%s and %s] or position [%d and %d] "
                              "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
                              (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
             sys.exit(1)
 
-        depth += int(col[3])
+        depth += col[3]
         mapqs.append(col[4])
         sample_bases.append(col[5].upper())
         sample_base_quals.append(col[6])
@@ -118,8 +200,9 @@ def _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, infol
     return depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
 
 
-def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands,
-                     read_pos_rank, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
+                     popgroup, cmm, cvg_file_handle, vcf_file_handle):
+
     _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle, cmm=cmm)
 
     # Call variant if ``vcf_file_handle`` is not None
@@ -178,7 +261,8 @@ def _base_depth_and_indel(bases, cmm=None):
             indel_depth[b] = indel_depth.get(b, 0) + 1
 
     indel_string = ','.join(
-        [k + '|' + str(v) for k, v in indel_depth.items()]) if indel_depth else '.'
+        [k + '|' + str(v) for k, v in indel_depth.items()]
+    ) if indel_depth else "."
 
     return [base_depth, indel_string]
 
@@ -219,15 +303,21 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
         group_info = []
         if group_cvg:
             for k in popgroup.keys():
-                depth, indel_str = group_cvg[k]
-                s = ':'.join([str(depth[b]) for b in cmm.BASE] + [indel_str])
+                depth, indel = group_cvg[k]
+
+                indel = [indel] if indel != "." else []
+                s = ':'.join(map(str, [depth[b] for b in cmm.BASE]) + indel)
                 group_info.append(s)
 
-        out_file_handle.write('\t'.join(
-            [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-            [str(base_depth[b]) for b in cmm.BASE] + [indel_string] +
-            [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
-            group_info) + '\n')
+        out_file_handle.write(
+            '\t'.join(
+                [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
+                [str(base_depth[b]) for b in cmm.BASE] +
+                [indel_string] +
+                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
+                group_info
+            ) + '\n'
+        )
 
     return
 
