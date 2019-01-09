@@ -177,10 +177,6 @@ class CvgSingleProcess(object):
                         # 0-base
                         iter_tokes.append(bf.pileup(chrid, start - 1, end))
                     except ValueError:
-                        if self.cmm.debug:
-                            print >> sys.stderr, ("# [WARMING] Empty region",
-                                                  chrid, start - 1, end,
-                                                  self.aligne_files[i])
                         iter_tokes.append('')
 
                 # get all the reference sequence of chrid
@@ -191,7 +187,7 @@ class CvgSingleProcess(object):
                 go_iter = [1] * len(iter_tokes)
                 n = 0
                 for start, end in regions:
-                    for position in xrange(start, end + 1):
+                    for position in range(start, end + 1):
 
                         if n % 100000 == 0:
                             sys.stderr.write("[INFO] loading lines %d at position %s:%d\t%s\n" %
