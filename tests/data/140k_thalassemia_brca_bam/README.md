@@ -17,23 +17,23 @@ for i in `cat bam100.list` ; do
     sample_id=${sample[0]}
     sub_out_dir="/Volumes/Macintosh_HD/Users/huangshujia/PycharmProjects/BaseVar/tests/data/140k_thalassemia_brca_bam/fusion/${ADD[11]}/${ADD[12]}"
 
-    if [ ! -d $sub_out_dir ]
-        then mkdir -p $sub_out_dir
-    fi
-
-    # echo "$sub_out_dir/${sample_id}.fusion.bed.gz"
-
-    echo "** dealing $sample_id **" && \
-    time python ../../../basevar/BaseVar.py fusion -R hg19.NC_012920.fasta -I $i -O $sub_out_dir/${sample_id}.fusion.bed && \
-    bgzip -f $sub_out_dir/${sample_id}.fusion.bed && \
-    tabix -f -p bed $sub_out_dir/${sample_id}.fusion.bed.gz && \
-    echo "** done **" 
-
 done
 ```
 
-## 从Fusion生成VCF（FusionBaseType 测试）
+
+## Basetype
 
 ```bash
-time python ../../../basevar/BaseVar.py fusionbasetype --fusion-file-list f100.list --pop-group sample_group.info --reference hg19.NC_012920.fasta --region chr11:5246595-5248428,chr17:41197764-41276135 --outprefix testfusion_group 2> log2
+time python ../../../basevar/BaseVar.py basetype -I bam100/00alzqq6jw.bam -I bam100/09t3r9n2rg.bam -I bam100/0fkpl1p55b.bam -I bam100/13dg1gvsfk.bam -I bam100/17phildszl.bam -I bam100/1dbpgqt0dq.bam -I bam100/1kyws27hoc.bam -I bam100/1ych8rmufr.bam -I bam100/4e56w6ezsx.bam -I bam100/51rwla2fps.bam -R ../hg19.NC_012920.fasta --regions chr11:5246595-5248428,chr17:41197764-41276135 --batch-count 10 --output-vcf test.vcf --output-cvg test.cvg.tsv --pop-group sample_group.info --nCPU 4 -L bam90.list
+```
+
+## Just create batch file
+
+```bash
+time python ../../../basevar/BaseVar.py basetype -I bam100/00alzqq6jw.bam -I bam100/09t3r9n2rg.bam -I bam100/0fkpl1p55b.bam -I bam100/13dg1gvsfk.bam -I bam100/17phildszl.bam -I bam100/1dbpgqt0dq.bam -I bam100/1kyws27hoc.bam -I bam100/1ych8rmufr.bam -I bam100/4e56w6ezsx.bam -I bam100/51rwla2fps.bam -R ../hg19.NC_012920.fasta --regions chr11:5246595-5248428,chr17:41197764-41276135 --batch-count 10 --output-batch-file test.batchfile.gz --nCPU 4 -L bam90.list
+```
+
+## Basetype from batchfile
+```bash
+time python ../../../basevar/BaseVar.py basetypebatch -I test.batchfile.gz -R ../hg19.NC_012920.fasta --regions chr11:5246595-5248428,chr17:41197764-41276135 --output-vcf test.vcf --output-cvg test.cvg.tsv --pop-group sample_group.info --nCPU 4
 ```
