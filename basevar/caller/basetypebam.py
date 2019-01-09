@@ -2,15 +2,16 @@
 This is a Process module for BaseType by BAM/CRAM
 
 """
+from __future__ import division
+
 import os
 import sys
-import multiprocessing
 
 from pysam import FastaFile
 
-from . import utils
 from . import bam
-from .basetypeprocess import variants_discovery
+from . import utils
+from .basetypeprocess import output_header, variants_discovery
 
 REMOVE_BATCH_FILE = True
 
@@ -45,15 +46,9 @@ class BaseVarProcess(object):
         self.smart_rerun = rerun
         self.mapq = mapq
         self.cmm = cmm
-        self.regions = {}
 
         # store the region into a dict
-        for chrid, start, end in regions:
-
-            if chrid not in self.regions:
-                self.regions[chrid] = []
-
-            self.regions[chrid].append([start, end])
+        self.regions = utils.regions2dict(regions)
 
         # loading population group
         # group_id => [a list samples_index]
@@ -66,21 +61,9 @@ class BaseVarProcess(object):
         Run the process of calling variant and output files.
 
         """
-        info, group = [], []
-        if self.popgroup:
-            for g in self.popgroup.keys():
-                g_id = g.split('_AF')[0]  # ignore '_AF'
-                group.append(g_id)
-                info.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
-                               'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
-
         VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
-        if VCF:
-            vcf_header = utils.vcf_header_define(self.fa_file_hd.filename, info="\n".join(info), samples=self.samples)
-            VCF.write("%s\n" % "\n".join(vcf_header))
-
         CVG = open(self.out_cvg_file, 'w')
-        CVG.write('%s\n' % "\n".join(utils.cvg_header_define(group)))
+        output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
         is_empty = True
         tmpd, name = os.path.split(os.path.realpath(self.out_cvg_file))
@@ -125,45 +108,9 @@ class BaseVarProcess(object):
                 sys.stderr.write("and %s " % self.out_vcf_file)
 
         if REMOVE_BATCH_FILE:
-            os.removedirs(cache_dir)
+            try:
+                os.removedirs(cache_dir)
+            except OSError:
+                sys.stderr.write("[WARNING] Directory not empty: %s, please delete it by yourself\n" % cache_dir)
 
         return
-
-
-###############################################################################
-class BaseVarMultiProcess(multiprocessing.Process):
-    """
-    simple class to represent a single BaseVar process, which is run as part of
-    a multi-process job.
-
-    This class is much benefit than using ``BaseVarSingleProcess`` as a ``multiprocessing.Process`` directly
-    It's a shield for ``BaseVarSingleProcess``
-    """
-
-    def __init__(self, ref_in_file, align_files, pop_group_file, regions, samples_id, mapq=10, batchcount=50,
-                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
-        """
-        Constructor.
-
-        regions: 2d-array like, required
-                It's region info , format like: [[chrid, start, end], ... ]
-        """
-        multiprocessing.Process.__init__(self)
-
-        # loading all the sample id from aligne_files
-        # ``samples_id`` has the same size and order as ``aligne_files``
-        self.single_process = BaseVarProcess(ref_in_file,
-                                             align_files,
-                                             pop_group_file,
-                                             regions,
-                                             samples_id,
-                                             mapq=mapq,
-                                             batchcount=batchcount,
-                                             out_cvg_file=out_cvg_file,
-                                             out_vcf_file=out_vcf_file,
-                                             rerun=rerun,
-                                             cmm=cmm)
-
-    def run(self):
-        """ Run the BaseVar process"""
-        self.single_process.run()

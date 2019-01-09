@@ -1,9 +1,11 @@
 """
-This is a Process module for BaseType by BAM/CRAM
+This is a Process module for batchgenerator from BAM/CRAM
 
 """
+from __future__ import division
+
 import os
-import multiprocessing
+import sys
 
 from pysam import FastaFile
 
@@ -44,13 +46,7 @@ class BatchProcess(object):
         self.smart_rerun = rerun
 
         # store the region into a dict
-        self.regions = {}
-        for chrid, start, end in regions:
-
-            if chrid not in self.regions:
-                self.regions[chrid] = []
-
-            self.regions[chrid].append([start, end])
+        self.regions = utils.regions2dict(regions)
 
     def run(self):
         """
@@ -99,38 +95,9 @@ class BatchProcess(object):
         utils.merge_batch_files(regions_batch_files, self.out_batch_file, is_del_raw_file=True)
 
         if REMOVE_BATCH_FILE:
-            os.removedirs(cache_dir)
+            try:
+                os.removedirs(cache_dir)
+            except OSError:
+                sys.stderr.write("[WARNING] Directory not empty: %s, please delete it by yourself\n" % cache_dir)
 
         return
-
-
-###############################################################################
-class BatchMultiProcess(multiprocessing.Process):
-    """
-    simple class to represent a single batch process, which is run as part of
-    a multi-process job.
-    """
-
-    def __init__(self, ref_in_file, align_files, regions, samples_id, mapq=10, batchcount=50,
-                 out_batch_file=None, rerun=False):
-        """
-        Constructor.
-
-        regions: 2d-array like, required
-                It's region info , format like: [[chrid, start, end], ...]
-        """
-        multiprocessing.Process.__init__(self)
-
-        # loading all the sample id from aligne_files
-        # ``samples_id`` has the same size and order as ``aligne_files``
-        self.single_process = BatchProcess(ref_in_file,
-                                           align_files,
-                                           regions,
-                                           samples_id,
-                                           mapq=mapq,
-                                           batchcount=batchcount,
-                                           out_batch_file=out_batch_file,
-                                           rerun=rerun)
-
-    def run(self):
-        self.single_process.run()

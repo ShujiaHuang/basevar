@@ -11,7 +11,6 @@ class CommonParameter(object):
     """
     defined some globle common parameters
     """
-
     LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
     QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
     MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
@@ -202,6 +201,22 @@ def get_region_fromfile(in_region_file):
             regions.append([chr_id, start, end])
 
     return regions
+
+
+def regions2dict(regions):
+    """
+    Convert a 2d array into a dict
+    """
+    reg_dict = {}
+    # store the region into a dict
+    for chrid, start, end in regions:
+
+        if chrid not in reg_dict:
+            reg_dict[chrid] = []
+
+        reg_dict[chrid].append([start, end])
+
+    return reg_dict
 
 
 def merge_region(position_region, delta=1):

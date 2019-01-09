@@ -15,10 +15,12 @@ import time
 from pysam import AlignmentFile, TabixFile, tabix_index
 
 from . import utils
-from .basetypebam import BaseVarMultiProcess
-from .batchgenerator import BatchMultiProcess
-from .basetypebatch import BaseVarBatchMultiProcess
-from .coverageprocess import CvgMultiProcess
+from . import CallerProcess, process_runner
+
+from .basetypebam import BaseVarProcess
+from .batchgenerator import BatchProcess
+from .basetypebatch import BaseVarBatchProcess
+from .coverageprocess import CvgSingleProcess
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -82,7 +84,6 @@ def _generate_regions_for_each_process(regions, process_num=1):
 
 
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
-
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
 
         if out_final_file:
@@ -102,32 +103,6 @@ def _output_file(sub_files, out_file_name):
         tabix_index(out_file_name, force=True, seq_col=0, start_col=1, end_col=1)
     else:
         utils.merge_files(sub_files, out_file_name, is_del_raw_file=True)
-
-    return
-
-
-def _process_runner(processes):
-    """run and monitor the process"""
-
-    for p in processes:
-        p.start()
-
-    # listen for signal while any process is alive
-    while True in [p.is_alive() for p in processes]:
-        try:
-            time.sleep(1)
-
-        except KeyboardInterrupt:
-            sys.stderr.write('KeyboardInterrupt detected, terminating '
-                             'all processes...\n')
-            for p in processes:
-                p.terminate()
-
-            sys.exit(1)
-
-    # Make sure all process are finished
-    for p in processes:
-        p.join()
 
     return
 
@@ -223,16 +198,17 @@ class BaseTypeRunner(object):
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s]\n' % (i + 1, self.nCPU, sub_batch_file))
 
-            processes.append(BatchMultiProcess(self.reference_file,
-                                               self.alignfiles,
-                                               self.regions_for_each_process[i],
-                                               self.sample_id,
-                                               mapq=self.mapq,
-                                               batchcount=self.batchcount,
-                                               out_batch_file=sub_batch_file,
-                                               rerun=self.smartrerun))
+            processes.append(CallerProcess(BatchProcess,
+                                           self.reference_file,
+                                           self.alignfiles,
+                                           self.regions_for_each_process[i],
+                                           self.sample_id,
+                                           mapq=self.mapq,
+                                           batchcount=self.batchcount,
+                                           out_batch_file=sub_batch_file,
+                                           rerun=self.smartrerun))
 
-        _process_runner(processes)
+        process_runner(processes)
 
         # Final output
         _output_file(out_batch_names, self.outbatchfile)
@@ -266,19 +242,20 @@ class BaseTypeRunner(object):
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file,
                                              sub_cvg_file))
 
-            processes.append(BaseVarMultiProcess(self.reference_file,
-                                                 self.alignfiles,
-                                                 self.pop_group_file,
-                                                 self.regions_for_each_process[i],
-                                                 self.sample_id,
-                                                 mapq=self.mapq,
-                                                 batchcount=self.batchcount,
-                                                 out_cvg_file=sub_cvg_file,
-                                                 out_vcf_file=sub_vcf_file,
-                                                 rerun=self.smartrerun,
-                                                 cmm=self.cmm))
+            processes.append(CallerProcess(BaseVarProcess,
+                                           self.reference_file,
+                                           self.alignfiles,
+                                           self.pop_group_file,
+                                           self.regions_for_each_process[i],
+                                           self.sample_id,
+                                           mapq=self.mapq,
+                                           batchcount=self.batchcount,
+                                           out_cvg_file=sub_cvg_file,
+                                           out_vcf_file=sub_vcf_file,
+                                           rerun=self.smartrerun,
+                                           cmm=self.cmm))
 
-        _process_runner(processes)
+        process_runner(processes)
 
         # Final output
         _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
@@ -375,16 +352,17 @@ class BaseTypeBatchRunner(object):
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file,
                                              sub_cvg_file))
 
-            processes.append(BaseVarBatchMultiProcess(self.reference_file,
-                                                      self.batch_files,
-                                                      self.pop_group_file,
-                                                      self.regions_for_each_process[i],
-                                                      self.sample_id,
-                                                      out_cvg_file=sub_cvg_file,
-                                                      out_vcf_file=sub_vcf_file,
-                                                      cmm=self.cmm))
+            processes.append(CallerProcess(BaseVarBatchProcess,
+                                           self.reference_file,
+                                           self.batch_files,
+                                           self.pop_group_file,
+                                           self.regions_for_each_process[i],
+                                           self.sample_id,
+                                           out_cvg_file=sub_cvg_file,
+                                           out_vcf_file=sub_vcf_file,
+                                           cmm=self.cmm))
 
-        _process_runner(processes)
+        process_runner(processes)
 
         # Final output
         _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
@@ -440,7 +418,7 @@ class CoverageRunner(object):
                 if delta == 0:
                     delta = 1
 
-                for i, pos in enumerate(xrange(start - 1, end, delta)):
+                for i, pos in enumerate(range(start - 1, end, delta)):
                     s = pos + 1 if pos + 1 < end else end
                     e = pos + delta if pos + delta < end else end
 
@@ -456,13 +434,14 @@ class CoverageRunner(object):
             sub_cvg_file = self.outputfile + '_temp_%s' % i
 
             out_cvg_names.add(sub_cvg_file)
-            processes.append(CvgMultiProcess(self.referencefile,
-                                             self.alignefiles,
-                                             sub_cvg_file,
-                                             regions_for_each_process[i],
-                                             cmm=self.cmm))
+            processes.append(CallerProcess(CvgSingleProcess,
+                                           self.referencefile,
+                                           self.alignefiles,
+                                           sub_cvg_file,
+                                           regions_for_each_process[i],
+                                           cmm=self.cmm))
 
-        _process_runner(processes)
+        process_runner(processes)
 
         # Final output file name
         utils.merge_files(out_cvg_names, self.outputfile, is_del_raw_file=True)

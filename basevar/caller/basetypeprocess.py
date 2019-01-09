@@ -9,7 +9,7 @@ from pysam import TabixFile
 
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
-from .utils import fetch_next
+from .utils import fetch_next, vcf_header_define, cvg_header_define
 
 
 def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
@@ -265,6 +265,25 @@ def _base_depth_and_indel(bases, cmm=None):
     ) if indel_depth else "."
 
     return [base_depth, indel_string]
+
+
+def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handle, out_vcf_handle=None):
+
+    info, group = [], []
+    if pop_group_sample_dict:
+        for g in pop_group_sample_dict.keys():
+            g_id = g.split('_AF')[0]  # ignore '_AF'
+            group.append(g_id)
+            info.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
+                        'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
+
+    if out_vcf_handle:
+        vcf_header = vcf_header_define(fa_file_name, info="\n".join(info), samples=sample_ids)
+        out_vcf_handle.write("%s\n" % "\n".join(vcf_header))
+
+    out_cvg_handle.write('%s\n' % "\n".join(cvg_header_define(group)))
+
+    return
 
 
 def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle, cmm=None):
