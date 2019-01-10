@@ -278,13 +278,13 @@ def main():
     }
 
     args = parser_commandline_args()
-    sys.stderr.write('\n** %s Start at %s **\n\n' % (args.command, time.asctime()))
+    sys.stdout.write('\n** %s Start at %s **\n\n' % (args.command, time.asctime()))
 
     is_success = runner[args.command](args)
 
     elapsed_time = time.time() - start_time
     if is_success:
-        sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
+        sys.stdout.write('** %s done at %s, %d seconds elapsed **\n' % (
             args.command, time.asctime(), elapsed_time))
     else:
         sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
