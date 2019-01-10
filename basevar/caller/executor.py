@@ -87,22 +87,22 @@ def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
 
         if out_final_file:
-            _output_file(sub_file_list, out_final_file)
+            _output_file(sub_file_list, out_final_file, del_raw_file=True)
 
     return
 
 
-def _output_file(sub_files, out_file_name):
+def _output_file(sub_files, out_file_name, del_raw_file=False):
     """CVG file and VCF file could use the same tabix strategy."""
 
     if out_file_name.endswith(".gz"):
-        utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=True)
+        utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
 
         # Column indices are 0-based. Note: this is different from the tabix command line
         # utility where column indices start at 1.
         tabix_index(out_file_name, force=True, seq_col=0, start_col=1, end_col=1)
     else:
-        utils.merge_files(sub_files, out_file_name, is_del_raw_file=True)
+        utils.merge_files(sub_files, out_file_name, is_del_raw_file=del_raw_file)
 
     return
 
@@ -211,7 +211,7 @@ class BaseTypeRunner(object):
         process_runner(processes)
 
         # Final output
-        _output_file(out_batch_names, self.outbatchfile)
+        _output_file(out_batch_names, self.outbatchfile, del_raw_file=True)
 
         return processes
 
@@ -398,15 +398,13 @@ class CoverageRunner(object):
 
         # Get all the input alignement files
         self.alignefiles = utils.load_file_list(args.infilelist)
-        sys.stderr.write('[INFO] Finish loading parameters and input file '
-                         'list %s\n' % time.asctime())
+        sys.stderr.write('[INFO] Finish loading parameters and input file list %s\n' % time.asctime())
 
     def run(self):
         """
         Run variant caller
         """
-        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' %
-                         time.asctime())
+        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' % time.asctime())
 
         # Always create process manager even if nCPU==1, so that we can
         # listen for signals from main thread
@@ -455,12 +453,14 @@ class MergeRunner(object):
     def __init__(self, args):
         """init function"""
 
+        self.inputfiles = args.input
+        if args.infilelist:
+            self.inputfiles += utils.load_file_list(args.infilelist)
+
         self.outputfile = args.outputfile
-        # Load all files
-        self.inputfiles = utils.load_file_list(args.infilelist)
 
     def run(self):
-        utils.merge_files(self.inputfiles, self.outputfile)
+        _output_file(self.inputfiles, self.outputfile)
         return
 
 

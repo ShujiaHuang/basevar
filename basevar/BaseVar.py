@@ -9,8 +9,6 @@ import argparse
 import sys
 import time
 
-from datetime import datetime
-
 
 def basetype(args):
     from caller.executor import BaseTypeRunner
@@ -78,7 +76,6 @@ def basetypebatch(args):
             is_success = False
 
     return is_success
-
 
 
 # def vqsr():
@@ -178,8 +175,8 @@ def parser_commandline_args():
                               help='Rerun process by checking batchfiles.')
 
     # For discovery variants from batchfiles
-    btb_cmd = commands.add_parser('basetypebatch',
-                                  help='Variants discovery on one or more samples pre-call by basetype')
+    btb_cmd = commands.add_parser('basetypebatch', help='Variants discovery on one or more samples pre-call '
+                                                        'by basetype')
     btb_cmd.add_argument('-I', '--input', dest='input', metavar='BatchFile', action='append', default=[],
                          help='Input batchfile pre-call by basetype and must be compressed by bgzip algorithm. '
                               'This argument could be specified at least once.')
@@ -208,8 +205,8 @@ def parser_commandline_args():
     btb_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
                          help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                               'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                              '[min(0.001, 100/x, cmm.MINAF)]. '
-                              'Probably you don\'t need to take care about this parameter.')
+                              '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t need to take care about this '
+                              'parameter.')
 
     # special parameter for calculating specific population allele frequence
     btb_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
@@ -247,17 +244,15 @@ def parser_commandline_args():
                                    'simultaneously')
 
     coverage_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
-                              help='Number of processer to use. [1]', default=1)
+                              help='Number of processor to use. [1]', default=1)
 
     # Merge files
     merge_cmd = commands.add_parser('merge', help='Merge bed/vcf files')
-    merge_cmd.add_argument('-I', '--input', dest='input', metavar='VCF', action='append', default=[],
-                           help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
-                                'least once.')
-    merge_cmd.add_argument('-L', '--file-list', dest='infilelist', metavar='VCF', required=True,
-                           help='Input files\' list.', default='')
-    merge_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='VCF', required=True,
-                           help='Output file. [out]')
+    merge_cmd.add_argument('-I', '--input', dest='input', metavar='FILE', action='append', default=[],
+                           help='Input files. This argument could be specify at least once')
+    merge_cmd.add_argument('-L', '--file-list', dest='infilelist', metavar='FILE', help='Input files\' list.')
+    merge_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', required=True,
+                           help='Output file')
 
     # Add nearby indels for variants
     nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
@@ -267,13 +262,13 @@ def parser_commandline_args():
     nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
                          help='Input coverage file which has indel information')
     nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
-                         type=int, default=16, help='The distance around indel. [16]')
+                         type=int, default=16, help='The distance around indels. [16]')
 
     return cmdparse.parse_args()
 
 
 def main():
-    START_TIME = datetime.now()
+    start_time = time.time()
     runner = {
         'basetype': basetype,
         'basetypebatch': basetypebatch,
@@ -287,13 +282,13 @@ def main():
 
     is_success = runner[args.command](args)
 
-    elapsed_time = datetime.now() - START_TIME
+    elapsed_time = time.time() - start_time
     if is_success:
         sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
-            args.command, time.asctime(), elapsed_time.seconds))
+            args.command, time.asctime(), elapsed_time))
     else:
         sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
-            time.asctime(), args.command, elapsed_time.seconds))
+            time.asctime(), args.command, elapsed_time))
         sys.exit(1)
 
 

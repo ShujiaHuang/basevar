@@ -168,8 +168,7 @@ def load_target_position(referencefile, posfile, region_info):
 
     # load all the genome if no position or regions provide
     if not regions:
-        sys.stderr.write('[WARNINGS] Program will load all the genome. This will '
-                         'take a long long time.\n')
+        sys.stderr.write('[WARNINGS] Program will load all the genome. This will take a long long time.\n')
         regions = [[ci, 1, fa.get_reference_length(ci)]
                    for ci in fa.references]
 

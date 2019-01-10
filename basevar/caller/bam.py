@@ -6,14 +6,13 @@ Date : 2016-07-19 14:14:21
 import os
 import sys
 import time
-from datetime import datetime
 
 import pysam
 
 from . import utils
 
 
-def open_aligne_files(bamfiles):
+def open_align_files(bamfiles):
     ali_files_hd = []
     for f in bamfiles:
 
@@ -22,7 +21,7 @@ def open_aligne_files(bamfiles):
 
         except ValueError:
             sys.stderr.write('[ERROR] Input file: %s is not BAM/CRAM.\n' % f)
-            close_aligne_file(ali_files_hd)
+            close_align_file(ali_files_hd)
             sys.exit(1)
 
         ali_files_hd.append(bf)
@@ -30,7 +29,7 @@ def open_aligne_files(bamfiles):
     return ali_files_hd
 
 
-def close_aligne_file(ali_files_hd):
+def close_align_file(ali_files_hd):
     for bf in ali_files_hd:
         bf.close()
     return
@@ -60,7 +59,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
     m = 0
     for i in range(0, len(align_files), batchcount):
         # Create a batch of temp files for variant discovery
-        start_time = datetime.now()
+        start_time = time.time()
 
         m += 1
         part_file_name = "%s/BaseVar.%s.%d_%d.batch" % (outdir, ".".join(map(str, [chrid, bigstart, bigend])),
@@ -76,17 +75,17 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
             sys.stderr.write("[INFO] Creating batchfile %s at %s\n" % (part_file_name, time.asctime()))
 
         # One batch of alignment files
-        sub_alignfiles = align_files[i:i + batchcount]
+        sub_align_files = align_files[i:i + batchcount]
         batch_sample_ids = None
         if sample_ids:
             batch_sample_ids = sample_ids[i:i + batchcount]
 
-        create_single_batchfile(chrid, bigstart, bigend, regions, sub_alignfiles, fa, mapq, part_file_name,
+        create_single_batchfile(chrid, bigstart, bigend, regions, sub_align_files, fa, mapq, part_file_name,
                                 batch_sample_ids=batch_sample_ids)
 
-        elapsed_time = datetime.now() - start_time
+        elapsed_time = time.time() - start_time
         sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
-                         "\n" % (part_file_name, time.asctime(), elapsed_time.seconds))
+                         "\n" % (part_file_name, time.asctime(), elapsed_time))
 
     return batchfiles
 
@@ -94,7 +93,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
 def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files, fa, mapq,
                             out_batch_file, batch_sample_ids=None):
     # One batch of alignment files
-    ali_files_hd = open_aligne_files(batch_align_files)
+    ali_files_hd = open_align_files(batch_align_files)
 
     # ``iter_tokes`` is a list of iterator for each sample's input file
     iter_tokes = []
@@ -160,7 +159,7 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
                     ",".join(strands)
                 ]))
 
-    close_aligne_file(ali_files_hd)
+    close_align_file(ali_files_hd)
     return
 
 
