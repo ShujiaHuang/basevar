@@ -333,8 +333,7 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
                 [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
                 [str(base_depth[b]) for b in cmm.BASE] +
                 [indel_string] +
-                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
-                group_info
+                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
             ) + '\n'
         )
 

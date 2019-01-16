@@ -278,7 +278,7 @@ def main():
     }
 
     args = parser_commandline_args()
-    sys.stdout.write('\n** %s Start at %s **\n\n' % (args.command, time.asctime()))
+    sys.stdout.write('\n** %s Start at %s **\n' % (args.command, time.asctime()))
 
     is_success = runner[args.command](args)
 
