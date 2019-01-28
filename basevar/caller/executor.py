@@ -21,7 +21,7 @@ from .basetypebam import BaseVarProcess
 from .batchgenerator import BatchProcess
 from .basetypebatch import BaseVarBatchProcess
 from .coverageprocess import CvgSingleProcess
-from .vqsr import vqsr
+# from .vqsr import vqsr
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -30,12 +30,16 @@ def _generate_regions_for_each_process(regions, process_num=1):
     regions_for_each_process = [[] for _ in range(process_num)]
 
     # calculate delta for each process
-    delta = int(float(sum([e - s + 1 for _, s, e in regions])) / process_num + 0.5)
+    total_regions_size = sum([e - s + 1 for _, s, e in regions])
+    delta = int(total_regions_size/process_num) + 1 if total_regions_size % process_num else \
+        int(total_regions_size/process_num)
+
+    # reset
     total_regions_size = 0
     for chrid, start, end in regions:
 
         sub_region_size = end - start + 1
-        # find index of regions_for_each_process by the total_store_size
+        # find index of regions_for_each_process by the total_regions_size
         i = int(total_regions_size / delta)
         total_regions_size += sub_region_size
 
