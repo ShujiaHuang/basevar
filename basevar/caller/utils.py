@@ -475,7 +475,7 @@ def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw
     return
 
 
-def merge_batch_files(temp_file_names, final_file_name, is_del_raw_file=False):
+def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False):
     """
     Merging output batch files into a final big one.
 
@@ -485,7 +485,7 @@ def merge_batch_files(temp_file_names, final_file_name, is_del_raw_file=False):
     if final_file_name == "-":
         output_file = sys.stdout
     else:
-        output_file = Open(final_file_name, 'wb')
+        output_file = Open(final_file_name, 'wb', isbgz=output_isbgz)
 
     batch_files_hd = [Open(f, 'rb') for f in temp_file_names]
     eof = False

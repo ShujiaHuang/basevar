@@ -62,7 +62,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
         start_time = time.time()
 
         m += 1
-        part_file_name = "%s/BaseVar.%s.%d_%d.batch" % (outdir, ".".join(map(str, [chrid, bigstart, bigend])),
+        part_file_name = "%s/BaseVar.%s.%d_%d.batch.gz" % (outdir, ".".join(map(str, [chrid, bigstart, bigend])),
                                                         m, part_num)
         # store the name of batchfiles into a list.
         batchfiles.append(part_file_name)
@@ -106,7 +106,9 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
                              (chrid, bigstart - 1, bigend, batch_align_files[j]))
             iter_tokes.append("")
 
-    with open(out_batch_file, "w") as OUT:
+    with utils.Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
+            open(out_batch_file, "w") as OUT:
+
         OUT.write("##fileformat=BaseVarBatchFile_v1.0\n")
         if batch_sample_ids:
             OUT.write("##SampleIDs=%s\n" % ",".join(batch_sample_ids))

@@ -74,8 +74,8 @@ class BatchProcess(object):
 
             # The same group of samples has the same suffix in filename
             for filename in region_batch_files:
-                # BaseVar.chrxx.xxx.xxx.2_10.batch
-                suffix = filename.split(".")[-2]  # get "2_10"
+                # BaseVar.chrxx.xxx.xxx.2_10.batch.gz
+                suffix = filename.split(".")[-3]  # get "2_10"
                 if suffix not in suffix_group:
                     suffix_group[suffix] = []
 

@@ -9,13 +9,13 @@ from pysam import TabixFile
 
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
-from .utils import fetch_next, vcf_header_define, cvg_header_define
+from .utils import fetch_next, vcf_header_define, cvg_header_define, Open
 
 
 def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
     """Function for variants discovery.
     """
-    batch_files_hd = [open(f) for f in batchfiles]
+    batch_files_hd = [Open(f, 'rb') for f in batchfiles]
     n, is_empty, eof = 0, True, False
     while True:
         # Loading ...
