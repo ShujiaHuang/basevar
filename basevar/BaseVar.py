@@ -78,10 +78,10 @@ def basetypebatch(args):
     return is_success
 
 
-def vqsr(opt=None):
+def vqsr(args):
     # Todo: VQSR need to improve
     from caller.executor import VQSRRuner
-    vq = VQSRRuner()
+    vq = VQSRRuner(args)
     vq.run()
 
     return True
@@ -217,7 +217,7 @@ def parser_commandline_args():
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
-    vqsr_cmd.add_argument('-I', '--input', dest='vcfInfile', metavar='VCF', action='append', required=True,
+    vqsr_cmd.add_argument('-I', '--input', dest='vcfInfile', metavar='VCF', required=True,
                           help='Input VCF file. This argument should be specified at least once.')
     vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
                           help='Traning data set at true category.')

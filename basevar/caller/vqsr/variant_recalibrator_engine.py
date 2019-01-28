@@ -7,8 +7,6 @@ Date  : 2014-05-20 08:50:06
 import sys
 import numpy as np
 from sklearn.mixture import GMM
-#from sklearn.mixture.gaussian_mixture import GaussianMixture as GMM
-from sklearn.mixture import BayesianGaussianMixture as BGMM
 from sklearn.utils.extmath import logsumexp
 
 # My own class

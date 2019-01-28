@@ -373,14 +373,12 @@ class BaseTypeBatchRunner(object):
 
 class VQSRRuner(object):
     """Runner for VQSR"""
-    def __init__(self):
+    def __init__(self, args):
         """Init function"""
-        self.vqsr = vqsr
-        return
+        self.args = args
 
     def run(self):
-        self.vqsr.main(self.vqsr.cmdopts())
-
+        vqsr.main(self.args)
         return
 
 

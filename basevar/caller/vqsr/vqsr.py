@@ -8,16 +8,15 @@ Date  : 2014-05-23 11:21:53
 import re
 import sys
 import time
-import argparse
 
 from . import variant_data_manager as vdm
 from . import variant_recalibrator as vror
 
 from .. import utils
 
-def main(opt):
 
-    # Just record the sites of training data 
+def main(opt):
+    # Just record the sites of training data
     traningSet = vdm.LoadTrainingSiteFromVCF(opt.trainData)
 
     # Identify the traning sites
@@ -31,24 +30,24 @@ def main(opt):
     # vr.VisualizationLodVStrainingSet(opt.figure + '.BadLodSelectInTraining')
 
     # For Record the Annnotations' values
-    for d in vr.dataManager.annoTexts: 
+    for d in vr.dataManager.annoTexts:
         hInfo.add('INFO', d[0], 1, d[1], d[2])
 
     # Outputting the result as VCF format
-    hInfo.add('INFO', 'VQ', 1, 'Float' , 'Variant Quality')
+    hInfo.add('INFO', 'VQ', 1, 'Float', 'Variant Quality')
     hInfo.add('INFO', 'CU', 1, 'String', 'The annotation which was the worst '
-              'performing in the Gaussian mixture modul, likely the reason why '
-              'the variant was filtered out. It\'s the same tag as <culprit> '
-              'in GATK')
-    hInfo.add('INFO', 'NEGATIVE_TRAIN_SITE', 0, 'Flag', 'This variant was used '
-              'to build the negative training set of bad variants')
-    hInfo.add('INFO', 'POSITIVE_TRAIN_SITE', 0, 'Flag', 'This variant was used '
-              'to build the positive training set of good variants')
+                                         'performing in the Gaussian mixture modul, likely the reason why '
+                                         'the variant was filtered out. It\'s the same tag as <culprit> '
+                                         'in GATK')
+    hInfo.add('INFO', 'NEGATIVE_TRAIN_SITE', 0, 'Flag',
+              'This variant was used to build the negative training set of bad variants')
+    hInfo.add('INFO', 'POSITIVE_TRAIN_SITE', 0, 'Flag',
+              'This variant was used to build the positive training set of good variants')
 
     culprit, good, tot = {}, {}, 0.0
     annoTexts = [d[0] for d in vr.dataManager.annoTexts]
 
-    for k, h in sorted(hInfo.header.items(), key = lambda d: d[0]):
+    for k, h in sorted(hInfo.header.items(), key=lambda d: d[0]):
         print (h)
 
     sys.stderr.write('\n[INFO] Outputting %s ...\n' % time.asctime())
@@ -96,7 +95,7 @@ def main(opt):
         culprit[annoTexts[d.worstAnnotation]] = culprit.get(
             annoTexts[d.worstAnnotation], 0.0) + 1.0  # For summary
 
-        d.lod = round(d.lod*10, 2)
+        d.lod = round(d.lod * 10, 2)
         for lod in [0, 1, 2, 3, 4, 5, 10, 20, 25, 30, 35, 40, 45, 50]:
             if d.lod >= lod:
                 good[lod] = good.get(lod, 0.0) + 1.0
@@ -126,40 +125,9 @@ def main(opt):
 
     ## Output Summary
     sys.stderr.write('\n[Summmary] Here is the summary information:\n')
-    for k, v in sorted(good.items(), key = lambda k:k[0]):
+    for k, v in sorted(good.items(), key=lambda k: k[0]):
         sys.stderr.write(('  ** Variant Site score >= %d: %d\t%0.2f\n' %
-            (k, v, v*100/tot)))
+                          (k, v, v * 100 / tot)))
 
-    for k, v in sorted(culprit.items(), key = lambda k:k[0]):
-        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f\n' %
-            (k, v, v*100.0/tot)))
-
-def cmdopts():
-    """
-    The command line parameters for VQSR
-    """
-    optp = argparse.ArgumentParser()
-    optp.add_argument('VQSR')
-
-    optp.add_argument('-i', '--InVcf', dest = 'vcfInfile', metavar = 'VCF',
-                      help = 'VCF for predict.', default = [])
-    optp.add_argument('-T', '--Train', dest = 'trainData', metavar = 'TRU',
-                      help = 'Traing data set at true category', default = [])
-    optp.add_argument('-f', '--fig', dest = 'figure', metavar = 'FIG',
-                      help = 'The prefix of figure.', default = 'figtest')
-
-    opt = optp.parse_args()
-    if len(opt.vcfInfile) == 0:
-        optp.error('Required[-i vcfInfile]\n')
-
-    if len(opt.trainData) == 0:
-        optp.error('Required[-T trainData. VCFFormat]\n')
-
-    sys.stderr.write('[INFO] Parameters: python %s VQSR'
-                      '\n\t-i %s'
-                      '\n\t-T %s'
-                      '\n\t-f %s' % (
-                              sys.argv[0], opt.vcfInfile,
-                              opt.trainData, opt.figure))
-    return opt
-
+    for k, v in sorted(culprit.items(), key=lambda k: k[0]):
+        sys.stderr.write(('  ** Culprit by %s: %d\t%.2f\n' % (k, v, v * 100.0 / tot)))
