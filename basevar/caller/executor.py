@@ -21,7 +21,7 @@ from .basetypebam import BaseVarProcess
 from .batchgenerator import BatchProcess
 from .basetypebatch import BaseVarBatchProcess
 from .coverageprocess import CvgSingleProcess
-# from .vqsr import vqsr
+from .vqsr import vqsr
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
