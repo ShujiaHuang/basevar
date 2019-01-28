@@ -21,6 +21,7 @@ from .basetypebam import BaseVarProcess
 from .batchgenerator import BatchProcess
 from .basetypebatch import BaseVarBatchProcess
 from .coverageprocess import CvgSingleProcess
+from .vqsr import vqsr
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -370,17 +371,17 @@ class BaseTypeBatchRunner(object):
         return processes
 
 
-# class VQSRRuner(object):
-#     """Runner for VQSR"""
-#     def __init__(self):
-#         """Init function"""
-#         self.vqsr = vqsr
-#         return
-#
-#     def run(self):
-#         self.vqsr.main(self.vqsr.cmdopts())
-#
-#         return
+class VQSRRuner(object):
+    """Runner for VQSR"""
+    def __init__(self):
+        """Init function"""
+        self.vqsr = vqsr
+        return
+
+    def run(self):
+        self.vqsr.main(self.vqsr.cmdopts())
+
+        return
 
 
 class CoverageRunner(object):

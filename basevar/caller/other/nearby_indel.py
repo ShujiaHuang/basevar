@@ -38,7 +38,7 @@ class NearbyIndel(object):
             if col[8] == '.': continue
 
             for indel in [s.upper() for s in col[8].split(',')]:
-                indel, n = indel.split('|')
+                indel, n = indel.split(':')
                 n = int(n)
 
                 total_indel_num += n

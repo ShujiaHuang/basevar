@@ -78,12 +78,13 @@ def basetypebatch(args):
     return is_success
 
 
-# def vqsr():
-#     from caller.executor import VQSRRuner
-#     vq = VQSRRuner()
-#     vq.run()
-#
-#     return
+def vqsr(opt=None):
+    # Todo: VQSR need to improve
+    from caller.executor import VQSRRuner
+    vq = VQSRRuner()
+    vq.run()
+
+    return True
 
 
 def nearby_indel(args):
@@ -275,16 +276,17 @@ def main():
         'merge': merge,
         'coverage': coverage,
         'NearByIndel': nearby_indel,
+        'VQSR': vqsr
     }
 
     args = parser_commandline_args()
-    sys.stdout.write('\n** %s Start at %s **\n' % (args.command, time.asctime()))
+    sys.stderr.write('\n** %s Start at %s **\n' % (args.command, time.asctime()))
 
     is_success = runner[args.command](args)
 
     elapsed_time = time.time() - start_time
     if is_success:
-        sys.stdout.write('** %s done at %s, %d seconds elapsed **\n' % (
+        sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
             args.command, time.asctime(), elapsed_time))
     else:
         sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (

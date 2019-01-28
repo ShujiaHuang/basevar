@@ -30,7 +30,7 @@ def EM(allele_frequece, ind_allele_likelihood, iter_num=100, epsilon=0.001):
     # m_step
     expect_allele_freq = m_step(ind_allele_prob)
 
-    for i in xrange(iter_num):
+    for i in range(iter_num):
 
         # e_step
         ind_allele_prob, marginal_likelihood = e_step(
