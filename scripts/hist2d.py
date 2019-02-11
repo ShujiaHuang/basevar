@@ -6,6 +6,9 @@ import sys
 import pandas as pd
 import numpy as np
 
+import matplotlib
+matplotlib.use("Agg")
+
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 
