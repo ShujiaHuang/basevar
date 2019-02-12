@@ -6,25 +6,25 @@ from scipy.stats import fisher_exact
 from scipy.stats import ranksums
 
 
-def EM(allele_frequece, ind_allele_likelihood, iter_num=100, epsilon=0.001):
+def EM(allele_frequence, ind_allele_likelihood, iter_num=100, epsilon=0.001):
     """
     EM algorithm
 
     Parameters
     ----------
 
-    ``allele_frequece``: 2d-array like the same as ind_allele_likelihood
+    ``allele_frequence``: 2d-array like the same as ind_allele_likelihood
 
-    ``ind_allele_likelood`` : 2d-array like, n x 4 matrix.
+    ``ind_allele_likelihood`` : 2d-array like, n x 4 matrix.
 
     ``iter_num`` : integer, optional
         The lager EM iteration times. default: 100
 
-    ``epsilon`` : float, optinal
+    ``epsilon`` : float, optional
         The threshold of likelihood different for EM process. default 0.001
     """
     # ind_allele_likelihood is a `n x 4` matrix. n is sample size
-    ind_allele_prob, marginal_likelihood = e_step(allele_frequece, ind_allele_likelihood)
+    ind_allele_prob, marginal_likelihood = e_step(allele_frequence, ind_allele_likelihood)
     log_marginal_likelihood = np.log(marginal_likelihood)
 
     # m_step
@@ -44,6 +44,7 @@ def EM(allele_frequece, ind_allele_likelihood, iter_num=100, epsilon=0.001):
         new_log_marginal_likelihood = np.log(marginal_likelihood)
         delta = np.abs(new_log_marginal_likelihood - log_marginal_likelihood).sum()
 
+        # Todo: be careful here!!!
         if delta < epsilon:
             break
 
