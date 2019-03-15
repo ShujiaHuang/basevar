@@ -6,8 +6,8 @@ import sys
 import pandas as pd
 import numpy as np
 
-import matplotlib
-matplotlib.use("Agg")
+# import matplotlib
+# matplotlib.use("Agg")
 
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
@@ -15,7 +15,13 @@ import matplotlib.pyplot as plt
 
 def scale_format(value):
 
-    if value < 0.01:
+    if value < 0.0001:
+        value = '%.5f' % value
+
+    elif value < 0.001:
+        value = '%.4f' % value
+
+    elif value < 0.01:
         value = '%.3f' % value
 
     elif value < 0.1:
@@ -45,10 +51,12 @@ def draw_hist2d(argv):
 
     x, y = data[labels[0]], data[labels[1]]
 
-    # im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.hsv)
-    # ax.plot([min(x), max(x)], [min(y), max(y)], 'k--', linewidth=1)
-    x[x == 0] = 0.0001
-    y[y == 0] = 0.0001
+    min_value = max([min(x), min(y)])
+    if min_value == 0:
+        min_value = min([min(x[x > 0]), min(y[y > 0])])
+
+    x[x == 0] = min_value
+    y[y == 0] = min_value
     im = ax.hist2d(x=np.log10(x), y=np.log10(y), bins=100,
                    norm=LogNorm(), cmap=plt.cm.hsv)
 
@@ -56,11 +64,11 @@ def draw_hist2d(argv):
     max_a = max([max(np.log10(x)), max(np.log10(y))])
     ax.plot([min_a, max_a], [min_a, max_a], 'k--', linewidth=1)
 
-    locs, labs = plt.xticks()
+    locs, _ = plt.xticks()
     # ax.set_xticklabels(['${10}^{%.1f}$'%i for i in locs])
     ax.set_xticklabels([scale_format(10 ** i) for i in locs])
 
-    locs, labs = plt.yticks()
+    locs, _ = plt.yticks()
     # ax.set_yticklabels(['${10}^{%.1f}$'%i for i in locs])
     ax.set_yticklabels([scale_format(10 ** i) for i in locs])
 
@@ -72,7 +80,7 @@ def draw_hist2d(argv):
     plt.tight_layout()
     plt.savefig(out_fig_file)
 
-    # plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
