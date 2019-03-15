@@ -8,6 +8,7 @@
 *.egg
 .DS_Store
 
+venv/
 .idea/
 .ipynb_checkpoints/
 *.egg-info/
