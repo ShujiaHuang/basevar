@@ -33,8 +33,8 @@ def basetype(args):
                          "******************* WARNING ********************\n"
                          "************************************************\n"
                          ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
-                         "Please make sure that all the parameters are the\n"
-                         "same with your previous commands.\n"
+                         "Please make sure all the parameters are the same\n"
+                         "with your previous commands.\n"
                          "************************************************\n\n")
 
     # Make sure you have set at least one bamfile.
@@ -176,12 +176,12 @@ def parser_commandline_args():
                               help='Rerun process by checking batchfiles.')
 
     # For discovery variants from batchfiles
-    btb_cmd = commands.add_parser('basetypebatch', help='Variants discovery on one or more samples pre-call '
-                                                        'by basetype')
+    btb_cmd = commands.add_parser('basetypebatch',
+                                  help='Variants discovery on one or more samples pre-call by basetype')
     btb_cmd.add_argument('-I', '--input', dest='input', metavar='BatchFile', action='append', default=[],
                          help='Input batchfile pre-call by basetype and must be compressed by bgzip algorithm. '
                               'This argument could be specified at least once.')
-    btb_cmd.add_argument('-L', '--batch-file-list', dest='infilelist', metavar='BamfilesList',
+    btb_cmd.add_argument('-L', '--batch-file-list', dest='infilelist', metavar='BatchfilesList',
                          help='batchfiles list pre-call by basetype and must be compressed by bgzip algorithm. '
                               'One file per row.')
     btb_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
@@ -194,7 +194,7 @@ def parser_commandline_args():
                          help='Output position coverage file.')
 
     btb_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
-                         help='skip unlisted positions one per row. The position format in the file could '
+                         help='Skip unlisted positions one per row. The position format in the file could '
                               'be (chrid pos) and (chrid start end) in mix. This parameter could be used '
                               'with --regions simultaneously.')
     btb_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
@@ -231,8 +231,8 @@ def parser_commandline_args():
                               help='Input alignmernt file list.', default='')
     coverage_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='FILE', required=True,
                               help='Input reference fasta file.')
-    coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE',
-                              default='out', help='Output file. [out]')
+    coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', default='out',
+                              help='Output file. [out]')
 
     coverage_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
                               help='skip unlisted positions one per row. The position format in the file could '
@@ -257,11 +257,11 @@ def parser_commandline_args():
 
     # Add nearby indels for variants
     nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
-                                                      'indel type information for each variants in VCF')
+                                                      'indel type information for each variants in VCF.')
     nbi_cmd.add_argument('-I', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
-                         help='The input vcf files')
+                         help='The input vcf files.')
     nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
-                         help='Input coverage file which has indel information')
+                         help='Input coverage file which has indel information.')
     nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
                          type=int, default=16, help='The distance around indels. [16]')
 

@@ -132,7 +132,8 @@ class BaseType(object):
             ``specific_base_comb``: list like
                 just calculate the LRT from these specific base combination
         """
-        if self.total_depth == 0: return
+        if self.total_depth == 0:
+            return
 
         if specific_base_comb:
             # get effective bases which count frequence >= self.cmm.MINAF
@@ -143,7 +144,8 @@ class BaseType(object):
             bases = [b for b in self.cmm.BASE
                      if self.depth[b] / self.total_depth >= self.cmm.MINAF]
 
-        if len(bases) == 0: return
+        if len(bases) == 0:
+            return
 
         # init. Base combination will just be the ``bases`` if specific_base_comb
         bc, lr_null, bp = self._f(bases, len(bases))

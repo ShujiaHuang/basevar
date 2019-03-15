@@ -62,8 +62,10 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
         start_time = time.time()
 
         m += 1
-        part_file_name = "%s/BaseVar.%s.%d_%d.batch.gz" % (outdir, ".".join(map(str, [chrid, bigstart, bigend])),
+        part_file_name = "BaseVar.%s.%d_%d.batch.gz" % (".".join(map(str, [chrid, bigstart, bigend])),
                                                         m, part_num)
+        part_file_name = os.path.join(outdir, part_file_name)  # Join Path could fix different OS
+
         # store the name of batchfiles into a list.
         batchfiles.append(part_file_name)
         if is_smart_rerun and os.path.isfile(part_file_name):

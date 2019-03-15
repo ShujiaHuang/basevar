@@ -13,7 +13,7 @@ from . import bam
 from . import utils
 from .basetypeprocess import output_header, variants_discovery
 
-REMOVE_BATCH_FILE = True
+REMOVE_BATCH_FILE = False
 
 
 class BaseVarProcess(object):
@@ -68,9 +68,14 @@ class BaseVarProcess(object):
         is_empty = True
         tmpd, name = os.path.split(os.path.realpath(self.out_cvg_file))
         cache_dir = utils.safe_makedir(tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name)
+
+        if self.smart_rerun:
+            # remove the last modification file
+            utils.safe_remove(utils.get_last_modification_file(cache_dir))
+
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
 
-            # get fasta sequence of chrid
+            # get fasta sequence by chrid
             fa = self.fa_file_hd.fetch(chrid)
 
             # create batch file for variant discovery
@@ -101,8 +106,8 @@ class BaseVarProcess(object):
         self.fa_file_hd.close()
 
         if is_empty:
-            sys.stderr.write("\n************************************************************************\n"
-                             "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all your\n"
+            sys.stderr.write("\n***************************************************************************\n"
+                             "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
                              "input files.\n We get nothing in %s " % (self.mapq, self.out_cvg_file))
             if VCF:
                 sys.stderr.write("and %s " % self.out_vcf_file)

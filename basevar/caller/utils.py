@@ -20,6 +20,17 @@ class CommonParameter(object):
     MINAF = 0.0001  # The effective base freqence threshold
 
 
+def safe_remove(fname):
+    """Remove a file if it exist"""
+    if not fname:
+        return False
+
+    if os.path.exists(fname):
+        os.remove(fname)
+
+    return True
+
+
 def safe_makedir(dname):
     """Make a directory if it doesn't exist, handling concurrent race conditions.
     """
@@ -50,6 +61,21 @@ def file_exists(fname):
         return fname and os.path.exists(fname) and os.path.getsize(fname) > 0
     except OSError:
         return False
+
+
+def get_last_modification_file(dirname):
+    """Find the last modification file in a directory and return it."""
+
+    file_name_list = os.listdir(dirname)
+    file_name_list.sort(key=lambda fn: os.path.getmtime(os.path.join(dirname, fn)))
+
+    if file_name_list:
+
+        # return the last modification file path of dirname
+        return os.path.join(dirname, file_name_list[-1])
+    else:
+        # dirname is empty
+        return ""
 
 
 def vcf_header_define(ref_file_path, info=None, samples=None):

@@ -64,30 +64,6 @@ def _generate_regions_for_each_process(regions, process_num=1):
     return regions_for_each_process
 
 
-# def _generate_regions_for_each_process_old(regions, process_num=1):
-#     # Always create process manager even if nCPU==1, so that we can
-#     # listen signals from main thread
-#     regions_for_each_process = [[] for _ in range(process_num)]
-#     if len(regions) < process_num:
-#         # We cut the region into pieces to fit nCPU if regions < nCPU
-#         for chrid, start, end in regions:
-#             delta = int((end - start + 1) / process_num)
-#             if delta == 0:
-#                 delta = 1
-#
-#             for i, pos in enumerate(range(start - 1, end, delta)):
-#                 s = pos + 1 if pos + 1 < end else end
-#                 e = pos + delta if pos + delta < end else end
-#
-#                 regions_for_each_process[i % process_num].append([chrid, s, e])
-#
-#     else:
-#         for i, region in enumerate(regions):
-#             regions_for_each_process[i % process_num].append(region)
-#
-#     return regions_for_each_process
-
-
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
 
@@ -184,8 +160,7 @@ class BaseTypeRunner(object):
                 sample_id.append(bf.header['RG'][0]['SM'])
                 bf.close()
 
-        sys.stderr.write('[INFO] Finish load all %d samples\' ID '
-                         'from RG tag\n\n' % len(sample_id))
+        sys.stderr.write('[INFO] Finish loading all %d samples\' ID\n\n' % len(sample_id))
         return sample_id
 
     def batch_generator(self):

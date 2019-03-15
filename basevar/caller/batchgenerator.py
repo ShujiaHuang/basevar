@@ -56,6 +56,11 @@ class BatchProcess(object):
         suffix_group = {}
         tmppd, name = os.path.split(os.path.realpath(self.out_batch_file))
         cache_dir = utils.safe_makedir(tmppd + "/Batchtemp.%s.WillBeDeletedWhenrJobsFinish" % name)
+
+        if self.smart_rerun:
+            # remove the last modification file
+            utils.safe_remove(utils.get_last_modification_file(cache_dir))
+
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
 
             # get fasta sequence of chrid
