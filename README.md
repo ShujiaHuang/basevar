@@ -1,5 +1,5 @@
 # BaseVar
-Call variants without calling genotype
+Call variants from ultra low-pass WGS data.
 
 ## Installation
 
@@ -9,12 +9,35 @@ pip install basevar
 
 ```
 
+## Quick start
+
+### Call variants from several bamfiles
 
 ```bash
-time python BaseVar.py nbi -i ../tests/data/chrM.vcf.gz -c ../tests/data/chrM.all.cvg.tsv.gz -d 16 > t.vcf
+basevar basetype -R reference.fasta \
+    --regions chr11:5246595-5248428,chr17:41197764-41276135 \
+    --batch-count 50 \
+    -I 00alzqq6jw.bam \
+    -I 09t3r9n2rg.bam \
+    -I 0fkpl1p55b.bam \
+    -I 13dg1gvsfk.bam \
+    -I 17phildszl.bam \
+    -I 1dbpgqt0dq.bam \
+    -I 1kyws27hoc.bam \
+    --output-vcf test.vcf.gz \
+    --output-cvg test.cvg.tsv.gz \
+    --nCPU 4 && echo "** 5 done **"
 ```
 
+### Or call variants from bamlist
 ```bash
-time python ../../scripts/geograhic_selection.py -i test2.count.tsv -l test2.pos.list > ee
+
+basevar basetype -R reference.fasta \
+    --regions chr11:5246595-5248428,chr17:41197764-41276135 \
+    --batch-count 50 \
+    -L bamfile.list \ 
+    --output-vcf test.vcf.gz \
+    --output-cvg test.cvg.tsv.gz \
+    --nCPU 4 && echo "** 5 done **"
 
 ```

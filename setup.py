@@ -7,30 +7,30 @@ import os
 
 try:
     from setuptools import setup, find_packages
+    _has_setuptools = True
 except ImportError:
-    from distutils.core import setup
+    from distutils.core import setup, find_packages
 
 
-DESCRIPTION = "BaseVar: A python software for calling variants without calling genotype."
+DESCRIPTION = "BaseVar: A python software for calling variants from ultra low pass WGS data."
 DISTNAME = 'basevar'
-MAINTAINER = 'Shujia Huang (at) BGI'
+MAINTAINER = 'Shujia Huang & Siyang Liu'
 MAINTAINER_EMAIL = 'huangshujia9@gmail.com'
 URL = 'https://git.bgionline.cn/huangshujia/BaseVar'
 LICENSE = 'BSD (3-clause)'
 DOWNLOAD_URL = 'https://git.bgionline.cn/huangshujia/BaseVar'
-VERSION = "1.0.0"
+VERSION = "0.0.1.2"
 
 
 if __name__ == "__main__":
 
-    #long_description = os.path.split(os.path.realpath(__file__))[0] + "/README.rst"
-    long_description = os.path.split(os.path.realpath(__file__))[0] + "/README.md"
-    requirements_file = os.path.split(os.path.realpath(__file__))[0] + "/requirements.txt"
+    # requirements_file = os.path.split(os.path.realpath(__file__))[0] + "/requirements.txt"
+    long_description = os.path.split(os.path.realpath(__file__))[0] + "/README.rst"
 
-    requirements = []
-    with open(requirements_file) as I:
-        for line in I:
-            requirements.append(line.strip())
+    # requirements = []
+    # with open(requirements_file) as I:
+    #     for line in I:
+    #         requirements.append(line.strip())
 
     setup(
         name=DISTNAME,
@@ -46,9 +46,15 @@ if __name__ == "__main__":
         download_url=DOWNLOAD_URL,
         packages=find_packages(),
         include_package_data=True,
-        install_requires=requirements,
+        # install_requires=requirements,
+        install_requires=[
+            'numpy==1.15.4',
+            'pysam==0.12.0.1',
+            'scikit-learn==0.20.2',
+            'scipy==1.1.0'
+        ],
 
-        scripts=[],
+        # scripts=[],
         entry_points={
 
             'console_scripts': [
@@ -58,6 +64,7 @@ if __name__ == "__main__":
         classifiers=[
             'Intended Audience :: Science/Research',
             'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.7',
             'License :: OSI Approved :: BSD License',
             'Topic :: Scientific/Engineering :: Bio-Informatics',
             'Operating System :: POSIX',
