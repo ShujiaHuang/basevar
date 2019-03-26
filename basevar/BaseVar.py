@@ -118,8 +118,8 @@ def coverage(args):
 
 
 def parser_commandline_args():
-    desc = "BaseVar: A python software to call variants without calling genotype for ultra low pass " \
-           "sequencing data."
+    desc = "BaseVar: A python software for calling population variants for ultra low pass " \
+           "whole genome sequencing data."
 
     cmdparse = argparse.ArgumentParser(description=desc)
     commands = cmdparse.add_subparsers(dest="command", title="BaseVar Commands")
