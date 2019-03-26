@@ -21,8 +21,8 @@ class BaseVarProcess(object):
     simple class to repesent a single BaseVar process.
     """
 
-    def __init__(self, ref_file, align_files, in_popgroup_file, regions, samples, mapq=10, batchcount=50,
-                 out_vcf_file=None, out_cvg_file=None, rerun=False, cmm=None):
+    def __init__(self, ref_file, align_files, in_popgroup_file, regions, samples, min_af=0.001, mapq=10, batchcount=50,
+                 out_vcf_file=None, out_cvg_file=None, rerun=False):
         """
         Constructor.
 
@@ -43,9 +43,9 @@ class BaseVarProcess(object):
 
         self.batch_count = batchcount
         self.samples = samples
+        self.min_af = min_af
         self.smart_rerun = rerun
         self.mapq = mapq
-        self.cmm = cmm
 
         # store the region into a dict
         self.regions = utils.regions2dict(regions)
@@ -90,7 +90,7 @@ class BaseVarProcess(object):
                                                            is_smart_rerun=self.smart_rerun)
 
             # Process of variants discovery
-            _is_empty = variants_discovery(chrid, fa, batchfiles, self.popgroup, self.cmm, CVG, VCF)
+            _is_empty = variants_discovery(chrid, fa, batchfiles, self.popgroup, self.min_af, CVG, VCF)
 
             if not _is_empty:
                 is_empty = False

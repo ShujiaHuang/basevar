@@ -15,8 +15,8 @@ class BaseVarBatchProcess(object):
     simple class to repesent a single BaseVar process.
     """
 
-    def __init__(self, ref_file, batch_files, in_popgroup_file, regions, samples,
-                 out_vcf_file=None, out_cvg_file=None, cmm=None):
+    def __init__(self, ref_file, batch_files, in_popgroup_file, regions, samples, min_af=0.001,
+                 out_vcf_file=None, out_cvg_file=None):
         """
         Constructor.
 
@@ -36,7 +36,7 @@ class BaseVarBatchProcess(object):
         self.out_cvg_file = out_cvg_file
 
         self.samples = samples
-        self.cmm = cmm
+        self.min_af = min_af
 
         # store the region into a dict
         self.regions = utils.regions2dict(regions)
@@ -62,7 +62,7 @@ class BaseVarBatchProcess(object):
             # Process of variants discovery
             fa = self.fa_file_hd.fetch(chrid)
             _is_empty = batchfile_variants_discovery(chrid, regions, fa, self.batch_files, self.popgroup,
-                                                     self.cmm, CVG, VCF)
+                                                     self.min_af, CVG, VCF)
 
             if not _is_empty:
                 is_empty = False

@@ -6,11 +6,12 @@ import numpy as np
 from scipy.stats.distributions import chi2
 
 from .algorithm import EM
+from .utils import CommonParameter
 
 
 class BaseType(object):
 
-    def __init__(self, ref_base, bases, quals, cmm=None):
+    def __init__(self, ref_base, bases, quals, min_af):
         """A class for calculate the base probability
 
         Parameters
@@ -34,7 +35,7 @@ class BaseType(object):
         self._alt_bases = []
         self._var_qual = 0  # init the variant quality
         self._ref_base = ref_base
-        self.cmm = cmm
+        self.min_af = min_af
 
         # The allele likelihood for echo individual
         self.ind_allele_likelihood = []
@@ -42,16 +43,17 @@ class BaseType(object):
         # estimated allele frequency by EM and LRT
         self.af_by_lrt = {}
 
-        self.depth = {b: 0 for b in self.cmm.BASE}
+        self.depth = {b: 0 for b in CommonParameter.BASE}
 
         quals = np.array(quals)
-        self.qual_pvalue = 1.0 - np.exp(self.cmm.MLN10TO10 * quals)
+        self.qual_pvalue = 1.0 - np.exp(CommonParameter.MLN10TO10 * quals)
+
         for i, b in enumerate(bases):
             # Individual likelihood for [A, C, G, T], one sample per row
             if b != 'N' and b[0] not in ['-', '+']:  # ignore all the 'N' bases and indels
                 self.ind_allele_likelihood.append([self.qual_pvalue[i]
                                                    if b == t else (1.0 - self.qual_pvalue[i]) / 3
-                                                   for t in self.cmm.BASE])
+                                                   for t in CommonParameter.BASE])
                 # record depth for [ACGT]
                 if b in self.depth:  # ignore '*'
                     self.depth[b] += 1
@@ -68,11 +70,11 @@ class BaseType(object):
         ``bases``: a list like
         """
         total_depth = float(sum([self.depth[b] for b in bases]))
-        allele_frequence = np.zeros(len(self.cmm.BASE))  # [A, C, G, T] set to 0.0
+        allele_frequence = np.zeros(len(CommonParameter.BASE))  # [A, C, G, T] set to 0.0
 
         if total_depth > 0:
             for b in bases:
-                allele_frequence[self.cmm.BASE2IDX[b]] = self.depth[b] / total_depth
+                allele_frequence[CommonParameter.BASE2IDX[b]] = self.depth[b] / total_depth
 
         return np.array(allele_frequence)
 
@@ -136,13 +138,13 @@ class BaseType(object):
             return
 
         if specific_base_comb:
-            # get effective bases which count frequence >= self.cmm.MINAF
+            # get effective bases which count frequence >= self.min_af
             bases = [b for b in specific_base_comb
-                     if self.depth[b] / self.total_depth >= self.cmm.MINAF]
+                     if self.depth[b] / self.total_depth >= self.min_af]
         else:
-            # get effective bases which count frequence >= self.cmm.MINAF
-            bases = [b for b in self.cmm.BASE
-                     if self.depth[b] / self.total_depth >= self.cmm.MINAF]
+            # get effective bases which count frequence >= self.min_af
+            bases = [b for b in CommonParameter.BASE
+                     if self.depth[b] / self.total_depth >= self.min_af]
 
         if len(bases) == 0:
             return
@@ -161,7 +163,7 @@ class BaseType(object):
 
             lr_alt = lr_null[i_min]
             chi_sqrt_value = lrt_chivalue[i_min]
-            if chi_sqrt_value < self.cmm.LRT_THRESHOLD:
+            if chi_sqrt_value < CommonParameter.LRT_THRESHOLD:
                 # Take the null hypothesis and continue
                 bases = bc[i_min]
                 base_frq = bp[i_min]
@@ -170,7 +172,7 @@ class BaseType(object):
                 break
 
         self._alt_bases = [b for b in bases if b != self._ref_base]
-        self.af_by_lrt = {b: '%f' % round(base_frq[self.cmm.BASE2IDX[b]], 6)
+        self.af_by_lrt = {b: '%f' % round(base_frq[CommonParameter.BASE2IDX[b]], 6)
                           for b in bases if b != self._ref_base}
 
         # Todo: improve the calculation method for var_qual

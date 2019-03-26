@@ -16,8 +16,14 @@ class CommonParameter(object):
     MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
     BASE = ['A', 'C', 'G', 'T']
     BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+    MINAF = 0.001  # The effective base freqence threshold
     debug = False
-    MINAF = 0.0001  # The effective base freqence threshold
+
+
+def set_minaf(sample_size):
+    """setting the resolution of MAF for basetype"""
+    cmm = CommonParameter()
+    return min(100.0/sample_size, 0.001, cmm.MINAF)
 
 
 def safe_remove(fname):
@@ -157,7 +163,7 @@ def load_file_list(in_file):
 
 def load_target_position(referencefile, posfile, region_info):
     # Loading positions
-    _sites = get_list_position(posfile) if posfile else {}
+    _sites = get_position_list(posfile) if posfile else {}
 
     fa = FastaFile(referencefile)
     if len(region_info):
@@ -203,7 +209,7 @@ def load_target_position(referencefile, posfile, region_info):
     return regions
 
 
-def get_list_position(in_site_file):
+def get_position_list(in_site_file):
     sites = {}
     with open(in_site_file) as f:
         for r in f:

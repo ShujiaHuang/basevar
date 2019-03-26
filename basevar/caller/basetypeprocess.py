@@ -10,9 +10,10 @@ from pysam import TabixFile
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
 from .utils import fetch_next, vcf_header_define, cvg_header_define, Open
+from .utils import CommonParameter
 
 
-def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def variants_discovery(chrid, fa, batchfiles, popgroup, min_af, cvg_file_handle, vcf_file_handle):
     """Function for variants discovery.
     """
     batch_files_hd = [Open(f, 'rb') for f in batchfiles]
@@ -77,7 +78,7 @@ def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vc
                          strands,
                          read_pos_rank,
                          popgroup,
-                         cmm,
+                         min_af,
                          cvg_file_handle,
                          vcf_file_handle)
 
@@ -87,7 +88,7 @@ def variants_discovery(chrid, fa, batchfiles, popgroup, cmm, cvg_file_handle, vc
     return is_empty
 
 
-def batchfile_variants_discovery(chrid, regions, fa, batchfiles, popgroup, cmm, cvg_file_handle, vcf_file_handle):
+def batchfile_variants_discovery(chrid, regions, fa, batchfiles, popgroup, min_af, cvg_file_handle, vcf_file_handle):
     """Function for variants discovery.
     """
     tmp_region = []
@@ -157,7 +158,7 @@ def batchfile_variants_discovery(chrid, regions, fa, batchfiles, popgroup, cmm, 
                          strands,
                          read_pos_rank,
                          popgroup,
-                         cmm,
+                         min_af,
                          cvg_file_handle,
                          vcf_file_handle)
 
@@ -201,14 +202,14 @@ def _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, infol
 
 
 def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
-                     popgroup, cmm, cvg_file_handle, vcf_file_handle):
+                     popgroup, min_af, cvg_file_handle, vcf_file_handle):
 
-    _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle, cmm=cmm)
+    _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
 
     # Call variant if ``vcf_file_handle`` is not None
     if vcf_file_handle:
 
-        bt = BaseType(ref_base.upper(), bases, base_quals, cmm=cmm)
+        bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
         bt.lrt()
 
         if len(bt.alt_bases()) > 0:
@@ -220,8 +221,7 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
                     group_sample_bases.append(bases[i])
                     group_sample_base_quals.append(base_quals[i])
 
-                group_bt = BaseType(ref_base.upper(), group_sample_bases,
-                                    group_sample_base_quals, cmm=cmm)
+                group_bt = BaseType(ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
 
                 basecombination = [ref_base.upper()] + bt.alt_bases()
                 group_bt.lrt(basecombination)
@@ -238,14 +238,13 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
                           strands,
                           bt,
                           popgroup_bt,
-                          vcf_file_handle,
-                          cmm=cmm)
+                          vcf_file_handle)
     return
 
 
-def _base_depth_and_indel(bases, cmm=None):
+def _base_depth_and_indel(bases):
     # coverage info for each position
-    base_depth = {b: 0 for b in cmm.BASE}
+    base_depth = {b: 0 for b in CommonParameter.BASE}
     indel_depth = {}
 
     for b in bases:
@@ -286,11 +285,11 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
     return
 
 
-def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle, cmm=None):
+def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle):
     """output coverage information into `out_file_handle`"""
 
     # coverage info for each position
-    base_depth, indel_string = _base_depth_and_indel(bases, cmm=cmm)
+    base_depth, indel_string = _base_depth_and_indel(bases)
 
     # base depth and indels for each subgroup
     group_cvg = {}
@@ -300,14 +299,12 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
         for i in index:
             group_sample_bases.append(bases[i])
 
-        bd, ind = _base_depth_and_indel(group_sample_bases, cmm=cmm)
+        bd, ind = _base_depth_and_indel(group_sample_bases)
         group_cvg[group] = [bd, ind]
 
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
     if sum(base_depth.values()) > 0:
-        base_sorted = sorted(base_depth.items(),
-                             key=lambda x: x[1],
-                             reverse=True)
+        base_sorted = sorted(base_depth.items(), key=lambda x: x[1], reverse=True)
 
         b1, b2 = base_sorted[0][0], base_sorted[1][0]
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
@@ -325,13 +322,13 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
                 depth, indel = group_cvg[k]
 
                 indel = [indel] if indel != "." else []
-                s = ':'.join(map(str, [depth[b] for b in cmm.BASE]) + indel)
+                s = ':'.join(map(str, [depth[b] for b in CommonParameter.BASE]) + indel)
                 group_info.append(s)
 
         out_file_handle.write(
             '\t'.join(
                 [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in cmm.BASE] +
+                [str(base_depth[b]) for b in CommonParameter.BASE] +
                 [indel_string] +
                 [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
             ) + '\n'
@@ -341,7 +338,7 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
 
 
 def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample_base_qual,
-                  strands, bt, pop_group_bt, out_file_handle, cmm=None):
+                  strands, bt, pop_group_bt, out_file_handle):
     """output vcf lines into `out_file_handle`"""
 
     alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases())}
@@ -410,7 +407,7 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
 
     out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
                                      ','.join(bt.alt_bases()), str(bt.var_qual()),
-                                     '.' if bt.var_qual() > cmm.QUAL_THRESHOLD else 'LowQual',
+                                     '.' if bt.var_qual() > CommonParameter.QUAL_THRESHOLD else 'LowQual',
                                      ';'.join([k + '=' + v for k, v in sorted(
                                          info.items(), key=lambda x: x[0])]),
                                      'GT:AB:SO:BP'] + samples) + '\n')

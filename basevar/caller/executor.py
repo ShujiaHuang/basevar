@@ -25,11 +25,11 @@ from .vqsr import vqsr
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
-    # Always create process manager even if nCPU==1, so that we can
-    # listen signals from main thread
+    """create regions for each process"""
+
     regions_for_each_process = [[] for _ in range(process_num)]
 
-    # calculate delta for each process
+    # calculate region size for each processes
     total_regions_size = sum([e - s + 1 for _, s, e in regions])
     delta = int(total_regions_size/process_num) + 1 if total_regions_size % process_num else \
         int(total_regions_size/process_num)
@@ -65,6 +65,7 @@ def _generate_regions_for_each_process(regions, process_num=1):
 
 
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
+    """CVG file and VCF file could use the same tabix strategy."""
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
 
         if out_final_file:
@@ -74,7 +75,6 @@ def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
 
 
 def _output_file(sub_files, out_file_name, del_raw_file=False):
-    """CVG file and VCF file could use the same tabix strategy."""
 
     if out_file_name.endswith(".gz"):
         utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
@@ -90,7 +90,7 @@ def _output_file(sub_files, out_file_name, del_raw_file=False):
 
 class BaseTypeRunner(object):
 
-    def __init__(self, args, cmm=utils.CommonParameter()):
+    def __init__(self, args):
         """init function
         """
         # setting parameters
@@ -115,11 +115,8 @@ class BaseTypeRunner(object):
             self.alignfiles += utils.load_file_list(args.infilelist)
 
         # setting the resolution of MAF
-        self.cmm = cmm
-        if args.min_af is None:
-            args.min_af = min(100.0 / len(self.alignfiles), 0.001, self.cmm.MINAF)
+        self.min_af = utils.set_minaf(len(self.alignfiles)) if (args.min_af is None) else args.min_af
 
-        self.cmm.MINAF = args.min_af
         sys.stderr.write('[INFO] Finish loading arguments and we have %d BAM/CRAM files for '
                          'variants calling. %s\n' % (len(self.alignfiles), time.asctime()))
 
@@ -228,12 +225,12 @@ class BaseTypeRunner(object):
                                            self.pop_group_file,
                                            self.regions_for_each_process[i],
                                            self.sample_id,
+                                           min_af=self.min_af,
                                            mapq=self.mapq,
                                            batchcount=self.batchcount,
                                            out_cvg_file=sub_cvg_file,
                                            out_vcf_file=sub_vcf_file,
-                                           rerun=self.smartrerun,
-                                           cmm=self.cmm))
+                                           rerun=self.smartrerun))
 
         process_runner(processes)
 
@@ -245,7 +242,7 @@ class BaseTypeRunner(object):
 
 class BaseTypeBatchRunner(object):
 
-    def __init__(self, args, cmm=utils.CommonParameter()):
+    def __init__(self, args):
         """init function
         """
         # setting parameters
@@ -269,11 +266,7 @@ class BaseTypeBatchRunner(object):
         self.sample_id = self._load_sample_id_from_batchheader()
 
         # setting the resolution of MAF
-        self.cmm = cmm
-        if args.min_af is None:
-            args.min_af = min(100.0 / len(self.sample_id), 0.001, self.cmm.MINAF)
-
-        self.cmm.MINAF = args.min_af
+        self.min_af = utils.set_minaf(len(self.sample_id)) if (args.min_af is None) else args.min_af
         sys.stderr.write('[INFO] Finish loading arguments and we have %d BAM/CRAM files for '
                          'variants calling. %s\n' % (len(self.batch_files), time.asctime()))
 
@@ -338,9 +331,9 @@ class BaseTypeBatchRunner(object):
                                            self.pop_group_file,
                                            self.regions_for_each_process[i],
                                            self.sample_id,
+                                           min_af=self.min_af,
                                            out_cvg_file=sub_cvg_file,
-                                           out_vcf_file=sub_vcf_file,
-                                           cmm=self.cmm))
+                                           out_vcf_file=sub_vcf_file))
 
         process_runner(processes)
 
