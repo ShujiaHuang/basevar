@@ -10,113 +10,6 @@ import sys
 import time
 
 
-def basetype(args):
-    from caller.executor import BaseTypeRunner
-
-    if args.outbatchfile and (args.outvcf or args.outcvg):
-        sys.stderr.write("[ERROR] Don't set '--output-vcf' or '--output-cvg' if you have set "
-                         "'--output-batch-file'.\n\n")
-        sys.exit(1)
-
-    # Make sure you have set at least one output parameter.
-    if not (args.outbatchfile or args.outvcf or args.outcvg):
-        sys.stderr.write("[ERROR] Missing '--output-vcf' or '--output-cvg' or "
-                         "'--output-batch-file'.\n\n")
-        sys.exit(1)
-
-    if not args.outbatchfile and not args.outcvg:
-        sys.stderr.write("[ERROR] argument '--output-cvg' is required if not set '--output-batch-file'\n\n")
-        sys.exit(1)
-
-    if args.smartrerun:
-        sys.stderr.write("************************************************\n"
-                         "******************* WARNING ********************\n"
-                         "************************************************\n"
-                         ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
-                         "Please make sure all the parameters are the same\n"
-                         "with your previous commands.\n"
-                         "************************************************\n\n")
-
-    # Make sure you have set at least one bamfile.
-    if not args.input and not args.infilelist:
-        sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
-        sys.exit(1)
-
-    # The main function
-    bt = BaseTypeRunner(args)
-
-    if not args.outbatchfile:
-        processer = bt.basevar_caller()
-    else:
-        processer = bt.batch_generator()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
-
-
-def basetypebatch(args):
-    from caller.executor import BaseTypeBatchRunner
-
-    # Make sure you have set at least one input file.
-    if not args.input and not args.infilelist:
-        sys.stderr.write("[ERROR] Missing input batch files.\n\n")
-        sys.exit(1)
-
-    bt = BaseTypeBatchRunner(args)
-
-    processer = bt.basevar_caller()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
-
-
-def vqsr(args):
-    # Todo: VQSR need to improve
-    from caller.executor import VQSRRuner
-    vq = VQSRRuner(args)
-    vq.run()
-
-    return True
-
-
-def nearby_indel(args):
-    from caller.executor import NearbyIndelRunner
-    nbi = NearbyIndelRunner(args)
-    nbi.run()
-
-    return True
-
-
-def merge(args):
-    from caller.executor import MergeRunner
-
-    mg = MergeRunner(args)
-    mg.run()
-
-    return True
-
-
-def coverage(args):
-    from caller.executor import CoverageRunner
-    cvg = CoverageRunner(args)
-    processer = cvg.run()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
-
-
 def parser_commandline_args():
     desc = "BaseVar: A python software for calling population variants for ultra low pass " \
            "whole genome sequencing data."
@@ -265,7 +158,150 @@ def parser_commandline_args():
     nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
                          type=int, default=16, help='The distance around indels. [16]')
 
+    # population matrix
+    mat_cmd = commands.add_parser('popmatrix', help='Create population matrix from bamfiles in specific positions.')
+    mat_cmd.add_argument('-I', '--input', dest='input', metavar='BAM/CRAM', action='append', default=[],
+                         help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
+                              'least once.')
+    mat_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='BamfilesList',
+                         help='BAM/CRAM files list, one file per row.')
+    mat_cmd.add_argument('-R', '--reference', type=str, dest='referencefile', metavar='Reference_fasta', required=True,
+                         help='Input reference fasta file.')
+    mat_cmd.add_argument('--positions', metavar='position-file', type=str, dest='positions', required=True,
+                         help='Skip unlisted positions one per row. Position file format must be (CHRID POS REF ALT).')
+    mat_cmd.add_argument('--output', metavar='FILE', type=str, dest='output_file', required=True,
+                         help='Path of output population matrix file.')
+
+    mat_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
+                         help='Only include reads with mapping quality >= INT. [10]')
+    mat_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
+                         help='INT simples per batchfile. [200]')
+    mat_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
+                         help='Number of processer to use. [1]')
+    mat_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
+                         help="If the name of bamfile is something like 'SampleID.xxxx.bam', "
+                              "you can set this parameter to save a lot of time during get the "
+                              "sample id from BAM header.")
+    mat_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
+                         help='Rerun process by checking batchfiles.')
+
     return cmdparse.parse_args()
+
+
+def basetype(args):
+    from caller.executor import BaseTypeRunner
+
+    if args.outbatchfile and (args.outvcf or args.outcvg):
+        sys.stderr.write("[ERROR] Don't set '--output-vcf' or '--output-cvg' if you have set "
+                         "'--output-batch-file'.\n\n")
+        sys.exit(1)
+
+    # Make sure you have set at least one output parameter.
+    if not (args.outbatchfile or args.outvcf or args.outcvg):
+        sys.stderr.write("[ERROR] Missing '--output-vcf' or '--output-cvg' or "
+                         "'--output-batch-file'.\n\n")
+        sys.exit(1)
+
+    if not args.outbatchfile and not args.outcvg:
+        sys.stderr.write("[ERROR] argument '--output-cvg' is required if not set '--output-batch-file'\n\n")
+        sys.exit(1)
+
+    if args.smartrerun:
+        sys.stderr.write("************************************************\n"
+                         "******************* WARNING ********************\n"
+                         "************************************************\n"
+                         ">>>>>>>> You have setted `smart rerun` <<<<<<<<<\n"
+                         "Please make sure all the parameters are the same\n"
+                         "with your previous commands.\n"
+                         "************************************************\n\n")
+
+    # Make sure you have set at least one bamfile.
+    if not args.input and not args.infilelist:
+        sys.stderr.write("[ERROR] Missing input BAM/CRAM files.\n\n")
+        sys.exit(1)
+
+    # The main function
+    bt = BaseTypeRunner(args)
+
+    if not args.outbatchfile:
+        processer = bt.basevar_caller()
+    else:
+        processer = bt.batch_generator()
+
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
+
+    return is_success
+
+
+def basetypebatch(args):
+    from caller.executor import BaseTypeBatchRunner
+
+    # Make sure you have set at least one input file.
+    if not args.input and not args.infilelist:
+        sys.stderr.write("[ERROR] Missing input batch files.\n\n")
+        sys.exit(1)
+
+    bt = BaseTypeBatchRunner(args)
+
+    processer = bt.basevar_caller()
+
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
+
+    return is_success
+
+
+def vqsr(args):
+    # Todo: VQSR need to improve
+    from caller.executor import VQSRRuner
+    vq = VQSRRuner(args)
+    vq.run()
+
+    return True
+
+
+def nearby_indel(args):
+    from caller.executor import NearbyIndelRunner
+    nbi = NearbyIndelRunner(args)
+    nbi.run()
+
+    return True
+
+
+def popmatrx(args):
+    from caller.executor import PopulationMatrixRunner
+
+    pr = PopulationMatrixRunner(args)
+    pr.create_matrix()
+
+    return True
+
+
+def merge(args):
+    from caller.executor import MergeRunner
+
+    mg = MergeRunner(args)
+    mg.run()
+
+    return True
+
+
+def coverage(args):
+    from caller.executor import CoverageRunner
+    cvg = CoverageRunner(args)
+    processer = cvg.run()
+
+    is_success = True
+    for p in processer:
+        if p.exitcode != 0:
+            is_success = False
+
+    return is_success
 
 
 def main():
@@ -276,7 +312,8 @@ def main():
         'merge': merge,
         'coverage': coverage,
         'NearByIndel': nearby_indel,
-        'VQSR': vqsr
+        'VQSR': vqsr,
+        'popmatrix': popmatrx
     }
 
     args = parser_commandline_args()

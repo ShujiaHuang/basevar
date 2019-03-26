@@ -507,7 +507,7 @@ def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw
     return
 
 
-def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False):
+def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False, justbase=False):
     """
     Merging output batch files into a final big one.
 
@@ -571,23 +571,33 @@ def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_d
                     sys.exit(1)
 
                 depth += int(col[3])
-                mapqs.append(col[4])
-                read_bases.append(col[5])
-                read_base_quals.append(col[6])
-                read_pos_rank.append(col[7])
-                strands.append(col[8])
+
+                if not justbase:
+                    mapqs.append(col[4])
+                    read_bases.append(col[5])
+                    read_base_quals.append(col[6])
+                    read_pos_rank.append(col[7])
+                    strands.append(col[8])
+                else:
+                    # The 5th column is readbase!
+                    read_bases.append(col[4])
 
             # cat all the info together and create ...
             depth = str(depth)
-            mapqs = ",".join(mapqs)
-            read_bases = ",".join(read_bases)
-            read_base_quals = ",".join(read_base_quals)
-            read_pos_rank = ",".join(read_pos_rank)
-            strands = ",".join(strands)
 
-            # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
-            output_file.write("%s\n" % "\t".join([chrid, position, ref_base, depth, mapqs, read_bases,
-                                                  read_base_quals, read_pos_rank, strands]))
+            if not justbase:
+                mapqs = ",".join(mapqs)
+                read_bases = ",".join(read_bases)
+                read_base_quals = ",".join(read_base_quals)
+                read_pos_rank = ",".join(read_pos_rank)
+                strands = ",".join(strands)
+
+                # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+                output_file.write("%s\n" % "\t".join([chrid, position, ref_base, depth, mapqs, read_bases,
+                                                      read_base_quals, read_pos_rank, strands]))
+            else:
+                # [CHROM POS REF Depth Readbases]
+                output_file.write("%s\n" % "\t".join([chrid, position, ref_base, depth, ",".join(read_bases)]))
 
     else:
 

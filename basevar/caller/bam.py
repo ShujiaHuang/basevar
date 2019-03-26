@@ -36,12 +36,15 @@ def close_align_file(ali_files_hd):
 
 
 def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, mapq, outdir,
-                                  sample_ids=None, is_smart_rerun=False):
+                                  sample_ids=None, is_smart_rerun=False, justbase=False):
     """
     ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
     ``fa``:
         # get sequence of chrid from reference fasta
         fa = self.ref_file_hd.fetch(chrid)
+
+    justbase: bool
+                Just outout base in batch file
     """
     # store all the batch files
     batchfiles = []
@@ -83,7 +86,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
             batch_sample_ids = sample_ids[i:i + batchcount]
 
         create_single_batchfile(chrid, bigstart, bigend, regions, sub_align_files, fa, mapq, part_file_name,
-                                batch_sample_ids=batch_sample_ids)
+                                batch_sample_ids=batch_sample_ids, justbase=justbase)
 
         elapsed_time = time.time() - start_time
         sys.stderr.write("[INFO] Done for batchfile %s at %s, %d seconds elapsed\n"
@@ -93,7 +96,7 @@ def create_batchfiles_for_regions(chrid, regions, batchcount, align_files, fa, m
 
 
 def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files, fa, mapq,
-                            out_batch_file, batch_sample_ids=None):
+                            out_batch_file, batch_sample_ids=None, justbase=False):
     # One batch of alignment files
     ali_files_hd = open_align_files(batch_align_files)
 
@@ -115,9 +118,14 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
         if batch_sample_ids:
             OUT.write("##SampleIDs=%s\n" % ",".join(batch_sample_ids))
 
-        OUT.write("%s\n" % "\t".join(
-            ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
-             "ReadbasesQuality", "ReadPositionRank", "Strand"]))
+        if not justbase:
+            suff_header = ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
+                           "ReadbasesQuality", "ReadPositionRank", "Strand"]
+        else:
+            # reset the header if just output base (This is for population matrix)
+            suff_header = ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "Readbases"]
+
+        OUT.write("%s\n" % "\t".join(suff_header))
 
         # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
         sample_info = [utils.fetch_next(it) for it in iter_tokes]
@@ -142,32 +150,41 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
                 if ref_base.upper() not in ['A', 'C', 'G', 'T']:
                     continue
 
-                (depth, sample_bases, sample_base_quals,
-                 strands, mapqs, read_pos_rank) = fetch_base_by_position(
+                (depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank) = fetch_base_by_position(
                     position - 1,  # position for pysam is 0-base
                     sample_info,
                     iter_tokes,
                     mapq,
-                    fa  # Fa sequence for indel sequence
+                    fa,  # Fa sequence for indel sequence
+                    justbase
                 )
 
-                OUT.write("%s\n" % "\t".join([
-                    chrid,
-                    str(position),
-                    ref_base,
-                    str(depth),
-                    ",".join(map(str, mapqs)),
-                    ",".join(sample_bases),
-                    ",".join(map(str, sample_base_quals)),
-                    ",".join(map(str, read_pos_rank)),
-                    ",".join(strands)
-                ]))
+                if not justbase:
+                    OUT.write("%s\n" % "\t".join([
+                        chrid,
+                        str(position),
+                        ref_base,
+                        str(depth),
+                        ",".join(map(str, mapqs)),
+                        ",".join(sample_bases),
+                        ",".join(map(str, sample_base_quals)),
+                        ",".join(map(str, read_pos_rank)),
+                        ",".join(strands)
+                    ]))
+                else:
+                    OUT.write("%s\n" % "\t".join([
+                        chrid,
+                        str(position),
+                        ref_base,
+                        str(depth),
+                        ",".join(sample_bases)
+                    ]))
 
     close_align_file(ali_files_hd)
     return
 
 
-def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
+def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa, justbase=False):
     """
     """
     base_quals = []
@@ -179,22 +196,25 @@ def fetch_base_by_position(position, sample_info, iter_tokes, mapq_thd, fa):
 
     for i, sample_pos_line in enumerate(sample_info):
 
-        bs, qs, strand, mapq, rpr, sample_info[i] = seek_position(position, sample_pos_line,
-                                                                  iter_tokes[i], mapq_thd, fa)
+        bs, qs, strand, mapq, rpr, sample_info[i] = seek_position(position, sample_pos_line, iter_tokes[i],
+                                                                  mapq_thd, fa, justbase)
 
-        bases.append(bs)
-        base_quals.append(qs)
-        strands.append(strand)
-        mapqs.append(mapq)
-        read_pos_rank.append(rpr)
+        if not justbase:
+            bases.append(bs)
+            base_quals.append(qs)
+            strands.append(strand)
+            mapqs.append(mapq)
+            read_pos_rank.append(rpr)
+        else:
+            bases.append(bs)
 
-        if qs:
+        if bs != 'N':
             depth += 1
 
     return depth, bases, base_quals, strands, mapqs, read_pos_rank
 
 
-def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa):
+def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa, justbase=False):
     """Get mapping info for specific position.
 
     `fa`: Use for scanning indels
@@ -216,9 +236,46 @@ def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa):
 
         # sample_pos_line may hit the end of file
         if sample_pos_line and sample_pos_line.pos == target_pos:
-            base, strand, qual, mapq, rpr = first_base(sample_pos_line, sample_pos_line.pos, mapq_thd, fa)
+            base, strand, qual, mapq, rpr = first_base(sample_pos_line, sample_pos_line.pos, mapq_thd, fa, justbase)
 
     return base, qual, strand, mapq, rpr, sample_pos_line
+
+
+def first_base(sample_pos_line, position, mapq_thd, fa, justbase=False):
+    """Just get first alignement base for each sample.
+
+    Parameter
+    =========
+        ``justbase``: bool
+            Just get base information
+    """
+    base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
+    for read in sample_pos_line.pileups:
+
+        if read.alignment.mapq < mapq_thd:
+            continue
+
+        # skip read which mapping quality less then ``mapq_thd``
+        strand = '-' if read.alignment.is_reverse else '+'
+        mapq = read.alignment.mapq
+        if read.indel and (not justbase):
+            base = scan_indel(read, position, fa)
+            break
+
+        elif not read.is_del and not read.is_refskip:
+            base = read.alignment.query_sequence[read.query_position]
+
+            if not justbase:
+                # Todo: much faster than `read.alignment.qqual[read.query_position]`
+                #  but I don't know why.
+                qual = read.alignment.query_qualities[read.query_position]
+                rpr = read.query_position + 1
+
+            # Just get base from first read and skip others,
+            # no matter the first one it's indel or not.
+            break
+
+    return base, strand, qual, mapq, rpr
 
 
 def scan_indel(read, target_pos, fa):
@@ -301,33 +358,3 @@ def scan_indel(read, target_pos, fa):
 
     return indel if indel else 'N'
 
-
-def first_base(sample_pos_line, position, mapq_thd, fa):
-    """Just get first alignement base for each sample.
-    """
-    base, strand, qual, rpr, mapq = 'N', '.', 0, 0, 0  # Init
-    for read in sample_pos_line.pileups:
-
-        if read.alignment.mapq < mapq_thd:
-            continue
-
-        # skip read which mapping quality less then ``mapq_thd``
-        strand = '-' if read.alignment.is_reverse else '+'
-        mapq = read.alignment.mapq
-        if read.indel:
-            base = scan_indel(read, position, fa)
-            break
-
-        elif not read.is_del and not read.is_refskip:
-            rpr = read.query_position + 1
-            base = read.alignment.query_sequence[read.query_position]
-
-            # Todo: much faster than `read.alignment.qqual[read.query_position]`
-            #  and I don't know why.
-            qual = read.alignment.query_qualities[read.query_position]
-
-            # Just get base from first read and skip others,
-            # no matter the first one it's indel or not.
-            break
-
-    return base, strand, qual, mapq, rpr

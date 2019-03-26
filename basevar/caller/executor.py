@@ -31,8 +31,8 @@ def _generate_regions_for_each_process(regions, process_num=1):
 
     # calculate region size for each processes
     total_regions_size = sum([e - s + 1 for _, s, e in regions])
-    delta = int(total_regions_size/process_num) + 1 if total_regions_size % process_num else \
-        int(total_regions_size/process_num)
+    delta = int(total_regions_size / process_num) + 1 if total_regions_size % process_num else \
+        int(total_regions_size / process_num)
 
     # reset
     total_regions_size = 0
@@ -64,6 +64,43 @@ def _generate_regions_for_each_process(regions, process_num=1):
     return regions_for_each_process
 
 
+def _load_sample_id_from_bam(bamfiles, filename_has_samplename=True):
+    """loading sample id in BAM/CRMA files from RG tag"""
+
+    sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
+    if filename_has_samplename:
+        sys.stderr.write('[INFO] loading samples\' id from filename because you '
+                         'set "--filename-has-samplename"\n')
+    sample_id = []
+    for i, al in enumerate(bamfiles):
+
+        if i % 1000 == 0:
+            sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
+                             (i + 1, len(bamfiles), time.asctime()))
+
+        if filename_has_samplename:
+            filename = os.path.basename(al)
+
+            # sample id should be the first element separate by ".",
+            # e.g: "CL100045504_L02_61.sorted.rmdup.realign.BQSR.bam", "CL100045504_L02_61" is sample id.
+            sample_id.append(filename.split(".")[0])
+
+        else:
+
+            # This situation will take a very long time to get sampleID from BAM header.
+            bf = AlignmentFile(al)
+            if 'RG' not in bf.header:
+                sys.stderr.write('[ERROR] Bam file format error: missing @RG in the header.\n')
+                bf.close()
+                sys.exit(1)
+
+            sample_id.append(bf.header['RG'][0]['SM'])
+            bf.close()
+
+    sys.stderr.write('[INFO] Finish loading all %d samples\' ID\n\n' % len(sample_id))
+    return sample_id
+
+
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     """CVG file and VCF file could use the same tabix strategy."""
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
@@ -75,7 +112,6 @@ def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
 
 
 def _output_file(sub_files, out_file_name, del_raw_file=False):
-
     if out_file_name.endswith(".gz"):
         utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
 
@@ -122,43 +158,7 @@ class BaseTypeRunner(object):
 
         # loading all the sample id from aligne_files
         # ``samples_id`` has the same size and order as ``aligne_files``
-        self.sample_id = self._load_sample_id_from_bam(filename_has_samplename=args.filename_has_samplename)
-
-    def _load_sample_id_from_bam(self, filename_has_samplename=True):
-        """loading sample id in BAM/CRMA files from RG tag"""
-
-        sys.stderr.write('[INFO] Start loading all samples\' id from alignment files\n')
-        if filename_has_samplename:
-            sys.stderr.write('[INFO] loading samples\' id from filename because you '
-                             'set "--filename-has-samplename"\n')
-        sample_id = []
-        for i, al in enumerate(self.alignfiles):
-
-            if i % 1000 == 0:
-                sys.stderr.write("[INFO] loading %d/%d alignment files ... %s\n" %
-                                 (i + 1, len(self.alignfiles), time.asctime()))
-
-            if filename_has_samplename:
-                filename = os.path.basename(al)
-
-                # sample id should be the first element separate by ".",
-                # e.g: "CL100045504_L02_61.sorted.rmdup.realign.BQSR.bam", "CL100045504_L02_61" is sample id.
-                sample_id.append(filename.split(".")[0])
-
-            else:
-
-                # This situation will take a very long time to get sampleID from BAM header.
-                bf = AlignmentFile(al)
-                if 'RG' not in bf.header:
-                    sys.stderr.write('[ERROR] Bam file format error: missing @RG in the header.\n')
-                    bf.close()
-                    sys.exit(1)
-
-                sample_id.append(bf.header['RG'][0]['SM'])
-                bf.close()
-
-        sys.stderr.write('[INFO] Finish loading all %d samples\' ID\n\n' % len(sample_id))
-        return sample_id
+        self.sample_id = _load_sample_id_from_bam(self.alignfiles, filename_has_samplename=args.filename_has_samplename)
 
     def batch_generator(self):
         """Create batchfile for the input align files"""
@@ -345,6 +345,7 @@ class BaseTypeBatchRunner(object):
 
 class VQSRRuner(object):
     """Runner for VQSR"""
+
     def __init__(self, args):
         """Init function"""
         self.args = args
@@ -460,3 +461,133 @@ class NearbyIndelRunner(object):
         nbi.run()
 
         return self
+
+
+class PopulationMatrixRunner(object):
+    """Create Population matrix"""
+    def __init__(self, args):
+        # setting parameters
+        self.alignfiles = args.input
+        self.input_postion_file = args.positions
+        self.output = args.output_file
+
+        self.nCPU = args.nCPU
+        self.mapq = args.mapq
+        self.reference_file = args.referencefile
+        self.batchcount = args.batchcount
+        self.smartrerun = True if args.smartrerun else False
+
+        # Loading positions or load all the genome regions
+        sites, regions = self.load_position()
+        self.sites = sites  # A dict
+        self.regions_for_each_process = _generate_regions_for_each_process(regions, process_num=self.nCPU)
+
+        if args.infilelist:
+            self.alignfiles += utils.load_file_list(args.infilelist)
+
+        sys.stderr.write('[INFO] Finish loading arguments and we have %d BAM/CRAM files for '
+                         'variants calling. %s\n' % (len(self.alignfiles), time.asctime()))
+
+        # loading all the sample id from aligne_files
+        # ``samples_id`` has the same size and order as ``aligne_files``
+        self.sample_id = _load_sample_id_from_bam(self.alignfiles, filename_has_samplename=args.filename_has_samplename)
+
+    def load_position(self):
+        sites, regiondict = {}, {}
+        with open(self.input_postion_file) as f:
+            for r in f:
+                # chr1	15777	G	A
+                tok = r.strip().split()
+                k = tok[0] + ':' + tok[1]
+                sites[k] = [tok[2].upper(), tok[3].upper()]
+
+                if tok[0] not in regiondict:
+                    regiondict[tok[0]] = []
+
+                regiondict[tok[0]].append([int(tok[1]), int(tok[1])])
+
+        # merge and sort the regions make sure all the positions are in order
+        regions = []
+        for chrid, v in sorted(regiondict.items(), key=lambda x: x[0]):
+            for start, end in utils.merge_region(v):
+                regions.append([chrid, start, end])
+
+        return sites, regions
+
+    def create_matrix(self):
+        """Create matrix from the input align files"""
+        sys.stderr.write('[INFO] Start create population matrix ... %s\n' % time.asctime())
+
+        out_basebatch_names = []
+        processes = []
+        # Always create process manager even if nCPU==1, so that we can
+        # listen signals from main thread
+        for i in range(self.nCPU):
+            sub_basebatch_file = self.output + '_temp_%s' % i
+            out_basebatch_names.append(sub_basebatch_file)
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s]\n' % (i + 1, self.nCPU, sub_basebatch_file))
+            processes.append(CallerProcess(BatchProcess,
+                                           self.reference_file,
+                                           self.alignfiles,
+                                           self.regions_for_each_process[i],
+                                           self.sample_id,
+                                           mapq=self.mapq,
+                                           batchcount=self.batchcount,
+                                           out_batch_file=sub_basebatch_file,
+                                           rerun=self.smartrerun,
+                                           justbase=True))
+
+        process_runner(processes)
+
+        # Final output: regions_for_each_process keep the same position order with the input file 'args.positions'
+        with utils.Open(self.output, 'wb', isbgz=True if self.output.endswith(".gz") else False) as OUT:
+            for index, sub_file_name in enumerate(out_basebatch_names):
+                sample_id = []
+                with utils.Open(sub_file_name, 'rb') as IN:
+                    for line in IN:
+                        col = line.strip().split()
+                        if line[0] == "#":
+                            if index == 0:
+                                if col[0].startswith("##SampleIDs="):
+                                    sample_id = col[0].split("=")[1].split(",")
+
+                                if col[0].startswith("#CHROM"):
+                                    col.pop()
+                                    OUT.write("#CHROM\tPOS\tREF\tALT\tDepth\tALT_Freq\t%s\n" % "\t".join(sample_id))
+                        else:
+                            # #CHROM  POS  REF  Depth(CoveredSample)  Readbases
+                            bases = col[4].split(",")
+
+                            k = col[0] + ":" + col[1]
+                            (ref_base, target_alt) = self.sites[k] if k in self.sites else ('', '')
+                            if ref_base and ref_base != col[2].upper():
+                                sys.stderr.write(
+                                    "[Error] Error happen when final output, %s not in %s!\n" %
+                                    (line.strip(), self.input_postion_file))
+                                sys.exit(1)
+
+                            depth = float(col[3])
+                            target_alt_num = 0
+                            for i in range(len(bases)):
+                                if bases[i] != "N":
+                                    if bases[i] == target_alt:
+                                        target_alt_num += 1
+                                        bases[i] = '1'
+                                    elif bases[i] == ref_base:
+                                        bases[i] = '0'
+                                    else:
+                                        bases[i] = '.'
+                                else:
+                                    bases[i] = '.'
+
+                            OUT.write("%s\t%.6f\t%s\n" % ("\t".join([col[0], col[1], col[2], target_alt, col[3]]),
+                                                          target_alt_num/depth if depth > 0 else 0,
+                                                          "\t".join(bases)))
+
+                # remove the tmp file
+                os.remove(sub_file_name)
+
+        if self.output.endswith(".gz"):
+            tabix_index(self.output, force=True, seq_col=0, start_col=1, end_col=1)

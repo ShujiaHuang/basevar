@@ -1,6 +1,4 @@
-"""
-This is a Process module for batch BaseType by BAM/CRAM
-
+"""This is a Process module for batch BaseType by BAM/CRAM
 """
 import sys
 

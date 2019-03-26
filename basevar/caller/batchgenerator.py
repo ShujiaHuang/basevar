@@ -17,23 +17,26 @@ REMOVE_BATCH_FILE = True
 
 class BatchProcess(object):
     """
-    simple class to repesent a single BaseVar process.
+    simple class to repesent a single process.
     """
 
     def __init__(self, ref_file, align_files, regions, samples, mapq=10, batchcount=50,
-                 out_batch_file=None, rerun=False):
+                 out_batch_file=None, rerun=False, justbase=False):
         """
         Constructor.
 
         Store input file, options and output file name.
 
-        Parameters:
-        ===========
+        Parameters
+        ==========
             samples: list like
                 A list of sample id
 
             regions: 2d-array like, required
                     It's region info , format like: [[chrid, start, end], ...]
+
+            justbase: bool
+                Just outout base in batch file
         """
         self.ref_file_path = ref_file
         self.ref_file_hd = FastaFile(ref_file)
@@ -44,6 +47,7 @@ class BatchProcess(object):
         self.samples = samples
         self.mapq = mapq
         self.smart_rerun = rerun
+        self.justbase = justbase
 
         # store the region into a dict
         self.regions = utils.regions2dict(regions)
@@ -75,7 +79,8 @@ class BatchProcess(object):
                                                                    self.mapq,
                                                                    cache_dir,
                                                                    sample_ids=self.samples,
-                                                                   is_smart_rerun=self.smart_rerun)
+                                                                   is_smart_rerun=self.smart_rerun,
+                                                                   justbase=self.justbase)
 
             # The same group of samples has the same suffix in filename
             for filename in region_batch_files:
@@ -97,7 +102,8 @@ class BatchProcess(object):
             utils.merge_files(batch_files, region_batch_file, is_del_raw_file=True)
 
         # Merge the same region but different samples
-        utils.merge_batch_files(regions_batch_files, self.out_batch_file, is_del_raw_file=True)
+        utils.merge_batch_files(regions_batch_files, self.out_batch_file, is_del_raw_file=True,
+                                justbase=self.justbase)
 
         if REMOVE_BATCH_FILE:
             try:

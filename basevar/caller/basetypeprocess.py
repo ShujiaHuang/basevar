@@ -1,6 +1,4 @@
-"""
-This is a Process module for BaseType
-
+"""This is a Process module for BaseType
 """
 import sys
 import time
