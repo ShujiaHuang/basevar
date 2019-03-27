@@ -192,7 +192,7 @@ def basetype(args):
     from caller.executor import BaseTypeRunner
 
     if args.outbatchfile and (args.outvcf or args.outcvg):
-        sys.stderr.write("[ERROR] Don't set '--output-vcf' or '--output-cvg' if you have set "
+        sys.stderr.write("[ERROR] No need to set '--output-vcf' or '--output-cvg' if you have "
                          "'--output-batch-file'.\n\n")
         sys.exit(1)
 
