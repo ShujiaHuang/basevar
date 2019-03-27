@@ -214,7 +214,9 @@ def get_position_list(in_site_file):
     with open(in_site_file) as f:
         for r in f:
             tok = r.strip().split()
-            if tok[0] not in sites: sites[tok[0]] = []
+            if tok[0] not in sites:
+                sites[tok[0]] = []
+
             if len(tok) < 3:
                 sites[tok[0]].append([int(tok[1]), int(tok[1])])
             else:
@@ -281,8 +283,10 @@ def merge_region(position_region, delta=1):
             sys.exit(1)
 
         if prepos == '':
-            # # The light is on => Get the region!
-            if flag: m_region.append([start, end])
+            # The light is on => Get the region!
+            if flag:
+                m_region.append([start, end])
+
             start, end = s, e
             flag = True
 
@@ -328,7 +332,7 @@ def get_minor_major(base):
     return mi, mj, sorted_bc
 
 
-def expandedOpen(path, mode):
+def expanded_open(path, mode):
     try:
         return open(path, mode)
     except IOError:
@@ -347,7 +351,7 @@ def Open(file_name, mode, compress_level=9, isbgz=False):
 
         return BGZFile(file_name, mode) if isbgz else gzip.GzipFile(file_name, mode, compress_level)
     else:
-        return expandedOpen(file_name, mode)
+        return expanded_open(file_name, mode)
 
 
 class FileForQueueing(object):
@@ -405,7 +409,16 @@ class FileForQueueing(object):
         Comparison function. Utilises the comparison function defined in
         the AlignedRead class.
         """
-        return cmp(self.chrom, other.chrom) or cmp(self.pos, other.pos)
+        def _comparision(a, b):
+            if a < b:
+                return -1
+            elif a > b:
+                return 1
+            else:
+                return 0
+
+        # return cmp(self.chrom, other.chrom) or cmp(self.pos, other.pos)
+        return _comparision(self.chrom, other.chrom) or _comparision(self.pos, other.pos)
 
     def __del__(self):
         """
