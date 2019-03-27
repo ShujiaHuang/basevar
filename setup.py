@@ -16,9 +16,9 @@ DESCRIPTION = "BaseVar: A python software for calling variants from ultra low pa
 DISTNAME = 'basevar'
 MAINTAINER = 'Shujia Huang & Siyang Liu'
 MAINTAINER_EMAIL = 'huangshujia9@gmail.com'
-URL = 'https://git.bgionline.cn/huangshujia/BaseVar'
+URL = 'https://github.com/ShujiaHuang/basevar'
 LICENSE = 'BSD (3-clause)'
-DOWNLOAD_URL = 'https://git.bgionline.cn/huangshujia/BaseVar'
+DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
 VERSION = "0.0.1.2"
 
 
