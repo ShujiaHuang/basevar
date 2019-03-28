@@ -564,8 +564,10 @@ class PopulationMatrixRunner(object):
                             (ref_base, target_alt) = self.sites[k] if k in self.sites else ('', '')
                             if ref_base and ref_base != col[2].upper():
                                 sys.stderr.write(
-                                    "[Error] Error happen when final output, %s not in %s!\n" %
-                                    (line.strip(), self.input_postion_file))
+                                    "[Error] Error happen when final output in create_matrix(), "
+                                    "reference base (%s != %s) in %s, in %s and %s!\n" % (
+                                        col[2], ref_base, k, sub_file_name, self.input_postion_file)
+                                )
                                 sys.exit(1)
 
                             depth = float(col[3])
