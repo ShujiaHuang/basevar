@@ -494,7 +494,7 @@ class PopulationMatrixRunner(object):
 
     def load_position(self):
         sites, regiondict = {}, {}
-        with open(self.input_postion_file) as f:
+        with utils.Open(self.input_postion_file, 'rb') as f:
             for r in f:
                 # chr1	15777	G	A
                 tok = r.strip().split()
