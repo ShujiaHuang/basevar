@@ -155,7 +155,7 @@ def fetch_next(iter_fh):
 
 
 def load_file_list(in_file):
-    with open(in_file) as fh:
+    with Open(in_file, 'rb') as fh:
         files = [r.strip().split()[0] for r in fh if r[0] != '#']
 
     return files
@@ -211,7 +211,7 @@ def load_target_position(referencefile, posfile, region_info):
 
 def get_position_list(in_site_file):
     sites = {}
-    with open(in_site_file) as f:
+    with Open(in_site_file, 'rb') as f:
         for r in f:
             tok = r.strip().split()
             if tok[0] not in sites:
@@ -227,7 +227,7 @@ def get_position_list(in_site_file):
 
 def get_region_fromfile(in_region_file):
     regions = []
-    with open(in_region_file) as f:
+    with Open(in_region_file, 'rb') as f:
         for r in f:
             chr_id, reg = r.strip().split(':')
             start, end = map(int, reg.split('-'))
@@ -332,7 +332,7 @@ def get_minor_major(base):
     return mi, mj, sorted_bc
 
 
-def expanded_open(path, mode):
+def _expanded_open(path, mode):
     try:
         return open(path, mode)
     except IOError:
@@ -351,7 +351,7 @@ def Open(file_name, mode, compress_level=9, isbgz=False):
 
         return BGZFile(file_name, mode) if isbgz else gzip.GzipFile(file_name, mode, compress_level)
     else:
-        return expanded_open(file_name, mode)
+        return _expanded_open(file_name, mode)
 
 
 class FileForQueueing(object):
@@ -632,7 +632,7 @@ def load_popgroup_info(samples, in_popgroup_file):
 
     tmpdict = {}
     line_num = 0
-    with open(in_popgroup_file) as f:
+    with Open(in_popgroup_file, 'rb') as f:
 
         # Just two columns: sample_id and group_id
         for line in f:
