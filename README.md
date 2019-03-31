@@ -3,11 +3,18 @@ Call variants from ultra low-pass WGS data.
 
 ## Installation
 
+Install the released version by `pip`:
+
 ```bash
-
 pip install basevar
-
 ```
+
+You may instead want to install the development version from github, by running:
+
+```bash
+pip install git+git://github.com/ShujiaHuang/basevar.git#egg=basevar
+```
+
 
 ## Quick start
 
