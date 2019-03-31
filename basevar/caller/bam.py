@@ -314,12 +314,17 @@ def scan_indel(read, target_pos, fa):
 
     If no cigar string is present, empty arrays will be archived.
     """
-    target_indx = 0
+    if len(read.alignment.cigar) == 1:
+        # Not indel
+        return 'N'
+
+    target_pos_not_indel_breakpoint = False
+    indel_target_indx = 0
     delta = 0
     for i, (cigar_type, cigar_len) in enumerate(read.alignment.cigar):
-        # If the cigar string is : 20M2I13M
-        # then alignment.cigar is: [(0, 20), (1, 2), (0, 13)]
-        # and alignment.blocks looks like: [(1121815, 1121835), (1121835, 1121848)].
+        # If the cigar string is : 3M1I50M5D46M
+        # then alignment.cigar is: [(0, 3), (1, 1), (0, 50), (2, 5), (0, 46)]
+        # and alignment.blocks looks like: [(22862750, 22862753), (22862753, 22862803), (22862808, 22862854)]
         # But we should find the position of Insertion, which is the next one.
 
         if cigar_type in [3, 4, 5, 6]:  # 'SHPN'
@@ -328,18 +333,25 @@ def scan_indel(read, target_pos, fa):
 
         # mapping
         if cigar_type == 0:
-            _, map_end = read.alignment.blocks[target_indx]
+            _, map_end = read.alignment.blocks[indel_target_indx]
 
             # map_end is 1-base and target_pos is 0-base
             if map_end == target_pos + 1:
-                target_indx += 1  # +1 Get the index of indel in alignment.cigar
+                indel_target_indx += 1  # +1 Get the index of indel in alignment.cigar
+                break
+            elif map_end > target_pos + 1:
+                target_pos_not_indel_breakpoint = True
                 break
             else:
                 # +1
-                target_indx += 1
+                indel_target_indx += 1
 
-    target_indx += delta
-    cigar_type, cigar_len = read.alignment.cigar[target_indx]
+    if target_pos_not_indel_breakpoint:
+        return 'N'
+
+    # Must just be indel here
+    indel_target_indx += delta
+    cigar_type, cigar_len = read.alignment.cigar[indel_target_indx]
     if cigar_type == 1:  # Insertion
 
         qpos = read.query_position + 1
@@ -352,8 +364,8 @@ def scan_indel(read, target_pos, fa):
         # Must just be 1 or 2
         sys.stderr.write("[ERROR] Wrong Indel CIGAR number %s %s %s %s (at) %d in %s\n" %
                          (read.alignment.cigarstring, read.alignment.cigar,
-                          read.alignment.blocks, read.alignment.cigar[target_indx],
-                          target_indx, read.alignment))
+                          read.alignment.blocks, read.alignment.cigar[indel_target_indx],
+                          indel_target_indx, read.alignment))
         sys.exit(1)
 
     return indel if indel else 'N'
