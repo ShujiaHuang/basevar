@@ -27,9 +27,6 @@ class BaseType(object):
             Base quality for ``bases``. The same size with ``bases``
             Cause: The ``quals`` is an integer array which has be converted
                 by phred-scale
-
-        ``cmm``: A ``CommonParameter`` class value, required
-
         """
 
         self._alt_bases = []
@@ -132,7 +129,7 @@ class BaseType(object):
 
         Parameter:
             ``specific_base_comb``: list like
-                just calculate the LRT from these specific base combination
+                Calculating LRT for specific base combination
         """
         if self.total_depth == 0:
             return
@@ -190,7 +187,7 @@ class BaseType(object):
 
             if self._var_qual == 0:
                 # _var_qual will been setted as -0.0 instand of 0.0 if it's 0,
-                # and I don't know why it so weird!
+                # and I don't know why it's so weird!
                 self._var_qual = 0.0
 
         return
