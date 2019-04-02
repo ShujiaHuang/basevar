@@ -204,7 +204,6 @@ class BaseTypeRunner(object):
         processes = []
         # Always create process manager even if nCPU==1, so that we can
         # listen signals from main thread
-
         for i in range(self.nCPU):
             sub_cvg_file = self.outcvg + '_temp_%s' % i
             out_cvg_names.append(sub_cvg_file)
