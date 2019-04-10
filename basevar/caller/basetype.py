@@ -113,10 +113,11 @@ class BaseType(object):
                 ## The coverage is empty
                 continue
 
-            _, marginal_likelihood, expect_allele_freq = EM(
-                np.tile(init_allele_frequecies, (self.ind_allele_likelihood.shape[0], 1)),
-                self.ind_allele_likelihood
-            )
+            # marginal_likelihood, expect_allele_freq = EM(
+            #     np.tile(init_allele_frequecies, (self.ind_allele_likelihood.shape[0], 1)),
+            #     self.ind_allele_likelihood
+            # )
+            marginal_likelihood, expect_allele_freq = EM(init_allele_frequecies, self.ind_allele_likelihood)
 
             bc.append(b)
             lr.append(np.log(marginal_likelihood).sum())  # sum the marginal likelihood
