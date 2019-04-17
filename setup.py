@@ -5,14 +5,15 @@ Copyright (C) 2018 Shujia Huang <huangshujia9@gmail.com>
 """
 import os
 from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 
 try:
     from setuptools import setup, find_packages, Extension
-
     _has_setuptools = True
 except ImportError:
     from distutils.core import setup, find_packages
     from distutils.extension import Extension
+
 
 DESCRIPTION = "BaseVar: A python software for calling variants from ultra low pass WGS data."
 DISTNAME = 'basevar'
@@ -23,16 +24,17 @@ LICENSE = 'BSD (3-clause)'
 DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
 VERSION = "0.0.1.3"
 
-INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
+C_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
 CALLER_PRE = 'basevar.caller'
 MOD_NAMES = [
     CALLER_PRE + '.algorithm',
+    CALLER_PRE + '.basetype',
 ]
 
 
 def make_extension(modname):
     the_cython_file = modname.replace('.', os.path.sep) + '.pyx'
-    return Extension(modname, sources=[the_cython_file], language='c', include_dirs=INCLUDE_DIR)
+    return Extension(modname, sources=[the_cython_file], language='c', include_dirs=[C_INCLUDE_DIR])
 
 
 if __name__ == "__main__":
@@ -54,7 +56,7 @@ if __name__ == "__main__":
         download_url=DOWNLOAD_URL,
         packages=find_packages(),
         include_package_data=True,
-        ext_modules=extensions,
+        ext_modules=cythonize(extensions),
         cmdclass={'build_ext': build_ext},
         # install_requires=requirements,
         install_requires=[
