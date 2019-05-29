@@ -4,7 +4,9 @@ import heapq
 import gzip
 import time
 
-from pysam import FastaFile, BGZFile
+# from pysam import FastaFile, BGZFile
+from pysam import BGZFile
+from basevar.io.fasta.fastafile import FastaFile
 
 
 class CommonParameter(object):
@@ -92,7 +94,7 @@ def vcf_header_define(ref_file_path, info=None, samples=None):
 
     fa = FastaFile(ref_file_path)
     fa_name = os.path.basename(fa.filename)
-    contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.references, fa.lengths)]
+    contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.refnames, fa.lengths)]
     header = [
         '##fileformat=VCFv4.2',
         '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
@@ -202,7 +204,7 @@ def load_target_position(referencefile, posfile, region_info):
     if not regions:
         sys.stderr.write('[WARNINGS] Program will load all the genome. This will take a long long time.\n')
         regions = [[ci, 1, fa.get_reference_length(ci)]
-                   for ci in fa.references]
+                   for ci in fa.refnames]
 
     fa.close()
 
