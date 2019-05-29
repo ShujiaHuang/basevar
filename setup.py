@@ -60,6 +60,8 @@ if __name__ == "__main__":
         cmdclass={'build_ext': build_ext},
         # install_requires=requirements,
         install_requires=[
+            'Cython==0.29.6',
+            'Logbook==1.4.3',
             'numpy==1.15.4',
             'pysam==0.12.0.1',
             'scikit-learn==0.20.2',
