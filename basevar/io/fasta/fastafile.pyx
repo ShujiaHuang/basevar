@@ -31,7 +31,6 @@ cdef class SequenceTuple:
         self.line_length = line_length
         self.full_line_length = full_line_length
 
-
 cdef class FastaIndex:
     """
     Index file of a FastaFile. Contains start and end positions of all
@@ -49,10 +48,14 @@ cdef class FastaIndex:
         Takes the name of an Index file. For now, the whole file
         will be read into memory and the references stored in a set.
         """
+        self.references = {}
         self.target_name = {}
         self.target_length = {}
-        self.references = {}
         self.n_targets = 0
+
+        self._load_index(filename, mode, is_ncbi)
+
+    def _load_index(self, filename, mode, is_ncbi):
 
         cdef bytes seq_name
         with Open(filename, mode) as F:
@@ -75,6 +78,7 @@ cdef class FastaIndex:
 
                 # n_targets is the number of reference sequences
                 self.n_targets += 1
+        return
 
 
 cdef class FastaFile:
@@ -130,7 +134,8 @@ cdef class FastaFile:
             # it's empty
             return <char*> "-"
 
-        filepos = seq_start_position + pos + (full_line_length - line_length)*(<long long int>((<double>pos)/line_length))
+        filepos = seq_start_position + pos + (full_line_length - line_length) * (
+            <long long int> ((<double> pos) / line_length))
         self.the_file.seek(filepos)
 
         try:
@@ -158,9 +163,9 @@ cdef class FastaFile:
         cdef long long int line_length = seq_tuple.line_length
         cdef long long int full_line_length = seq_tuple.full_line_length
         cdef long long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
-                full_line_length - line_length) * <long long int>((<double>begin_pos)/line_length)
+                full_line_length - line_length) * <long long int> ((<double> begin_pos) / line_length)
         cdef long long int desired_sequence_end_pos = seq_start_pos + end_pos + (
-                full_line_length - line_length) * <long long int>((<double> end_pos)/line_length)
+                full_line_length - line_length) * <long long int> ((<double> end_pos) / line_length)
 
         # 0-base
         cdef long long int desired_seq_length = (end_pos - begin_pos)
@@ -188,8 +193,8 @@ cdef class FastaFile:
         """
         if self.cache is not None:
             if begin_pos >= self.cache_start_pos and end_pos < self.cache_end_pos:
-                logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" %(
-                    seq_name, begin_pos, end_pos, begin_pos - self.cache_start_pos, end_pos -self.cache_start_pos))
+                logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" % (
+                    seq_name, begin_pos, end_pos, begin_pos - self.cache_start_pos, end_pos - self.cache_start_pos))
 
                 return self.cache[begin_pos - self.cache_start_pos:end_pos - self.cache_start_pos]
 
@@ -204,9 +209,9 @@ cdef class FastaFile:
         cdef long long int line_length = seq_tuple.line_length
         cdef long long int full_line_length = seq_tuple.full_line_length
         cdef long long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
-                full_line_length - line_length) * <long long int>((<double>begin_pos)/line_length)
+                full_line_length - line_length) * <long long int> ((<double> begin_pos) / line_length)
         cdef long long int desired_sequence_end_pos = seq_start_pos + end_pos + (
-                full_line_length - line_length) * <long long int>((<double> end_pos)/line_length)
+                full_line_length - line_length) * <long long int> ((<double> end_pos) / line_length)
 
         # 0-base
         cdef long long int desired_seq_length = (end_pos - begin_pos)

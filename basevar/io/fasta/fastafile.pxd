@@ -3,16 +3,14 @@
 Author: Shujia Huang
 Date: 2019-05-29
 """
-cdef class FastaIndex(object):
+cdef class FastaIndex:
     cdef long int n_targets
-
     cdef dict references
-
     cpdef dict target_name
     cpdef dict target_length
 
 
-cdef class FastaFile(object):
+cdef class FastaFile:
     cdef bytes filename
     cdef object the_file
     cdef FastaIndex the_index
