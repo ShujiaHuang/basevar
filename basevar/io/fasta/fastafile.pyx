@@ -242,6 +242,7 @@ cdef class FastaFile:
         """tuple with the name of the `reference` sequences"""
         def __get__(self):
             s = []
+            cdef int x = 0
             for x in range(self.the_index.n_targets):
                 s.append(self.the_index.target_name[x])
 
@@ -252,6 +253,7 @@ cdef class FastaFile:
         """
         def __get__(self):
             s = []
+            cdef int x = 0
             for x in range(self.the_index.n_targets):
                 s.append(self.the_index.target_length[x])
 
