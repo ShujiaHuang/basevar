@@ -6,7 +6,7 @@ import time
 
 # from pysam import FastaFile, BGZFile
 from pysam import BGZFile
-from basevar.io.fasta.fastafile import FastaFile
+from basevar.io.fasta import FastaFile
 
 
 class CommonParameter(object):
