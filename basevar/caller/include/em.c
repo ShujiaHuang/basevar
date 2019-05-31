@@ -69,7 +69,6 @@ void em(double *init_allele_freq, double *ind_allele_likelihood, double *margina
     /*
      copy allele_freq in case that init_allele_freq be modified; 
     */
-    int i, j;
     for(j = 0; j < ntype; ++j){
 	    allele_freq[j] = init_allele_freq[j];
     }
