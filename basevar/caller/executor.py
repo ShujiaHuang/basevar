@@ -97,7 +97,7 @@ def _load_sample_id_from_bam(bamfiles, filename_has_samplename=True):
             sample_id.append(bf.header['RG'][0]['SM'])
             bf.close()
 
-    sys.stderr.write('[INFO] Finish loading all %d samples\' ID\n\n' % len(sample_id))
+    sys.stderr.write("[INFO] Finish loading all %d samples ID\n\n" % len(sample_id))
     return sample_id
 
 
@@ -149,6 +149,13 @@ class BaseTypeRunner(object):
         self.alignfiles = args.input
         if args.infilelist:
             self.alignfiles += utils.load_file_list(args.infilelist)
+
+        # check if all the alignement files are in bam/cram format.
+        for bamfile in self.alignfiles:
+            if not bamfile.lower().endswith((".bam", ".cram")):
+                sys.stderr.write("[ERROR] %s is not a bam/cram file which containing"
+                                 "in the input argument." % bamfile)
+                sys.exit(1)
 
         # setting the resolution of MAF
         self.min_af = utils.set_minaf(len(self.alignfiles)) if (args.min_af is None) else args.min_af

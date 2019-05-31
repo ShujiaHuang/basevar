@@ -9,7 +9,7 @@ import time
 
 import pysam
 
-from . import utils
+from basevar.utils import Open, fetch_next
 
 
 def open_align_files(bamfiles):
@@ -18,6 +18,8 @@ def open_align_files(bamfiles):
 
         try:
             bf = pysam.AlignmentFile(f)
+            # delete header to save memery
+            del bf.header
 
         except ValueError:
             sys.stderr.write('[ERROR] Input file: %s is not BAM/CRAM.\n' % f)
@@ -111,7 +113,7 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
                              (chrid, bigstart - 1, bigend, batch_align_files[j]))
             iter_tokes.append("")
 
-    with utils.Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
+    with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
             open(out_batch_file, "w") as OUT:
 
         OUT.write("##fileformat=BaseVarBatchFile_v1.0\n")
@@ -128,7 +130,7 @@ def create_single_batchfile(chrid, bigstart, bigend, regions, batch_align_files,
         OUT.write("%s\n" % "\t".join(suff_header))
 
         # Set iteration marker: 1->iterate; 0->Do not iterate or hit the end
-        sample_info = [utils.fetch_next(it) for it in iter_tokes]
+        sample_info = [fetch_next(it) for it in iter_tokes]
 
         n = 0
         for start, end in regions:
@@ -227,7 +229,7 @@ def seek_position(target_pos, sample_pos_line, sample_iter, mapq_thd, fa, justba
             pos = sample_pos_line.pos
             while pos < target_pos:
 
-                sample_pos_line = utils.fetch_next(sample_iter)
+                sample_pos_line = fetch_next(sample_iter)
                 if sample_pos_line:
                     pos = sample_pos_line.pos
                 else:

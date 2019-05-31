@@ -13,6 +13,7 @@ venv/
 .ipynb_checkpoints/
 *.egg-info/
 basevar/caller/*.c
+basevar/io/*.c
 dist/
 build/
 trash/

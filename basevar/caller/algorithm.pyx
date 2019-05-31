@@ -5,7 +5,7 @@ from scipy.stats.distributions import norm
 import numpy as np
 
 
-def EM(double[::1] init_allele_freq, double[:, ::1] ind_allele_likelihood,
+def EM(double[::1] init_allele_freq, double[:,::1] ind_allele_likelihood,
        int iter_num=100, double epsilon=0.001):
 
     cdef int nsample = ind_allele_likelihood.shape[0]

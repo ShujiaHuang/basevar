@@ -1,5 +1,5 @@
 """
-This module contain functions of EM algorithm and Base genotype.
+This module contain functions of LRT and Base genotype.
 """
 import itertools  # Use the combinations function
 import numpy as np
@@ -9,9 +9,16 @@ from .algorithm import EM
 from .utils import CommonParameter
 
 
-class BaseType(object):
+cdef extern from "math.h":
+    double exp(double)
+    double round(double)
+    double log(double)
+    double log10(double)
 
-    def __init__(self, ref_base, bases, quals, min_af):
+
+cdef class BaseType:
+
+    def __init__(self, bytes ref_base, bytes[:] bases, int[:] quals, float min_af):
         """A class for calculate the base probability
 
         Parameters
@@ -28,54 +35,88 @@ class BaseType(object):
             Cause: The ``quals`` is an integer array which has be converted
                 by phred-scale
         """
-
-        self._alt_bases = []
-        self._var_qual = 0  # init the variant quality
         self._ref_base = ref_base
+        self._alt_bases = None
+        self._var_qual = 0.0  # init the variant quality
         self.min_af = min_af
+        self.depth = {b: 0 for b in CommonParameter.BASE}
 
-        # The allele likelihood for echo individual
-        self.ind_allele_likelihood = []
+        # set allele likelihood for echo individual and calculating depth for [ACGT]
+        self._set_init_ind_allele_likelihood(bases, CommonParameter.BASE)
 
         # estimated allele frequency by EM and LRT
         self.af_by_lrt = {}
 
-        self.depth = {b: 0 for b in CommonParameter.BASE}
+        # quals = np.array(quals, dtype=float)
+        # self.qual_pvalue = 1.0 - np.exp(CommonParameter.MLN10TO10 * quals)
 
-        quals = np.array(quals)
-        self.qual_pvalue = 1.0 - np.exp(CommonParameter.MLN10TO10 * quals)
+        self.qual_pvalue = []
+        for q in quals:
+            self.qual_pvalue.append(1.0 - exp(CommonParameter.MLN10TO10 * q))
 
-        for i, b in enumerate(bases):
-            # Individual likelihood for [A, C, G, T], one sample per row
-            if b != 'N' and b[0] not in ['-', '+']:  # ignore all the 'N' bases and indels
-                self.ind_allele_likelihood.append([self.qual_pvalue[i]
-                                                   if b == t else (1.0 - self.qual_pvalue[i]) / 3
-                                                   for t in CommonParameter.BASE])
-                # record depth for [ACGT]
-                if b in self.depth:  # ignore '*'
-                    self.depth[b] += 1
+        # for i, b in enumerate(bases):
+        #     # Individual likelihood for [A, C, G, T], one sample per row
+        #     if b != 'N' and b[0] not in ['-', '+']:  # ignore all the 'N' bases and indels
+        #         self.ind_allele_likelihood.append([self.qual_pvalue[i] if b == t else (1.0 - self.qual_pvalue[i])/3
+        #                                            for t in CommonParameter.BASE])
+        #         # record depth for [ACGT]
+        #         if b in self.depth:  # ignore '*'
+        #             self.depth[b] += 1
+        # self.ind_allele_likelihood = np.array(self.ind_allele_likelihood)
 
-        self.ind_allele_likelihood = np.array(self.ind_allele_likelihood)
         self.total_depth = float(sum(self.depth.values()))
 
         return
 
-    def _set_allele_frequence(self, bases):
+    cdef void _set_init_ind_allele_likelihood(self, bytes[:] bases, char[:] base_element):
+
+        # cdef int ind_num = sum([1 if b != 'N' and b[0] not in ['-', '+'] else 0 for b in bases])
+        cdef int ind_num = 0
+        for b in bases:
+            if b != 'N' and b[0] not in ['-', '+']:
+                ind_num += 1
+
+        cdef int base_num = len(base_element)
+        self.ind_allele_likelihood = np.zeros(ind_num * base_num, dtype=np.double).reshape(ind_num, base_num)
+
+        cdef int i = 0
+        for k, b in enumerate(bases):
+            # Individual likelihood for [A, C, G, T], one sample per row
+            if b != 'N' and b[0] not in ['-', '+']:
+                # ignore all the 'N' bases and indels
+                for j, t in enumerate(base_element):
+                    if b == t:
+                        self.ind_allele_likelihood[i][j] = self.qual_pvalue[i]
+                    else:
+                        self.ind_allele_likelihood[i][j] = (1.0 - self.qual_pvalue[i]) / 3
+
+                # iteration
+                i += 1
+
+                # record coverage for [ACGT]
+                if b in self.depth:
+                    self.depth[b] += 1
+            else:
+                # if N or indel, then do nothing
+                pass
+
+    def _set_allele_frequence(self, tuple bases):
         """
         init the base likelihood by bases
 
         ``bases``: a list like
         """
         total_depth = float(sum([self.depth[b] for b in bases]))
-        allele_frequence = np.zeros(len(CommonParameter.BASE))  # [A, C, G, T] set to 0.0
+        allele_frequence = np.zeros(len(CommonParameter.BASE), dtype=np.double)  # [A, C, G, T] set to 0.0
 
         if total_depth > 0:
             for b in bases:
                 allele_frequence[CommonParameter.BASE2IDX[b]] = self.depth[b] / total_depth
 
-        return np.array(allele_frequence)
+        # return np.array(allele_frequence)
+        return allele_frequence
 
-    def _f(self, bases, n):
+    def _f(self, list bases, int n):
         """
         Calculate population likelihood for all the combination of bases
 
@@ -118,14 +159,16 @@ class BaseType(object):
             #     self.ind_allele_likelihood
             # )
             marginal_likelihood, expect_allele_freq = EM(init_allele_frequecies, self.ind_allele_likelihood)
-
             bc.append(b)
-            lr.append(np.log(marginal_likelihood).sum())  # sum the marginal likelihood
+
+            # Todo: Should we use log10 function instead of using log or not? check it carefully!
+            # lr.append(np.log(marginal_likelihood).sum())  # sum the marginal likelihood
+            lr.append(log(marginal_likelihood).sum())  # sum the marginal likelihood
             bp.append(expect_allele_freq)
 
         return bc, lr, bp
 
-    def lrt(self, specific_base_comb=None):
+    def lrt(self, list specific_base_comb=None):
         """The main function. likelihood ratio test.
 
         Parameter:
@@ -150,9 +193,10 @@ class BaseType(object):
         # init. Base combination will just be the ``bases`` if specific_base_comb
         bc, lr_null, bp = self._f(bases, len(bases))
 
-        chi_sqrt_value = 0
+        cdef double chi_sqrt_value = 0
         base_frq = bp[0]
         lr_alt = lr_null[0]
+
         for n in range(1, len(bases))[::-1]:
 
             bc, lr_null, bp = self._f(bases, n)
@@ -170,7 +214,7 @@ class BaseType(object):
                 break
 
         self._alt_bases = [b for b in bases if b != self._ref_base]
-        self.af_by_lrt = {b: '%f' % round(base_frq[CommonParameter.BASE2IDX[b]], 6)
+        self.af_by_lrt = {b: "%.6f" % round(base_frq[CommonParameter.BASE2IDX[b]])
                           for b in bases if b != self._ref_base}
 
         # Todo: improve the calculation method for var_qual
@@ -183,7 +227,7 @@ class BaseType(object):
 
             else:
                 chi_prob = chi2.sf(chi_sqrt_value, 1)
-                self._var_qual = round(-10 * np.log10(chi_prob), 2) \
+                self._var_qual = "%.2f" % round(-10 * log10(chi_prob)) \
                     if chi_prob else 10000.0
 
             if self._var_qual == 0:
