@@ -4,12 +4,13 @@ Author: Shujia Huang
 Date: 2019-05-29 18:20:35
 """
 from cpython cimport bool
+# from libc.stdlib cimport malloc, free, calloc
 
 cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void *calloc(size_t, size_t)
     void free(void *)
     void *alloca(size_t)
-    void *calloc(size_t, size_t)
-    void *malloc(size_t)
     int c_abs "abs"(int)
 
 cdef extern from "math.h":
@@ -186,26 +187,28 @@ cdef extern from "htslib/sam.h":
     int bam_cigar_op(uint32_t c)
     int bam_cigar_oplen(uint32_t c)
 
+
 ctypedef struct cAlignedRead:
     char *seq
     char *qual
-    short *cigarOps
+    short *cigar_ops
     short *hash
-    short mateChromID
-    short cigarLen
-    short chromID
-    short rlen
+    short mate_chrom_id
+    short cigar_len
+    short chrom_id
+    short r_len
     int pos
     int end
-    int insertSize
-    int matePos
-    int bitFlag
+    int insert_size
+    int mate_pos
+    int bit_flag
     unsigned char mapq
 
 
 cdef class ReadIterator:
     cdef cAlignedRead *get(self, int store_rgID, char** rgID)
-    cdef int cnext(self) nogil
+    # cdef int cnext(self) nogil
+    cdef int cnext(self)
     cdef char _get_base(self, uint8_t *s, int i)
 
     cdef samFile *the_samfile
@@ -217,7 +220,7 @@ cdef class Samfile:
     cdef void clear_header(self)
     cdef void clear_index(self)
 
-    cdef void _open(self, mode, load_index)  # A main function to open BAM/CRAM/SAM
+    cpdef void _open(self, mode, bool load_index)  # A main function to open BAM/CRAM/SAM
     cdef void _open_bamfile(self, mode)
     cdef int _is_bam(self)
     cdef int _is_cram(self)
@@ -225,8 +228,8 @@ cdef class Samfile:
     cdef bool _has_index(self)
 
     cdef char* getrname(self, int tid)
-    cpdef ReadIterator fetch(self, const char *region)
-    cpdef void close(self)
+    cdef ReadIterator fetch(self, const char *region)
+    cdef void close(self)
 
     cdef char* filename
     cdef samFile *samfile
@@ -249,60 +252,60 @@ DEF BAM_FSECONDARY = 256  # Not primary alignment
 DEF BAM_FQCFAIL = 512  # QC failure
 DEF BAM_FDUP = 1024  # Optical or PCR duplicate
 DEF BAM_FCOMPRESSED = 2048  # Is the read compressed
-
 ###################################################################################################
+
 
 # And here are accessor functions for the bit-fields
-cdef inline int Read_IsReverse(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FREVERSE) != 0)
+cdef inline int Read_IsReverse(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FREVERSE) != 0)
 
-cdef inline int Read_IsPaired(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FPAIRED) != 0)
+cdef inline int Read_IsPaired(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FPAIRED) != 0)
 
-cdef inline int Read_IsProperPair(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FPROPER_PAIR) != 0)
+cdef inline int Read_IsProperPair(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FPROPER_PAIR) != 0)
 
-cdef inline int Read_IsDuplicate(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FDUP) != 0)
+cdef inline int Read_IsDuplicate(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FDUP) != 0)
 
-cdef inline int Read_IsUnmapped(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FUNMAP) != 0)
+cdef inline int Read_IsUnmapped(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FUNMAP) != 0)
 
-cdef inline int Read_MateIsUnmapped(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FMUNMAP) != 0)
+cdef inline int Read_MateIsUnmapped(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FMUNMAP) != 0)
 
-cdef inline int Read_MateIsReverse(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FMREVERSE) != 0)
+cdef inline int Read_MateIsReverse(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FMREVERSE) != 0)
 
-cdef inline int Read_IsQCFail(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FQCFAIL) != 0)
+cdef inline int Read_IsQCFail(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FQCFAIL) != 0)
 
-cdef inline int Read_IsReadOne(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FREAD1) != 0)
+cdef inline int Read_IsReadOne(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FREAD1) != 0)
 
-cdef inline int Read_IsSecondaryAlignment(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FSECONDARY) != 0)
+cdef inline int Read_IsSecondaryAlignment(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FSECONDARY) != 0)
 
-cdef inline int Read_IsCompressed(cAlignedRead*theRead) nogil:
-    return ((theRead.bitFlag & BAM_FCOMPRESSED) != 0)
+cdef inline int Read_IsCompressed(cAlignedRead* the_read) nogil:
+    return ((the_read.bit_flag & BAM_FCOMPRESSED) != 0)
 
-cdef inline int Read_SetIsNotReverse(cAlignedRead*theRead) nogil:
-    theRead.bitFlag &= (~BAM_FREVERSE)
+cdef inline int Read_SetIsNotReverse(cAlignedRead* the_read) nogil:
+    the_read.bit_flag &= (~BAM_FREVERSE)
 
-cdef inline int Read_SetIsReverse(cAlignedRead*theRead) nogil:
-    theRead.bitFlag |= BAM_FREVERSE
+cdef inline int Read_SetIsReverse(cAlignedRead* the_read) nogil:
+    the_read.bit_flag |= BAM_FREVERSE
 
-cdef inline void Read_SetQCFail(cAlignedRead*theRead) nogil:
-    theRead.bitFlag |= BAM_FQCFAIL
+cdef inline void Read_SetQCFail(cAlignedRead* the_read) nogil:
+    the_read.bit_flag |= BAM_FQCFAIL
 
-cdef inline void Read_SetCompressed(cAlignedRead*theRead) nogil:
-    theRead.bitFlag |= BAM_FCOMPRESSED
+cdef inline void Read_SetCompressed(cAlignedRead* the_read) nogil:
+    the_read.bit_flag |= BAM_FCOMPRESSED
 
-cdef inline void Read_SetUnCompressed(cAlignedRead*theRead) nogil:
-    theRead.bitFlag &= (~BAM_FCOMPRESSED)
+cdef inline void Read_SetUnCompressed(cAlignedRead* the_read) nogil:
+    the_read.bit_flag &= (~BAM_FCOMPRESSED)
 
 ###################################################################################################
 
-cdef void destroyRead(cAlignedRead*theRead)
-cdef void compressRead(cAlignedRead*read, char*refSeq, int refStart, int refEnd, int qualBinSize, int fullComp)
-cdef void uncompressRead(cAlignedRead*read, char*refSeq, int refStart, int refEnd, int qualBinSize)
+cdef void destroy_read(cAlignedRead* the_read)
+cdef void compress_read(cAlignedRead* read, char* refSeq, int ref_start, int refend, int qual_bin_size, int full_comp)
+cdef void uncompress_read(cAlignedRead* read, char* refSeq, int ref_start, int refend, int qual_bin_size)

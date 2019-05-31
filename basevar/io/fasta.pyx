@@ -258,3 +258,4 @@ cdef class FastaFile:
                 s.append(self.the_index.target_length[x])
 
             return tuple(s)
+

@@ -24,23 +24,32 @@ LICENSE = 'BSD (3-clause)'
 DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
 VERSION = "0.0.1.3"
 
-C_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
-CALLER_PRE = 'basevar.caller'
+cFlags = ["-msse2", "-msse3", "-funroll-loops", "-D_LARGEFILE64_SOURCE", "-D_FILE_OFFSET_BITS=64", "-fPIC"]
+
+BC_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
+# htslib_dir = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller/io/htslib"
+
+CALLER_PRE = 'basevar'
 MOD_NAMES = [
-    CALLER_PRE + '.algorithm',
-    CALLER_PRE + '.basetype',
+    CALLER_PRE + '.io.htslibWrapper',
+    CALLER_PRE + '.io.fasta',
+    CALLER_PRE + '.io.bam',
+    CALLER_PRE + '.caller.algorithm',
+    CALLER_PRE + '.caller.basetype',
 ]
 
 
 def make_extension(modname):
     the_cython_file = modname.replace('.', os.path.sep) + '.pyx'
-    return Extension(modname, sources=[the_cython_file], language='c', include_dirs=[C_INCLUDE_DIR])
+    return Extension(modname, sources=[the_cython_file], language='c', include_dirs=[BC_INCLUDE_DIR])
 
 
 if __name__ == "__main__":
-    # requirements_file = os.path.split(os.path.realpath(__file__))[0] + "/requirements.txt"
     long_description = os.path.split(os.path.realpath(__file__))[0] + "/README.rst"
     extensions = [make_extension(name) for name in MOD_NAMES]
+    # extensions.append(
+    #     Extension(name='htslibWrapper', sources=[(CALLER_PRE+'.io.htslibWrapper').replace(".", os.path.sep)+".pyx"],
+    #               language='c', extra_compile_args=cFlags, include_dirs=[htslib_dir]))
 
     setup(
         name=DISTNAME,
@@ -58,7 +67,6 @@ if __name__ == "__main__":
         include_package_data=True,
         ext_modules=cythonize(extensions),
         cmdclass={'build_ext': build_ext},
-        # install_requires=requirements,
         install_requires=[
             'Cython==0.29.6',
             'Logbook==1.4.3',

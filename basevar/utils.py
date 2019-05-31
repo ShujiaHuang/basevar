@@ -4,8 +4,8 @@ import heapq
 import gzip
 import time
 
-# from pysam import FastaFile, BGZFile
 from pysam import BGZFile
+# from basevar.io.fasta import FastaFile
 from basevar.io.fasta import FastaFile
 
 
