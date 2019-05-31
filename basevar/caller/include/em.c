@@ -7,10 +7,10 @@
 
 static void singleEM(double *allele_freq, double *ind_allele_likelihood, double *marginal_likelihood,
                      double *expect_allele_prob, int nsample, int ntype) {
-    int i, j;
     double *likelihood = (double *) calloc(ntype, sizeof(double));
     double *ind_allele_prob = (double *) calloc(ntype * nsample, sizeof(double)); // covert ind_allele_prob to col major
     // step E 
+    int i, j;
     for(i=0; i<nsample; ++i){
         for(j=0; j<ntype; ++j){
             likelihood[j] = allele_freq[j] * ind_allele_likelihood[i * ntype + j];
@@ -38,7 +38,8 @@ static void singleEM(double *allele_freq, double *ind_allele_likelihood, double 
 
 static void update_allele_freq(double *allele_freq, double *expect_allele_prob, int ntype) {
 
-    for(int j=0; j<ntype; ++j){
+    int j;
+    for(j=0; j<ntype; ++j){
         allele_freq[j] = expect_allele_prob[j];
         expect_allele_prob[j] = 0.0;
     }
@@ -47,7 +48,8 @@ static void update_allele_freq(double *allele_freq, double *expect_allele_prob, 
 
 static double delta_bylog(double *bf, double *af, int n) {
     double delta = 0.0;
-    for(int i=0; i<n; ++i){
+    int i;
+    for(i=0; i<n; ++i){
         // need to deal with log(0) == inf;
         delta += fabs(log(af[i]) - log(bf[i]));
         bf[i] = af[i];
@@ -67,6 +69,7 @@ void em(double *init_allele_freq, double *ind_allele_likelihood, double *margina
     /*
      copy allele_freq in case that init_allele_freq be modified; 
     */
+    int i, j;
     for(j = 0; j < ntype; ++j){
 	    allele_freq[j] = init_allele_freq[j];
     }
