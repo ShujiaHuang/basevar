@@ -3,7 +3,7 @@
 Author: Shujia Huang
 Date: 2019-05-29 18:20:35
 """
-# from cpython cimport bool
+from cpython cimport bool
 # from libc.stdlib cimport malloc, free, calloc
 
 cdef extern from "stdlib.h":

@@ -1,5 +1,4 @@
 """Wrapper for htslib"""
-from libc cimport bool
 import os
 
 from basevar.log import logger
@@ -417,8 +416,7 @@ cdef class ReadIterator:
 
         return the_read
 
-    # cdef int cnext(self) nogil:
-    cdef int cnext(self):
+    cdef int cnext(self) nogil:
         """cversion of iterator. Used by IteratorColumn."""
 
         return sam_itr_next(self.the_samfile, self.the_iterator, self.b) >= 0
