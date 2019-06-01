@@ -5,7 +5,8 @@ import sys
 from cpython cimport bool
 
 from basevar.log import logger
-from basevar.io.htslibWrapper cimport Samfile
+from basevar.io.htslibWrapper import Samfile
+# from pysam import AlignmentFile
 
 
 cdef bool is_indexable(filename):
@@ -38,12 +39,13 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
         else:
 
             # This may take a very long time to get sampleID from BAM header.
-            if is_indexable(al):
+            if not is_indexable(al):
                 logger.error("Input file %s is not a BAM/CRAM file" % al)
                 raise StandardError, "Input file %s is not a BAM/CRAM file" % al
 
             bf = Samfile(al)
             bf._open("r", True)
+            # bf = AlignmentFile(al)
 
             try:
 
@@ -52,7 +54,7 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
                 if len(the_header["RG"]) > 1:
                     logger.debug("Found multiple read group tags in file %s" % al)
 
-                if "RG" not in the_header["RG"]:
+                if "RG" not in the_header:
                     logger.error("%s: missing @RG in the header." % al)
                     bf.close()
                     raise StandardError, ("%s: missing @RG in the header." % al)
@@ -61,7 +63,7 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
                 del the_header
 
             except StandardError, e:
-                logger.error("Error in BAM header sample parsing. Error was \n%s\n" % e)
+                logger.error("Error in BAM header sample parsing. The error is\n%s\n" % e)
                 bf.close()
                 sys.exit(1)
 

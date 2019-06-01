@@ -1,4 +1,5 @@
 """Wrapper for htslib"""
+from libc cimport bool
 import os
 
 from basevar.log import logger
@@ -118,7 +119,7 @@ cdef class Samfile:
         """return true if samfile has been opened."""
         return self.samfile != NULL
 
-    cdef bool _has_index(self):
+    cdef int _has_index(self):
         """return true if samfile has an existing (and opened) index."""
         return self.index != NULL
 
@@ -318,6 +319,7 @@ cdef class ReadIterator:
                                   "does not have an index" % samfile.filename)
 
         self.b = bam_init1()
+        # self.b = self.bam_init()
 
     def __dealloc__(self):
         """remember: dealloc cannot call other methods!"""
@@ -327,6 +329,9 @@ cdef class ReadIterator:
 
         if self.b != NULL:
             bam_destroy1(self.b)
+
+    # cdef bam1_t* bam_init(self):
+    #     return <bam1_t*>calloc(1, sizeof(bam1_t))
 
     cdef cAlignedRead* get(self, int store_rgID, char** rgID):
         cdef bam1_core_t* c = &self.b.core

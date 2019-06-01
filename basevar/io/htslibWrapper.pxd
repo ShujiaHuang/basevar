@@ -3,7 +3,7 @@
 Author: Shujia Huang
 Date: 2019-05-29 18:20:35
 """
-from cpython cimport bool
+# from cpython cimport bool
 # from libc.stdlib cimport malloc, free, calloc
 
 cdef extern from "stdlib.h":
@@ -207,13 +207,13 @@ ctypedef struct cAlignedRead:
 
 cdef class ReadIterator:
     cdef cAlignedRead *get(self, int store_rgID, char** rgID)
-    # cdef int cnext(self) nogil
-    cdef int cnext(self)
+    cdef int cnext(self) nogil
     cdef char _get_base(self, uint8_t *s, int i)
 
     cdef samFile *the_samfile
     cdef hts_itr_t *the_iterator
     cdef bam1_t *b
+    # cdef bam1_t* bam_init(self)
 
 
 cdef class Samfile:
@@ -225,7 +225,7 @@ cdef class Samfile:
     cdef int _is_bam(self)
     cdef int _is_cram(self)
     cdef int _is_open(self)
-    cdef bool _has_index(self)
+    cdef int _has_index(self)  # return 1 (for True) or 0 (for False)
 
     cdef char* getrname(self, int tid)
     cdef ReadIterator fetch(self, const char *region)

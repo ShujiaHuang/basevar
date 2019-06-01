@@ -24,14 +24,13 @@ LICENSE = 'BSD (3-clause)'
 DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
 VERSION = "0.0.1.3"
 
-cFlags = ["-msse2", "-msse3", "-funroll-loops", "-D_LARGEFILE64_SOURCE", "-D_FILE_OFFSET_BITS=64", "-fPIC"]
-
 BC_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
 # htslib_dir = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller/io/htslib"
+# cFlags = ["-msse2", "-msse3", "-funroll-loops", "-D_LARGEFILE64_SOURCE", "-D_FILE_OFFSET_BITS=64", "-fPIC"]
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
-    CALLER_PRE + '.io.htslibWrapper',
+    # CALLER_PRE + '.io.htslibWrapper',
     CALLER_PRE + '.io.fasta',
     CALLER_PRE + '.io.bam',
     CALLER_PRE + '.caller.algorithm',
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     extensions = [make_extension(name) for name in MOD_NAMES]
     # extensions.append(
     #     Extension(name='htslibWrapper', sources=[(CALLER_PRE+'.io.htslibWrapper').replace(".", os.path.sep)+".pyx"],
-    #               language='c', extra_compile_args=cFlags, include_dirs=[htslib_dir]))
+    #               language='c', libraries=['hts'], extra_compile_args=cFlags, include_dirs=[htslib_dir]))
 
     setup(
         name=DISTNAME,
