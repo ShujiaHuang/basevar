@@ -229,7 +229,7 @@ cdef class Samfile:
 
     cdef char* getrname(self, int tid)
     cdef ReadIterator fetch(self, const char *region)
-    cdef void close(self)
+    cpdef close(self)
 
     cdef char* filename
     cdef samFile *samfile

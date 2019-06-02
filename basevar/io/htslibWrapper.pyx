@@ -187,7 +187,7 @@ cdef class Samfile:
         else:
             raise StandardError, "Random access query only allowed for BAM/CRAM files."
 
-    cdef void close(self):
+    cpdef close(self):
         """closes file."""
         if not self._is_cram():
             if self.samfile != NULL:
