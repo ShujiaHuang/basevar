@@ -6,7 +6,6 @@ from cpython cimport bool
 
 from basevar.log import logger
 from basevar.io.htslibWrapper import Samfile
-# from pysam import AlignmentFile
 
 
 cdef bool is_indexable(filename):
@@ -45,7 +44,6 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
 
             bf = Samfile(al)
             bf._open("r", True)
-            # bf = AlignmentFile(al)
 
             try:
 
