@@ -213,7 +213,6 @@ cdef class ReadIterator:
     cdef samFile *the_samfile
     cdef hts_itr_t *the_iterator
     cdef bam1_t *b
-    # cdef bam1_t* bam_init(self)
 
 
 cdef class Samfile:

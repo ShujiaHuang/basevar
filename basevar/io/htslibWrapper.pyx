@@ -28,6 +28,7 @@ VALID_HEADER_ORDER = {"HD": ("VN", "SO", "GO"),
                       "RG": ("ID", "SM", "LB", "DS", "PU", "PI", "CN", "DT", "PL", "PG"),
                       "PG": ("ID", "VN", "CL"), }
 
+
 ######################################################################
 ## Public methods
 ######################################################################
@@ -195,14 +196,7 @@ cdef class Samfile:
                 self.samfile = NULL
 
             self.clear_index()
-            # if self.index != NULL:
-            #     hts_idx_destroy(self.index)
-            #     self.index = NULL
-
             self.clear_header()
-            # if self.the_header != NULL:
-            #     bam_hdr_destroy(self.the_header)
-            #     self.the_header = NULL
 
     property nreferences:
         """number of :term:`reference` sequences in the file."""
@@ -291,6 +285,7 @@ cdef class Samfile:
 
             return result
 
+
 cdef class ReadIterator:
     """
     Iterates over mapped reads in a region.
@@ -328,9 +323,6 @@ cdef class ReadIterator:
 
         if self.b != NULL:
             bam_destroy1(self.b)
-
-    # cdef bam1_t* bam_init(self):
-    #     return <bam1_t*>calloc(1, sizeof(bam1_t))
 
     cdef cAlignedRead* get(self, int store_rgID, char** rgID):
         cdef bam1_core_t* c = &self.b.core
