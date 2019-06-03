@@ -77,7 +77,7 @@ cdef int read_mate_pos_comp(const void* x, const void* y):
     cdef cAlignedRead** read_two = <cAlignedRead**> (y)
 
     # Sorting is broken for reads with mates on different chromosomes
-    assert read_one[0].mate_chrom_iD == read_two[0].mate_chrom_id
+    assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
     return read_one[0].mate_pos - read_two[0].mate_pos
 
 ###################################################################################################
@@ -403,11 +403,11 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
     # Trim overlapping part of forward read, in pairs where the read length is greater than the insert size
     # N.B Insert size is from start of forward read to end of reverse read, i.e. fragment size. This is done to
     # remove duplicate information, which gives systematic errors when pcr errors have occured in library prep.
+    cdef int i = 0
     if trim_overlapping == 1 and (
             Read_IsPaired(the_read) and abs_ins > 0 and (not Read_IsReverse(the_read)) and
             Read_MateIsReverse(the_read) and abs_ins < 2 * the_read.r_len):
 
-        cdef i = 0
         for i in range(1, min(the_read.r_len, (2 * the_read.r_len - the_read.insert_size) + 1)):
             the_read.qual[the_read.r_len - i] = 0
 
@@ -423,15 +423,16 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
     #         for index from absIns <= index < theRead.rlen:
     #             theRead.qual[index] = 0
 
+    cdef int cigar_index = 0
+    cdef int cigar_op = -1
+    cdef int cigar_len = -1
+    cdef int index = 0
+    cdef int j = 0
+
     # Check for soft-clipping (present in BWA reads, for example, but not Stampy). Soft-clipped
     # sequences should be set to QUAL = 0, as they may include contamination by adapters etc.
-    if trim_soft_clipped == 1:
 
-        cdef int cigar_index = 0
-        cdef int cigar_op = -1
-        cdef int cigar_len = -1
-        cdef int index = 0
-        cdef int j = 0
+    if trim_soft_clipped == 1:
 
         for cigar_index in range(the_read.cigar_len):
 
@@ -622,8 +623,8 @@ cdef class BamReadBuffer(object):
         """
         return self.reads.count_reads_covering_region(start, end)
 
-    cdef void set_window_pointers(self, int start, int end, int refstart, int refend,
-                                  char* refseq, int qual_bin_size):
+    cdef void set_window_pointers(self, long long int start, long long int end, long long int refstart,
+                                  long long int refend, char* refseq, int qual_bin_size):
         """
         Set the window_start and window_end pointers to point to the first
         and last+1 reads covering this window.

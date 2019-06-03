@@ -10,7 +10,6 @@ def test_get_sample_names(bamfiles):
 
     bfs = get_sample_names(bamfiles, False)
     print(bfs)
-    print()
 
     return
 

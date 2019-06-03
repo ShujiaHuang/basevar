@@ -99,8 +99,8 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
                               help='Rerun process by checking batchfiles.')
 
-    basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=2,
-                              help="Level of logging. [2]")
+    basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=3,
+                              help="Level of logging. [3]")
 
     # For discovery variants from batchfiles
     btb_cmd = commands.add_parser('basetypebatch',

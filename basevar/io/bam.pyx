@@ -102,7 +102,7 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     cdef int max_read_thd = options.max_reads
     cdef int total_reads = 0
 
-    cdef bytes region = "%s:%s-%s" % (chrom, start, end)
+    region = "%s:%s-%s" % (chrom, start, end)
     # assuming the sample is already unique in ``samples``
     for i, sample in enumerate(samples):
         assert sample in bam_objs, logger.error("Something is screwy here.")
@@ -157,7 +157,7 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     cdef list sorted_population_buffers = []
     for sample_read_buffer in population_read_buffers:
         if sample_read_buffer.reads.get_size() > 0:
-            sample_read_buffer.chrom_ID = sample_read_buffer.reads.array[0].chrom_ID
+            sample_read_buffer.chrom_id = sample_read_buffer.reads.array[0].chrom_id
 
         if not sample_read_buffer.is_sorted:
             sample_read_buffer.sort_reads()

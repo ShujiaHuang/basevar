@@ -85,26 +85,19 @@ cdef class Samfile:
             sam_close(self.samfile)
             self.samfile = NULL
 
-        # self.clear_index()
-        # self.clear_header()
-        if self.index != NULL:
-            hts_idx_destroy(self.index)
-            self.index = NULL
-
-        if self.the_header != NULL:
-            bam_hdr_destroy(self.the_header)
-            self.the_header = NULL
+        self.clear_index()
+        self.clear_header()
 
     cdef void clear_header(self):
         """ Clear all the header data. """
-        # logger.debug("Clear header data of bamfile %s .\n" % self.filename)
+        logger.debug("Clear header data of bamfile %s ." % self.filename)
         if self.the_header != NULL:
             bam_hdr_destroy(self.the_header)
             self.the_header = NULL
 
     cdef void clear_index(self):
         """Clear all the index file data. """
-        # logger.debug("Clear index of bamfile %s .\n" % self.filename)
+        logger.debug("Clear index of bamfile %s ." % self.filename)
         if self.index != NULL:
             hts_idx_destroy(self.index)
             self.index = NULL

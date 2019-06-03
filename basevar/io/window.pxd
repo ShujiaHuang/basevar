@@ -52,7 +52,7 @@ cdef class BamReadBuffer:
     cdef void add_read_to_buffer(self, cAlignedRead* the_read)
     cdef int count_improper_pairs(self)
     cdef int count_alignment_gaps(self)
-    cdef int count_reads_covering_region(self, int start, int end)
+    cdef int count_reads_covering_region(self, long long int start, long long int end)
     cdef void sort_reads(self)
     cdef void log_filter_summary(self)
 
