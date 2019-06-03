@@ -5,7 +5,9 @@ import sys
 from cpython cimport bool
 
 from basevar.log import logger
-from basevar.io.htslibWrapper import Samfile
+from basevar.io.window cimport BamReadBuffer
+from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
+from basevar.io.htslibWrapper cimport compress_read
 
 
 cdef bool is_indexable(filename):
@@ -71,14 +73,100 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
     return sample_names
 
 
-cdef list load_bamdata(list bamfiles, bytes chrom, int start, int end, char* refseq):
+cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int start, long long int end,
+                       char* refseq, options):
     """
     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
     reads for each BAM file in that region.
+    
+    ``bam_objs`` is a dict of the object of class ``Samfile`` for ``samples``(one for each), and the handle 
+    has been open to set caching for BAM/CRAM to reduce file IO cost. 
+    
+    Format in ``bam_objs``: {sample: Samfile}, it could be create by one line code: 
+    bam_objs = {s: Samfile(f) for s, f in zip(samples, input_bamfiles)}
+    
+    ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
+    
+    This function could just work for unique sample with only one BAM file. You should merge your 
+    bamfile first if there are multiple BAM files for one sample.
     """
-    cdef list h = []
+    cdef list population_read_buffers = []
 
-    return h
+    cdef bytes sample
+    cdef BamReadBuffer sample_read_buffer
+    cdef Samfile reader
+    cdef ReadIterator reader_iter
+    cdef cAlignedRead* the_read
+    cdef int is_compress_read = options.is_compress_read
+    cdef int qual_bin_size = options.qual_bin_size
+    cdef int max_read_thd = options.max_reads
+    cdef int total_reads = 0
+
+    cdef bytes region = "%s:%s-%s" % (chrom, start, end)
+    # assuming the sample is already unique in ``samples``
+    for i, sample in enumerate(samples):
+        assert sample in bam_objs, logger.error("Something is screwy here.")
+        reader = bam_objs[sample]
+
+        # Need to lock the thread here when sharing BAM files
+        if reader.lock is None:
+            reader.lock.acquire()
+
+        sample_read_buffer = BamReadBuffer(chrom, start, end, options)
+        sample_read_buffer.sample = bytes(sample)
+        sample_read_buffer.sample_order = i
+
+        try:
+            reader_iter = reader.fetch(region)
+        except Exception, e:
+            logger.warning(e.message)
+            logger.warning("No data could be retrieved for sample %s in file %s in "
+                           "region %s" % (sample, reader.filename, region))
+
+            population_read_buffers.append(sample_read_buffer)
+            continue
+
+        while reader_iter.cnext():
+
+            the_read = reader_iter.get(0, NULL)
+            if is_compress_read:
+                compress_read(the_read, refseq, start, end, qual_bin_size, 0)
+
+            sample_read_buffer.add_read_to_buffer(the_read)
+
+            total_reads += 1
+            if total_reads % 200000 == 0:
+                logger.info("Loaded %s reads in regions %s" % (total_reads, region))
+
+            if total_reads > max_read_thd:
+                logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
+                             "increase --max_reads." % (total_reads, region))
+                for f in bam_objs.values(): f.close()
+                sys.exit(1)
+
+            # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
+
+        # ``pop_read_buffers`` will keep the same order as ``samples``,
+        # which means will keep the same order as input.
+        population_read_buffers.append(sample_read_buffer)
+        # Need to release thread lock here when sharing BAM files
+        if reader.lock is not None:
+            reader.lock.release()
+
+    # Todo: Do we need to set output order by the order of samples' name?
+    cdef list sorted_population_buffers = []
+    for sample_read_buffer in population_read_buffers:
+        if sample_read_buffer.reads.get_size() > 0:
+            sample_read_buffer.chrom_ID = sample_read_buffer.reads.array[0].chrom_ID
+
+        if not sample_read_buffer.is_sorted:
+            sample_read_buffer.sort_reads()
+
+        sample_read_buffer.log_filter_summary()
+        sorted_population_buffers.append(sample_read_buffer)
+
+    # return buffers as the same order of input bamfiles
+    return sorted_population_buffers
 
 
 

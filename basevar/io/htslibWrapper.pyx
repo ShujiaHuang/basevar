@@ -86,25 +86,25 @@ cdef class Samfile:
             self.samfile = NULL
 
         # self.clear_index()
+        # self.clear_header()
         if self.index != NULL:
             hts_idx_destroy(self.index)
             self.index = NULL
 
-        # self.clear_header()
         if self.the_header != NULL:
             bam_hdr_destroy(self.the_header)
             self.the_header = NULL
 
     cdef void clear_header(self):
         """ Clear all the header data. """
-        logger.debug("Clear header data of bamfile %s .\n" % self.filename)
+        # logger.debug("Clear header data of bamfile %s .\n" % self.filename)
         if self.the_header != NULL:
             bam_hdr_destroy(self.the_header)
             self.the_header = NULL
 
     cdef void clear_index(self):
         """Clear all the index file data. """
-        logger.debug("Clear index of bamfile %s .\n" % self.filename)
+        # logger.debug("Clear index of bamfile %s .\n" % self.filename)
         if self.index != NULL:
             hts_idx_destroy(self.index)
             self.index = NULL
@@ -294,6 +294,8 @@ cdef class ReadIterator:
     def __cinit__(self, Samfile samfile, const char *region):
         """
         Constructor.
+
+        ``region`` is looks like: chr:start-end
         """
 
         self.the_samfile = NULL
@@ -410,7 +412,6 @@ cdef class ReadIterator:
 
     cdef int cnext(self) nogil:
         """cversion of iterator. Used by IteratorColumn."""
-
         return sam_itr_next(self.the_samfile, self.the_iterator, self.b) >= 0
 
     cdef char _get_base(self, uint8_t *s, int i):
