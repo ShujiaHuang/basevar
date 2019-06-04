@@ -155,7 +155,7 @@ cdef class FastaFile:
         cdef SequenceTuple seq_tuple = self.references[seq_name]
         cdef long long int seq_length = seq_tuple.seq_length
 
-        # make 0-base system
+        # it's 0-base system
         begin_pos = max(0, begin_pos)
         end_pos = min(seq_length - 1, end_pos)
 

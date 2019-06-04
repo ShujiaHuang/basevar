@@ -315,18 +315,6 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
         Read_SetQCFail(the_read)
         return False
 
-    # Filter out low quality reads
-    # cdef int n_quals_below_min = 0
-    # cdef int i = 0
-    # for i in range(the_read.r_len):
-    #     if the_read.qual[i] < min_base_qual:
-    #         n_quals_below_min += 1
-
-    # if the_read.r_len - n_quals_below_min < minGoodQualBases:
-    #     filtered_read_counts_by_type[LOW_QUAL_BASES] += 1
-    #     Read_SetQCFail(the_read)
-    #     return False
-
     # Remove broken pairs, i.e. pairs where the mate is mapped to a different chromosome or the
     # mate is unmapped
     if filtered_read_counts_by_type[MATE_UNMAPPED] != -1:
@@ -377,27 +365,6 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
                     Read_SetQCFail(the_read)
                     return False
 
-    ## Any read that gets passed here will be used, but low quality tails will be trimmed, and
-    ## any overlapping pairs, from small fragments, will have the overlapping bits trimmed.
-
-    # Trim low-quality tails for forward reads
-    # if not Read_IsReverse(the_read):
-    #
-    #     cdef int i = 0
-    #     for i in range(the_read.r_len):
-    #         if i < trimReadFlank or theRead.qual[theRead.rlen - index] < 5:
-    #             theRead.qual[theRead.rlen - index] = 0
-    #         else:
-    #             break
-    # # Trim low-quality tails for reverse reads
-    # else:
-    #     for index from 0 <= index < theRead.rlen:
-    #
-    #         if index < trimReadFlank or theRead.qual[index] < 5:
-    #             theRead.qual[index] = 0
-    #         else:
-    #             break
-
     cdef int abs_ins = abs(the_read.insert_size)
 
     # Trim overlapping part of forward read, in pairs where the read length is greater than the insert size
@@ -411,28 +378,15 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
         for i in range(1, min(the_read.r_len, (2 * the_read.r_len - the_read.insert_size) + 1)):
             the_read.qual[the_read.r_len - i] = 0
 
-    # Trim the end of any read where the insert size is < read length. If these have not been
-    # already filtered out then they need trimming, as adapter contamination will cause a
-    # high FP rate otherwise.
-    # if trimAdapter == 1 and (Read_IsPaired(theRead) and absIns > 0 and absIns < theRead.rlen):
-    #
-    #     if Read_IsReverse(theRead):
-    #         for index from 1 <= index < theRead.rlen - absIns + 1:
-    #             theRead.qual[theRead.rlen - index] = 0
-    #     else:
-    #         for index from absIns <= index < theRead.rlen:
-    #             theRead.qual[index] = 0
-
     cdef int cigar_index = 0
     cdef int cigar_op = -1
     cdef int cigar_len = -1
+
     cdef int index = 0
     cdef int j = 0
-
-    # Check for soft-clipping (present in BWA reads, for example, but not Stampy). Soft-clipped
-    # sequences should be set to QUAL = 0, as they may include contamination by adapters etc.
-
     if trim_soft_clipped == 1:
+        # Check for soft-clipping (present in BWA reads, for example, but not Stampy). Soft-clipped
+        # sequences should be set to QUAL = 0, as they may include contamination by adapters etc.
 
         for cigar_index in range(the_read.cigar_len):
 

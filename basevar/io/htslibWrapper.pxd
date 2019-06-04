@@ -8,9 +8,9 @@ from cpython cimport bool
 cdef extern from "stdlib.h":
     void *malloc(size_t)
     void *calloc(size_t, size_t)
-    void free(void *)
     void *alloca(size_t)
     int c_abs "abs"(int)
+    void free(void *)
 
 cdef extern from "math.h":
     double exp(double)
@@ -188,18 +188,18 @@ cdef extern from "htslib/sam.h":
 
 
 ctypedef struct cAlignedRead:
-    char *seq
-    char *qual
-    short *cigar_ops
-    short *hash
+    char* seq
+    char* qual
+    short* cigar_ops
+    short* hash
+    short chrom_id
     short mate_chrom_id
     short cigar_len
-    short chrom_id
     short r_len
     int pos
     int end
-    int insert_size
     int mate_pos
+    int insert_size
     int bit_flag
     unsigned char mapq
 
@@ -305,5 +305,5 @@ cdef inline void Read_SetUnCompressed(cAlignedRead* the_read) nogil:
 ###################################################################################################
 
 cdef void destroy_read(cAlignedRead* the_read)
-cdef void compress_read(cAlignedRead* read, char* refSeq, int ref_start, int refend, int qual_bin_size, int full_comp)
-cdef void uncompress_read(cAlignedRead* read, char* refSeq, int ref_start, int refend, int qual_bin_size)
+cdef void compress_read(cAlignedRead* read, char* refseq, int ref_start, int refend, int qual_bin_size, int full_comp)
+cdef void uncompress_read(cAlignedRead* read, char* refseq, int ref_start, int refend, int qual_bin_size)

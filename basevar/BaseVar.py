@@ -49,15 +49,15 @@ def parser_commandline_args():
                                    'simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=200,
                               help='INT simples per batchfile. [200]')
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
-    basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
+    basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=0.001,
                               help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                    'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                                   '[min(0.001, 100/x, cmm.MINAF)]. '
-                                   'Probably you don\'t need to take care about this parameter.')
+                                   '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t hava to take care about '
+                                   'this parameter.')
 
     # special parameter for calculating specific population allele frequence
     basetype_cmd.add_argument("--max-read-length", dest="r_len", action='store', type=int, default=150,

@@ -5,7 +5,6 @@ import gzip
 import time
 
 from pysam import BGZFile
-# from basevar.io.fasta import FastaFile
 from basevar.io.fasta import FastaFile
 
 

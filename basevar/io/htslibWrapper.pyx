@@ -147,7 +147,7 @@ cdef class Samfile:
                 self.index = sam_index_load(self.samfile, self.filename)
                 if self.index == NULL:
                     raise IOError("Error while opening index for file `%s`. "
-                                  "Check that index exists " % self.filename)
+                                  "Check that index exists." % self.filename)
 
     cdef void _open_bamfile(self, mode):
         """Open BamFile.
