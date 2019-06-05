@@ -8,8 +8,7 @@ indexfile = "./data/hg19.NC_012920.fasta.fai"
 
 
 def test_FastaFile(infile):
-    indexfile = infile + ".fai"
-    fa = FastaFile(infile, indexfile)
+    fa = FastaFile(infile, infile + ".fai")
 
     # These are the two inner functions which can just be called by Cython code
     # print("chrM:1 %s" % fa.get_character("chrM", 0))

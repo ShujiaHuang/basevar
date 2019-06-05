@@ -69,7 +69,7 @@ cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
 
             bf.close()
 
-    logger.info("Finish loading all %d samples' name\n" % file_num)
+    logger.info("Finish loading all %d samples' names\n" % file_num)
     return sample_names
 
 
