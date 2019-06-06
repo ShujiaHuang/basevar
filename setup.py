@@ -28,11 +28,13 @@ BC_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
+    CALLER_PRE + '.utils',
     CALLER_PRE + '.io.fasta',
-    CALLER_PRE + '.io.window',
     CALLER_PRE + '.io.bam',
     CALLER_PRE + '.caller.algorithm',
     CALLER_PRE + '.caller.basetype',
+    CALLER_PRE + '.caller.batch',
+    CALLER_PRE + '.caller.batchcaller',
 ]
 
 

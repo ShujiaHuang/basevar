@@ -8,12 +8,15 @@
 *.egg
 .DS_Store
 
+basevar/*.c
+basevar/caller/*.c
+basevar/io/*.c
+
+dist/
+build/
+*.egg-info/
+
 venv/
 .idea/
 .ipynb_checkpoints/
-*.egg-info/
-basevar/caller/*.c
-basevar/io/*.c
-dist/
-build/
 trash/
