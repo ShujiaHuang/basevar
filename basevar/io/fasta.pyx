@@ -5,7 +5,7 @@ and facilitating access to reference sequences.
 import sys
 
 from basevar.log import logger
-from basevar.utils import Open
+from basevar.io.openfile import Open
 
 
 cdef extern from "stdlib.h":
@@ -124,6 +124,13 @@ cdef class FastaFile:
         Returns the character at the specified (0-indexed means 0-base system) position
         of the specified sequence.
         """
+        if self.cache is not None:
+            if self.cache_start_pos <= pos < self.cache_end_pos:
+                # logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" % (
+                #     seq_name, pos, pos, pos - self.cache_start_pos, pos - self.cache_start_pos))
+
+                return self.cache[pos - self.cache_start_pos]
+
         cdef SequenceTuple seq_tuple = self.references[seq_name]
         cdef long long int seq_length = seq_tuple.seq_length
         cdef long long int seq_start_position = seq_tuple.start_position
@@ -132,7 +139,7 @@ cdef class FastaFile:
 
         if pos >= seq_length or pos < 0:
             # it's empty
-            return <char*> "-"
+            return <char*> ""
 
         filepos = seq_start_position + pos + (full_line_length - line_length) * (
             <long long int> ((<double> pos) / line_length))
@@ -142,7 +149,7 @@ cdef class FastaFile:
             return self.the_file.read(1)
         except Exception:
             # return nothing
-            return <char*> "-"
+            return <char*> ""
 
     cdef void set_cache_sequence(self, bytes seq_name, long long int begin_pos, long long int end_pos):
         """cache a sequence in memery make the program much faster
@@ -193,8 +200,8 @@ cdef class FastaFile:
         """
         if self.cache is not None:
             if begin_pos >= self.cache_start_pos and end_pos < self.cache_end_pos:
-                logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" % (
-                    seq_name, begin_pos, end_pos, begin_pos - self.cache_start_pos, end_pos - self.cache_start_pos))
+                # logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" % (
+                #     seq_name, begin_pos, end_pos, begin_pos - self.cache_start_pos, end_pos - self.cache_start_pos))
 
                 return self.cache[begin_pos - self.cache_start_pos:end_pos - self.cache_start_pos]
 

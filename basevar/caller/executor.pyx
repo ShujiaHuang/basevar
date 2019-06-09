@@ -11,15 +11,15 @@ from __future__ import division
 import sys
 import time
 
-from pysam import AlignmentFile, TabixFile, tabix_index
+from pysam import tabix_index
 
 from basevar.log import logger
 from basevar import utils
-from basevar.io.bam import get_sample_names
+from basevar.io.bam cimport get_sample_names
 from . import CallerProcess, process_runner
 
 from .basetypebam import BaseVarProcess
-from .coverageprocess import CvgSingleProcess
+# from .coverageprocess import CvgSingleProcess
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -204,12 +204,12 @@ class CoverageRunner(object):
             sub_cvg_file = self.outputfile + '_temp_%s' % i
 
             out_cvg_names.add(sub_cvg_file)
-            processes.append(CallerProcess(CvgSingleProcess,
-                                           self.referencefile,
-                                           self.alignefiles,
-                                           sub_cvg_file,
-                                           regions_for_each_process[i],
-                                           cmm=self.cmm))
+            # processes.append(CallerProcess(CvgSingleProcess,
+            #                                self.referencefile,
+            #                                self.alignefiles,
+            #                                sub_cvg_file,
+            #                                regions_for_each_process[i],
+            #                                cmm=self.cmm))
 
         process_runner(processes)
 

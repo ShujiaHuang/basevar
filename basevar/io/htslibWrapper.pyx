@@ -1,9 +1,6 @@
 """Wrapper for htslib"""
 import os
 
-from basevar.log import logger
-
-COMPRESS_COUNT = 40
 
 # valid types for sam headers
 VALID_HEADER_TYPES = {"HD": dict,
@@ -28,6 +25,8 @@ VALID_HEADER_ORDER = {"HD": ("VN", "SO", "GO"),
                       "RG": ("ID", "SM", "LB", "DS", "PU", "PI", "CN", "DT", "PL", "PG"),
                       "PG": ("ID", "VN", "CL"), }
 
+
+cdef int COMPRESS_COUNT = 40
 
 ######################################################################
 ## Public methods
@@ -90,14 +89,12 @@ cdef class Samfile:
 
     cdef void clear_header(self):
         """ Clear all the header data. """
-        logger.debug("Clear header data of bamfile %s ." % self.filename)
         if self.the_header != NULL:
             bam_hdr_destroy(self.the_header)
             self.the_header = NULL
 
     cdef void clear_index(self):
         """Clear all the index file data. """
-        logger.debug("Clear index of bamfile %s ." % self.filename)
         if self.index != NULL:
             hts_idx_destroy(self.index)
             self.index = NULL
@@ -116,7 +113,7 @@ cdef class Samfile:
         """return true if samfile has an existing (and opened) index."""
         return self.index != NULL
 
-    cpdef void _open(self, mode, bool load_index):
+    cpdef void _open(self, mode, bint load_index):
         """open a sam/bam/cram file.
 
         If _open is called on an existing bamfile, the current file will be
@@ -320,6 +317,44 @@ cdef class ReadIterator:
             bam_destroy1(self.b)
 
     cdef cAlignedRead* get(self, int store_rgID, char** rgID):
+        """ Some very importance data structure in sam.h and wrapper by htslibWrapper module.
+        
+        /*************************
+         *** Alignment records ***
+         *************************/
+
+        /*! @typedef
+         @abstract Structure for core alignment information.
+         @field  tid     chromosome ID, defined by bam_hdr_t
+         @field  pos     0-based leftmost coordinate
+         @field  bin     bin calculated by bam_reg2bin()
+         @field  qual    mapping quality
+         @field  l_qname length of the query name
+         @field  flag    bitwise flag
+         @field  l_extranul length of extra NULs between qname & cigar (for alignment)
+         @field  n_cigar number of CIGAR operations
+         @field  l_qseq  length of the query sequence (read)
+         @field  mtid    chromosome ID of next read in template, defined by bam_hdr_t
+         @field  mpos    0-based leftmost coordinate of next read in template
+         */
+        typedef struct {
+            int32_t tid;
+            int32_t pos;
+            uint16_t bin;
+            uint8_t qual;
+            uint8_t l_qname;
+            uint16_t flag;
+            uint8_t unused1;
+            uint8_t l_extranul;
+            uint32_t n_cigar;
+            int32_t l_qseq;
+            int32_t mtid;
+            int32_t mpos;
+            int32_t isize;
+        } bam1_core_t;
+        
+        Notes: read pos is 0-base!
+        """
         cdef bam1_core_t* c = &self.b.core
         cdef uint8_t* s = bam_get_seq(self.b)
         cdef uint8_t* q = bam_get_qual(self.b)
@@ -365,11 +400,11 @@ cdef class ReadIterator:
         seq[len_seq] = '\0'
         qual[len_seq] = '\0'
 
-        read_start = c.pos
+        read_start = c.pos  # 0-base
         cdef short* cigar_ops = <short*> malloc(2 * c.n_cigar * sizeof(short))
-        assert cigar_ops != NULL
+        assert cigar_ops != NULL, "Error cigar_ops is NULL"
 
-        cdef uint32_t *cigar = bam_get_cigar(self.b)
+        cdef uint32_t* cigar = bam_get_cigar(self.b)
         for i in range(c.n_cigar):
             cigar_flag = bam_cigar_op(cigar[i])
             cigar_flag_len = bam_cigar_oplen(cigar[i])
@@ -596,7 +631,7 @@ cdef void uncompress_qual(cAlignedRead* read):
     return
 
 
-cdef void compress_read(cAlignedRead* read, char* refseq, int refstart, int refend, int qual_bin_size, int full_comp):
+cdef void compress_read(cAlignedRead* read, char* refseq, int refstart, int refend, int qual_bin_size):
     """To save memory use, we compress reads. The sequence is compressed using reference-based compression.
     
     The qualities are compressed using zlib and (optionally) using course binning. We delete the read-group tag, 

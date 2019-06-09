@@ -2,19 +2,18 @@
 import os
 import sys
 
-from cpython cimport bool
 
 from basevar.log import logger
-from basevar.io.window cimport BamReadBuffer
+from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 from basevar.io.htslibWrapper cimport compress_read
 
 
-cdef bool is_indexable(filename):
+cdef bint is_indexable(filename):
     return filename.lower().endswith((".bam", ".cram"))
 
 
-cpdef list get_sample_names(list bamfiles, bool filename_has_samplename):
+cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
     """Getting sample name in BAM/CRMA files from RG tag and return."""
 
     logger.info("Start getting all the name of samples from alignment files.")
@@ -109,9 +108,10 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
         reader = bam_objs[sample]
 
         # Need to lock the thread here when sharing BAM files
-        if reader.lock is None:
+        if reader.lock is not None:
             reader.lock.acquire()
 
+        # set initial size for BamReadBuffer
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
         sample_read_buffer.sample = bytes(sample)
         sample_read_buffer.sample_order = i
@@ -130,7 +130,7 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
 
             the_read = reader_iter.get(0, NULL)
             if is_compress_read:
-                compress_read(the_read, refseq, start, end, qual_bin_size, 0)
+                compress_read(the_read, refseq, start, end, qual_bin_size)
 
             sample_read_buffer.add_read_to_buffer(the_read)
 

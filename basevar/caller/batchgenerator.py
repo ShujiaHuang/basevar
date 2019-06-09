@@ -7,10 +7,10 @@ from __future__ import division
 import os
 import sys
 
-from pysam import FastaFile
+from basevar.io.fasta import FastaFile
 
 from . import bam
-from . import utils
+from basevar import utils
 
 REMOVE_BATCH_FILE = True
 
@@ -39,7 +39,7 @@ class BatchProcess(object):
                 Just outout base in batch file
         """
         self.ref_file_path = ref_file
-        self.ref_file_hd = FastaFile(ref_file)
+        self.ref_file_hd = FastaFile(ref_file, ref_file+".fai")
         self.align_files = align_files
         self.out_batch_file = out_batch_file
 

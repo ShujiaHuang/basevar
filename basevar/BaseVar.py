@@ -9,6 +9,8 @@ import argparse
 import sys
 import time
 
+from basevar.log import logger
+
 
 def parser_commandline_args():
     desc = "BaseVar: A python software for calling population variants for ultra low pass " \
@@ -290,13 +292,13 @@ def basetypebatch(args):
     return is_success
 
 
-def vqsr(args):
-    # Todo: VQSR need to improve
-    from caller.executor import VQSRRuner
-    vq = VQSRRuner(args)
-    vq.run()
-
-    return True
+# def vqsr(args):
+#     # Todo: VQSR need to improve
+#     from caller.executor import VQSRRuner
+#     vq = VQSRRuner(args)
+#     vq.run()
+#
+#     return True
 
 
 def nearby_indel(args):
@@ -307,13 +309,13 @@ def nearby_indel(args):
     return True
 
 
-def popmatrx(args):
-    from caller.executor import PopulationMatrixRunner
-
-    pr = PopulationMatrixRunner(args)
-    pr.create_matrix()
-
-    return True
+# def popmatrx(args):
+#     from caller.executor import PopulationMatrixRunner
+#
+#     pr = PopulationMatrixRunner(args)
+#     pr.create_matrix()
+#
+#     return True
 
 
 def merge(args):
@@ -325,17 +327,17 @@ def merge(args):
     return True
 
 
-def coverage(args):
-    from caller.executor import CoverageRunner
-    cvg = CoverageRunner(args)
-    processer = cvg.run()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
+# def coverage(args):
+#     from caller.executor import CoverageRunner
+#     cvg = CoverageRunner(args)
+#     processer = cvg.run()
+#
+#     is_success = True
+#     for p in processer:
+#         if p.exitcode != 0:
+#             is_success = False
+#
+#     return is_success
 
 
 def main():
@@ -344,24 +346,24 @@ def main():
         'basetype': basetype,
         'basetypebatch': basetypebatch,
         'merge': merge,
-        'coverage': coverage,
         'NearByIndel': nearby_indel,
-        'VQSR': vqsr,
-        'popmatrix': popmatrx
+        # 'coverage': coverage,
+        # 'VQSR': vqsr,
+        # 'popmatrix': popmatrx
     }
 
     args = parser_commandline_args()
-    sys.stderr.write('\n** %s Start at %s **\n' % (args.command, time.asctime()))
+    logger.info("\n** %s Start at %s **\n" % (args.command, time.asctime()))
 
     is_success = runner[args.command](args)
 
     elapsed_time = time.time() - start_time
     if is_success:
-        sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
-            args.command, time.asctime(), elapsed_time))
+        logger.info('%s done, %d seconds elapsed.\n' % (
+            args.command, elapsed_time))
     else:
-        sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
-            time.asctime(), args.command, elapsed_time))
+        logger.error("Catch some exception, so \"%s\" is not done, %d seconds elapsed\n" % (
+            args.command, elapsed_time))
         sys.exit(1)
 
 

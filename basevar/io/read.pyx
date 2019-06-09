@@ -1,11 +1,9 @@
 """Fast cython implementation of some windowing functions.
 """
-# This seems to affect c-division as well now...
-#from __future__ import division
-
 import cython
 
 from basevar.log import logger
+from basevar.io.htslibWrapper cimport cAlignedRead
 from basevar.io.htslibWrapper cimport destroy_read
 from basevar.io.htslibWrapper cimport compress_read
 from basevar.io.htslibWrapper cimport uncompress_read
@@ -98,6 +96,7 @@ cdef class ReadArray:
         self.window_end = NULL
 
         # Always initialise to NULL
+        cdef int index = 0
         for index in range(size):
             self.array[index] = NULL
 
@@ -234,7 +233,7 @@ cdef class ReadArray:
                 raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
 
     cdef int get_length_of_longest_read(self):
-        """Simple wrapper function.
+        """Return the longest read size
         """
         return self.__longest_read
 
@@ -265,36 +264,8 @@ cdef int bisect_reads_left(cAlignedRead** reads, int test_pos, int n_reads, int 
 
     return low
 
-###################################################################################################
 
-cdef int bisect_reads_right(cAlignedRead** reads, int test_pos, int n_reads, int test_mate_pos=0):
-    """
-    Specialisation of bisection algorithm for array of
-    read pointers.
-    """
-    cdef int low = 0
-    cdef int high = n_reads
-    cdef int mid = 0
-
-    while low < high:
-
-        mid = (low + high) / 2
-
-        if not test_mate_pos:
-            if test_pos < reads[mid].pos:
-                high = mid
-            else:
-                low = mid + 1
-        else:
-            if test_pos < reads[mid].mate_pos:
-                high = mid
-            else:
-                low = mid + 1
-
-    return low
-
-
-cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read, int* filtered_read_counts_by_type,
+cdef bint check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read, int* filtered_read_counts_by_type,
                              int min_map_qual, int min_base_qual, int trim_overlapping, int trim_soft_clipped):
     """
     Performs various quality checks on the read, and trims read (i.e. set q-scores to zero). Returns
@@ -327,6 +298,7 @@ cdef int check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read
 
         if Read_IsPaired(the_read) and (
                 the_read.chrom_id != the_read.mate_chrom_id or (not Read_IsProperPair(the_read))):
+
             filtered_read_counts_by_type[MATE_DISTANT] += 1
             return False
 
@@ -423,20 +395,15 @@ cdef class BamReadBuffer(object):
         self.broken_mates = ReadArray(initial_size)
         self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
         self.chrom = chrom
-        self.start_base = start
-        self.end_base = end
+        self.start = start
+        self.end = end
 
         self.max_reads = options.max_reads
         self.min_base_qual = options.min_base_qual
         self.min_map_qual = options.mapq
         self.trim_overlapping = options.trim_overlapping
-        self.trimSoftClipped = options.trimSoftClipped
+        self.trim_soft_clipped = options.trim_soft_clipped
         self.verbosity = options.verbosity
-
-        # self.minFlank = options.minFlank
-        # self.trimReadFlank = options.trimReadFlank
-        # self.min_good_bases = options.minGoodQualBases
-        # self.trimAdapter = options.trimAdapter
 
         self.last_read = NULL
 
@@ -461,28 +428,31 @@ cdef class BamReadBuffer(object):
         """Useful debug information about which reads have been filtered out.
         """
         if self.verbosity >= 3:
-            logger.debug("Sample %s has %s good reads" % (self.sample, self.reads.get_size()))
-            logger.debug("Sample %s has %s bad reads" % (self.sample, self.bad_reads.get_size()))
-            logger.debug("Sample %s has %s broken mates" % (self.sample, self.broken_mates.get_size()))
-            logger.debug("N low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-            logger.debug("N low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-            logger.debug("N un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
-            logger.debug("N reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
-            logger.debug("N reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
-            logger.debug("N reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
-            logger.debug("N duplicate reads = %s" % (self.filtered_read_counts_by_type[DUPLICATE]))
+            region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
+            logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
+            logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
+            logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
+            logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
+            logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
+            logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
+            logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
+            logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
+            logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
+            logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
 
             if self.trim_overlapping == 1:
                 logger.debug("Overlapping segments of read pairs were clipped")
             else:
                 logger.debug("Overlapping segments of read pairs were not clipped")
 
-            logger.debug("Overhanging bits of reads (poss. adapter sequences) were not clipped")
+            logger.debug("Overhanging bits of reads were not clipped")
 
     cdef void add_read_to_buffer(self, cAlignedRead* the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.
         """
         # Temp variable for checking that re-alloc works
+        # logger.info("%s, %s" % (the_read.pos, the_read.end))
+
         cdef int read_ok = 0
         cdef int min_good_bases_this_read = 0
         cdef int read_start = -1
@@ -490,9 +460,6 @@ cdef class BamReadBuffer(object):
         cdef int read_length = -1
 
         if the_read == NULL:
-            # Found null read
-            # if self.verbosity >= 3:
-            #     logger.debug("Found null read")
             return
         else:
 
@@ -626,12 +593,11 @@ cdef class BamReadBuffer(object):
         # If the reads in this window are compressed, then uncompress them
         the_start = self.reads.window_start
         the_end = self.reads.window_end
-
         while the_start != the_end:
 
             # Compresss reads is required
             if is_compress_reads:
-                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size, 1)
+                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size)
 
             # Otherwise, just clear the hash
             if the_start[0].hash != NULL:
@@ -640,14 +606,14 @@ cdef class BamReadBuffer(object):
 
             the_start += 1
 
+        # For bad_reads
         the_start = self.bad_reads.window_start
         the_end = self.bad_reads.window_end
-
         while the_start != the_end:
 
             # Compresss reads is required
             if is_compress_reads:
-                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size, 1)
+                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size)
 
             # Otherwise, just clear the hash
             if the_start[0].hash != NULL:
@@ -657,13 +623,12 @@ cdef class BamReadBuffer(object):
             the_start += 1
 
         the_start = self.broken_mates.window_start
-        theEnd = self.broken_mates.window_end
-
+        the_end = self.broken_mates.window_end
         while the_start != the_end:
 
             # Compresss reads is required
             if is_compress_reads:
-                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size, 1)
+                compress_read(the_start[0], refseq, refstart, refend, qual_bin_size)
 
             # Otherwise, just clear the hash
             if the_start[0].hash != NULL:

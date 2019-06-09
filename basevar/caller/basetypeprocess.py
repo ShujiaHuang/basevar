@@ -7,8 +7,8 @@ from pysam import TabixFile
 
 from .basetype import BaseType
 from .algorithm import strand_bias, ref_vs_alt_ranksumtest
-from .utils import fetch_next, vcf_header_define, cvg_header_define, Open
-from .utils import CommonParameter
+from basevar.utils import fetch_next, vcf_header_define, cvg_header_define, Open
+from basevar.utils import CommonParameter
 
 
 def variants_discovery(chrid, fa, batchfiles, popgroup, min_af, cvg_file_handle, vcf_file_handle):

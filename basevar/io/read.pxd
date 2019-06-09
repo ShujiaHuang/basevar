@@ -24,23 +24,25 @@ cdef class BamReadBuffer:
     cdef int sample_order  # A number represent the input order of the sample!
 
     cdef char* chrom
-    cdef int chrom_ID
+    cdef int chrom_id
+    cdef int start
+    cdef int end
     cdef int* filtered_read_counts_by_type
     cdef int is_sorted
-    cdef int start_base
-    cdef int end_base
     cdef int window_start_base
     cdef int window_end_base
     cdef int max_reads
     cdef int min_map_qual
     cdef int min_base_qual
-    cdef int min_flank
-    cdef int trim_read_flank
-    cdef int verbosity
-    cdef int min_good_bases
     cdef int trim_overlapping
-    cdef int trim_adapter
     cdef int trim_soft_clipped
+    cdef int verbosity
+
+    # cdef int min_flank
+    # cdef int trim_read_flank
+    # cdef int min_good_bases
+    # cdef int trim_adapter
+
     cdef cAlignedRead* last_read
     cdef ReadArray reads
     cdef ReadArray bad_reads

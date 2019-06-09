@@ -7,13 +7,13 @@ from __future__ import division
 import os
 import sys
 
-from pysam import FastaFile
+from basevar.io.fasta import FastaFile
 
-from . import bam
-from . import utils
+from basevar import utils
+from basevar.caller.batchcaller cimport create_batchfiles_in_regions
 from .basetypeprocess import output_header, variants_discovery
 
-REMOVE_BATCH_FILE = False
+cdef bint REMOVE_BATCH_FILE = 0
 
 
 class BaseVarProcess(object):
@@ -21,10 +21,9 @@ class BaseVarProcess(object):
     simple class to repesent a single BaseVar process.
     """
 
-    def __init__(self, ref_file, align_files, in_popgroup_file, regions, samples, min_af=0.001, mapq=10, batchcount=50,
-                 out_vcf_file=None, out_cvg_file=None, rerun=False):
-        """
-        Constructor.
+    def __init__(self, samples, align_files, ref_file, regions, out_vcf_file=None,
+                 out_cvg_file=None, options=None):
+        """Constructor.
 
         Store input file, options and output file name.
 
@@ -36,16 +35,14 @@ class BaseVarProcess(object):
             regions: 2d-array like, required
                     It's region info , format like: [[chrid, start, end], ...]
         """
-        self.fa_file_hd = FastaFile(ref_file)
+        self.samples = samples
         self.align_files = align_files
+        self.fa_file_hd = FastaFile(ref_file, ref_file + ".fai")
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
 
-        self.batch_count = batchcount
-        self.samples = samples
-        self.min_af = min_af
-        self.smart_rerun = rerun
-        self.mapq = mapq
+        self.smart_rerun = True if options.smartrerun else False
+        self.options = options
 
         # store the region into a dict
         self.regions = utils.regions2dict(regions)
@@ -53,16 +50,14 @@ class BaseVarProcess(object):
         # loading population group
         # group_id => [a list samples_index]
         self.popgroup = {}
-        if in_popgroup_file and len(in_popgroup_file):
-            self.popgroup = utils.load_popgroup_info(self.samples, in_popgroup_file)
+        if options.pop_group_file and len(options.pop_group_file):
+            self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
     def run(self):
+        """Run the process of calling variant and output files.
         """
-        Run the process of calling variant and output files.
-
-        """
-        VCF = open(self.out_vcf_file, 'w') if self.out_vcf_file else None
-        CVG = open(self.out_cvg_file, 'w')
+        VCF = open(self.out_vcf_file, "w") if self.out_vcf_file else None
+        CVG = open(self.out_cvg_file, "w")
         output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
         is_empty = True
@@ -74,26 +69,22 @@ class BaseVarProcess(object):
             utils.safe_remove(utils.get_last_modification_file(cache_dir))
 
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
-
-            # get fasta sequence by chrid
-            fa = self.fa_file_hd.fetch(chrid)
-
+            # refseq = self.fa_file_hd.fetch(chrid)
             # create batch file for variant discovery
-            batchfiles = bam.create_batchfiles_for_regions(chrid,
-                                                           regions,
-                                                           self.batch_count,
-                                                           self.align_files,
-                                                           fa,
-                                                           self.mapq,
-                                                           cache_dir,
-                                                           sample_ids=self.samples,
-                                                           is_smart_rerun=self.smart_rerun)
+            batchfiles = create_batchfiles_in_regions(chrid,
+                                                      regions,
+                                                      self.align_files,
+                                                      self.fa_file_hd,
+                                                      self.samples,
+                                                      cache_dir,
+                                                      self.options,
+                                                      self.smart_rerun)
 
             # Process of variants discovery
-            _is_empty = variants_discovery(chrid, fa, batchfiles, self.popgroup, self.min_af, CVG, VCF)
-
-            if not _is_empty:
-                is_empty = False
+            # _is_empty = variants_discovery(chrid, refseq, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
+            #
+            # if not _is_empty:
+            #     is_empty = False
 
             if REMOVE_BATCH_FILE:
                 for f in batchfiles:
@@ -108,9 +99,11 @@ class BaseVarProcess(object):
         if is_empty:
             sys.stderr.write("\n***************************************************************************\n"
                              "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
-                             "input files.\n We get nothing in %s " % (self.mapq, self.out_cvg_file))
+                             "input files. We get nothing in %s " % (self.options.mapq, self.out_cvg_file))
             if VCF:
                 sys.stderr.write("and %s " % self.out_vcf_file)
+
+            sys.stderr.write("\n\n")
 
         if REMOVE_BATCH_FILE:
             try:

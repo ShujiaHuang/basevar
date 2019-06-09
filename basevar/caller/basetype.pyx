@@ -5,8 +5,8 @@ import itertools  # Use the combinations function
 import numpy as np
 from scipy.stats.distributions import chi2
 
-from .algorithm import EM
-from .utils import CommonParameter
+from basevar.caller.algorithm import EM
+from basevar.utils import CommonParameter
 
 
 cdef extern from "math.h":

@@ -3,7 +3,6 @@
 Author: Shujia Huang
 Date: 2019-05-29 18:20:35
 """
-from cpython cimport bool
 
 cdef extern from "stdlib.h":
     void *malloc(size_t)
@@ -165,8 +164,8 @@ cdef extern from "htslib/sam.h":
     bam_hdr_t *sam_hdr_read(samFile *fp)
     bam1_t *bam_init1()
     int sam_read1(samFile *fp, bam_hdr_t *h, bam1_t *b)
-    bool bam_is_rev(const bam1_t *b)
-    bool bam_is_mrev(const bam1_t *b)
+    bint bam_is_rev(const bam1_t *b)
+    bint bam_is_mrev(const bam1_t *b)
     char *bam_get_qname(const bam1_t *b)
     uint8_t *bam_get_seq(const bam1_t *b)
     uint8_t *bam_get_qual(const bam1_t *b)
@@ -218,7 +217,7 @@ cdef class Samfile:
     cdef void clear_header(self)
     cdef void clear_index(self)
 
-    cpdef void _open(self, mode, bool load_index)  # A main function to open BAM/CRAM/SAM
+    cpdef void _open(self, mode, bint load_index)  # A main function to open BAM/CRAM/SAM
     cdef void _open_bamfile(self, mode)
     cdef int _is_bam(self)
     cdef int _is_cram(self)
@@ -305,5 +304,5 @@ cdef inline void Read_SetUnCompressed(cAlignedRead* the_read) nogil:
 ###################################################################################################
 
 cdef void destroy_read(cAlignedRead* the_read)
-cdef void compress_read(cAlignedRead* read, char* refseq, int ref_start, int refend, int qual_bin_size, int full_comp)
+cdef void compress_read(cAlignedRead* read, char* refseq, int ref_start, int refend, int qual_bin_size)
 cdef void uncompress_read(cAlignedRead* read, char* refseq, int ref_start, int refend, int qual_bin_size)

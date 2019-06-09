@@ -8,7 +8,7 @@ import multiprocessing
 
 import pysam
 
-from . import utils
+from basevar import utils
 from . import bam
 
 
