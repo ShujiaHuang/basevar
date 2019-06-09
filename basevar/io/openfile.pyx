@@ -35,9 +35,6 @@ def Open(file_name, mode, compress_level=9, isbgz=False):
 
 
 class FileForQueueing(object):
-    """
-    """
-
     def __init__(self, the_file, line, is_del_raw_file=False):
         """
         Store the file, and init current value

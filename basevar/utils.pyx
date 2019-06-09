@@ -7,7 +7,7 @@ from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
 
 
-class CommonParameter(object):
+class CommonParameter:
     """
     defined some globle common parameters
     """
@@ -17,16 +17,15 @@ class CommonParameter(object):
     BASE = ['A', 'C', 'G', 'T']
     BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
     MINAF = 0.001  # The effective base freqence threshold
-    debug = False
 
 
-def set_minaf(sample_size):
+cdef float set_minaf(int sample_size):
     """setting the resolution of MAF for basetype"""
     cmm = CommonParameter()
     return min(100.0/sample_size, 0.001, cmm.MINAF)
 
 
-def safe_remove(fname):
+def safe_remove(bytes fname):
     """Remove a file if it exist"""
     if not fname:
         return False
@@ -37,7 +36,7 @@ def safe_remove(fname):
     return True
 
 
-def safe_makedir(dname):
+def safe_makedir(bytes dname):
     """Make a directory if it doesn't exist, handling concurrent race conditions.
     """
     if not dname:
@@ -69,7 +68,7 @@ def file_exists(fname):
         return False
 
 
-def get_last_modification_file(dirname):
+def get_last_modification_file(bytes dirname):
     """Find the last modification file in a directory and return it."""
 
     file_name_list = os.listdir(dirname)
@@ -161,7 +160,7 @@ def load_file_list(in_file):
     return files
 
 
-def load_target_position(referencefile, posfile, region_info):
+def load_target_position(bytes referencefile, bytes posfile, bytes region_info):
     # Loading positions
     _sites = get_position_list(posfile) if posfile else {}
 

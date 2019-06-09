@@ -78,7 +78,6 @@ cdef int read_mate_pos_comp(const void* x, const void* y):
     assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
     return read_one[0].mate_pos - read_two[0].mate_pos
 
-###################################################################################################
 
 cdef class ReadArray:
     """Simple structure to wrap a raw C array, with some bounds checking.

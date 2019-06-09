@@ -7,7 +7,7 @@ import os
 import time
 
 from basevar.log import logger
-from basevar.utils import Open
+from basevar.io.openfile import Open
 from basevar.io.htslibWrapper cimport Samfile
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.fasta cimport FastaFile
@@ -87,6 +87,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, list alig
             part_file_name, time.time() - start_time))
 
     return batchfiles
+
 
 cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigend, list regions,
                              list batch_align_files, FastaFile fa, object options, bytes out_batch_file,

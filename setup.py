@@ -3,7 +3,7 @@
 Version 1.0.0 (Dec 16, 2018)
 Copyright (C) 2018 Shujia Huang <huangshujia9@gmail.com>
 """
-import os
+import os, glob
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
@@ -25,6 +25,7 @@ DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
 VERSION = "0.0.1.3"
 
 BC_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/caller"
+TB_INCLUDE_DIR = os.path.split(os.path.realpath(__file__))[0] + "/basevar/io/BGZF"
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
@@ -54,6 +55,28 @@ if __name__ == "__main__":
     htslibWrapper = CALLER_PRE+'.io.htslibWrapper'
     the_cython_file = htslibWrapper.replace('.', os.path.sep) + '.pyx'
     extensions = [Extension(name=htslibWrapper, sources=[the_cython_file], language='c', libraries=['hts'])]
+
+    # extension for bgzip and tabix
+    # the_tabix_pre = CALLER_PRE+'.io.BGZF.tabix'
+    # the_tabix_dir = the_tabix_pre.replace('.', os.path.sep)
+    # the_pysam_pre = CALLER_PRE+'.io.BGZF.pysam'
+    # the_pysam_dir = the_pysam_pre.replace('.', os.path.sep)
+    # tabix_flags = ["-Wno-incompatible-pointer-types-discards-qualifiers","-Wno-unused-function","-Wno-unneeded-internal-declaration"]
+    # tabproxies_flags = ["-Wno-unused-function"]
+    # extensions.append(Extension(name=the_pysam_pre+".ctabix",
+    #                             sources=[the_pysam_dir+"/ctabix.pyx"] + [the_pysam_dir+"/tabix_util.c"] + glob.glob(the_tabix_dir+"/*.pysam.c"),
+    #                             include_dirs=[TB_INCLUDE_DIR+"/tabix", TB_INCLUDE_DIR+"/pysam"],
+    #                             libraries=["z"],
+    #                             language="c",
+    #                             extra_compile_args=tabix_flags
+    #                             ))
+    #
+    # extensions.append(Extension(name=the_pysam_pre+".TabProxies",
+    #                             sources=[the_pysam_dir+"/TabProxies.pyx"],
+    #                             libraries=["z"],
+    #                             language="c",
+    #                             extra_compile_args=tabproxies_flags
+    #                             ))
 
     # other extensions
     extensions += [make_extension(name) for name in MOD_NAMES]
