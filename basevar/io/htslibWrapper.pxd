@@ -16,24 +16,6 @@ cdef extern from "math.h":
     double log(double)
     double log10(double)
 
-cdef extern from "stdio.h":
-    ctypedef struct FILE:
-        pass
-
-    FILE *fopen(char *, char *)
-    FILE *freopen(char *path, char *mode, FILE *stream)
-    int fileno(FILE *stream)
-    int dup2(int oldfd, int newfd)
-    int fflush(FILE *stream)
-    FILE *stderr
-    FILE *stdout
-    int fclose(FILE *)
-    int sscanf(char *str, char *fmt, ...)
-    int printf(char *str, char *fmt, ...)
-    int sprintf(char *str, char *fmt, ...)
-    int fprintf(FILE *ifile, char *fmt, ...)
-    char *fgets(char *str, int size, FILE *ifile)
-
 cdef extern from "ctype.h":
     int toupper(int c)
 

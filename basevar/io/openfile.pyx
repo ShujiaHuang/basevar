@@ -11,7 +11,6 @@ import heapq
 
 from pysam import BGZFile
 
-
 def _expanded_open(path, mode):
     try:
         return open(path, mode)
@@ -19,7 +18,7 @@ def _expanded_open(path, mode):
         return open(os.path.expanduser(path), mode)
 
 
-def Open(file_name, mode, compress_level=9, isbgz=False):
+def Open(file_name, mode, compress_level=9, isbgz=True):
     """
     Function that allows transparent usage of dictzip, gzip and
     ordinary files
@@ -94,7 +93,6 @@ class FileForQueueing(object):
             else:
                 return 0
 
-        # return cmp(self.chrom, other.chrom) or cmp(self.pos, other.pos)
         return _comparision(self.chrom, other.chrom) or _comparision(self.pos, other.pos)
 
     def __del__(self):

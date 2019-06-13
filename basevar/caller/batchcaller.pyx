@@ -15,7 +15,8 @@ from basevar.io.bam cimport load_bamdata
 from basevar.caller.batch cimport BatchGenerator
 
 
-cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, list align_files, FastaFile fa,
+cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, long int region_boundary_start,
+                                       long int region_boundary_end, list align_files, FastaFile fa,
                                        list samples, bytes outdir, object options, bint is_smart_rerun):
     """
     ``samples``: The sample id of align_files
@@ -34,23 +35,6 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, list alig
     if part_num * batchcount < len(align_files):
         part_num += 1
 
-    tmp_region = []
-    cdef list p
-    for p in regions:
-        tmp_region.extend(p)
-
-    tmp_region = sorted(tmp_region)
-
-    # set region to be 0-base
-    cdef long int region_boundary_start = max(0, tmp_region[0] - 1)
-    cdef long int region_boundary_end = min(tmp_region[-1] - 1, fa.references[chrom_name].seq_length-1)
-
-    # set cache for fa sequence, this could make the program much faster
-    # And remember that ``fa`` is 0-base system
-    fa.set_cache_sequence(chrom_name,
-                          region_boundary_start - 10 * options.r_len, # extend 10 times of the read-length
-                          region_boundary_end + 10 * options.r_len)  # extend 10 times of the read-length
-
     cdef int m = 0
     cdef int i = 0
     for i in range(0, len(align_files), batchcount):
@@ -67,7 +51,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, list alig
         if is_smart_rerun and os.path.isfile(part_file_name):
             # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
             logger.info("%s already exists, we don't have to create it again, "
-                        "when you set `smartrerun`\n" % part_file_name)
+                        "when you set `smartrerun`" % part_file_name)
             continue
         else:
             logger.info("Creating batchfile %s\n" % part_file_name)

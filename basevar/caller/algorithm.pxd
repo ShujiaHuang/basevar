@@ -16,3 +16,13 @@ cdef extern from "include/kfunc.c":
 
 cdef extern from "include/kfunc.h":
     double kt_fisher_exact(int n11, int n12, int n21, int n22, double *_left, double *_right, double *two)
+
+cdef void EM(double* init_allele_freq,
+             double* ind_allele_likelihood,
+             double* marginal_likelihood,
+             double* expect_allele_prob,
+             int nsample,
+             int ntype,
+             int iter_num,
+             double epsilon)
+

@@ -7,7 +7,7 @@ from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
 
 
-class CommonParameter:
+cdef class CommonParameter:
     """
     defined some globle common parameters
     """

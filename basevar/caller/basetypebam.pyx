@@ -5,18 +5,19 @@ This is a Process module for BaseType by BAM/CRAM
 from __future__ import division
 
 import os
-import sys
 
 from basevar.io.fasta import FastaFile
 
 from basevar import utils
+from basevar.log import logger
+from basevar.caller.basetypeprocess import output_header
+from basevar.caller.basetypeprocess cimport variants_discovery
 from basevar.caller.batchcaller cimport create_batchfiles_in_regions
-from .basetypeprocess import output_header, variants_discovery
 
-cdef bint REMOVE_BATCH_FILE = 0
+cdef bint REMOVE_BATCH_FILE = False
 
 
-class BaseVarProcess(object):
+cdef class BaseVarProcess:
     """
     simple class to repesent a single BaseVar process.
     """
@@ -68,11 +69,30 @@ class BaseVarProcess(object):
             # remove the last modification file
             utils.safe_remove(utils.get_last_modification_file(cache_dir))
 
+        cdef long int region_boundary_start
+        cdef long int region_boundary_end
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
-            # refseq = self.fa_file_hd.fetch(chrid)
-            # create batch file for variant discovery
+
+            tmp_region = []
+            p = []
+            for p in regions:
+                tmp_region.extend(p)
+
+            tmp_region = sorted(tmp_region)
+            # get region boundary and set the coordinate to be 0-base
+            region_boundary_start = max(0, tmp_region[0] - 1)
+            region_boundary_end = min(tmp_region[-1] - 1, self.fa_file_hd.get_reference_length(chrid) - 1)
+
+            # set cache for fa sequence, this could make the program much faster
+            # And remember that ``fa_file_hd`` is 0-base system
+            self.fa_file_hd.set_cache_sequence(chrid,
+                                               region_boundary_start - 10 * self.options.r_len,
+                                               region_boundary_end + 10 * self.options.r_len)
+
             batchfiles = create_batchfiles_in_regions(chrid,
                                                       regions,
+                                                      region_boundary_start, # 0-base
+                                                      region_boundary_end, # 0-base
                                                       self.align_files,
                                                       self.fa_file_hd,
                                                       self.samples,
@@ -81,10 +101,11 @@ class BaseVarProcess(object):
                                                       self.smart_rerun)
 
             # Process of variants discovery
-            # _is_empty = variants_discovery(chrid, refseq, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
-            #
-            # if not _is_empty:
-            #     is_empty = False
+            logger.info("**************** variants_discovery ****************")
+            _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
+
+            if not _is_empty:
+                is_empty = False
 
             if REMOVE_BATCH_FILE:
                 for f in batchfiles:
@@ -97,18 +118,16 @@ class BaseVarProcess(object):
         self.fa_file_hd.close()
 
         if is_empty:
-            sys.stderr.write("\n***************************************************************************\n"
-                             "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
-                             "input files. We get nothing in %s " % (self.options.mapq, self.out_cvg_file))
+            logger.warning("\n***************************************************************************\n"
+                           "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
+                           "input files. We get nothing in %s \n\n" % (self.options.mapq, self.out_cvg_file))
             if VCF:
-                sys.stderr.write("and %s " % self.out_vcf_file)
-
-            sys.stderr.write("\n\n")
+                logger.warning("and %s " % self.out_vcf_file)
 
         if REMOVE_BATCH_FILE:
             try:
                 os.removedirs(cache_dir)
             except OSError:
-                sys.stderr.write("[WARNING] Directory not empty: %s, please delete it by yourself\n" % cache_dir)
+                logger.warning("Directory not empty: %s, please delete it by yourself\n" % cache_dir)
 
         return

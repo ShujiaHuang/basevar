@@ -3,9 +3,10 @@
 Version 1.0.0 (Dec 16, 2018)
 Copyright (C) 2018 Shujia Huang <huangshujia9@gmail.com>
 """
-import os, glob
+import os
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
+import numpy
 
 try:
     from setuptools import setup, find_packages, Extension
@@ -34,18 +35,20 @@ MOD_NAMES = [
     CALLER_PRE + '.io.fasta',
     CALLER_PRE + '.io.bam',
     CALLER_PRE + '.io.read',
-    CALLER_PRE + '.caller.algorithm',
+    # CALLER_PRE + '.caller.algorithm',
     CALLER_PRE + '.caller.basetype',
     CALLER_PRE + '.caller.batch',
     CALLER_PRE + '.caller.batchcaller',
     CALLER_PRE + '.caller.basetypebam',
+    CALLER_PRE + '.caller.basetypeprocess',
     CALLER_PRE + '.caller.executor',
 ]
 
 
 def make_extension(modname):
     the_cython_file = modname.replace('.', os.path.sep) + '.pyx'
-    return Extension(name=modname, sources=[the_cython_file], language='c', include_dirs=[BC_INCLUDE_DIR])
+    return Extension(name=modname, sources=[the_cython_file], language='c')
+    # return Extension(name=modname, sources=[the_cython_file], language='c', include_dirs=[BC_INCLUDE_DIR])
 
 
 if __name__ == "__main__":
@@ -55,6 +58,12 @@ if __name__ == "__main__":
     htslibWrapper = CALLER_PRE+'.io.htslibWrapper'
     the_cython_file = htslibWrapper.replace('.', os.path.sep) + '.pyx'
     extensions = [Extension(name=htslibWrapper, sources=[the_cython_file], language='c', libraries=['hts'])]
+
+    algorithm = CALLER_PRE + '.caller.algorithm'
+    extensions.append(Extension(name=algorithm,
+                                sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
+                                language='c',
+                                include_dirs=[BC_INCLUDE_DIR]))
 
     # extension for bgzip and tabix
     # the_tabix_pre = CALLER_PRE+'.io.BGZF.tabix'

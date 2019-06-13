@@ -202,7 +202,6 @@ cdef class FastaFile:
             if begin_pos >= self.cache_start_pos and end_pos < self.cache_end_pos:
                 # logger.debug("Getting %s:%s-%s from cache. cache index = %s:%s" % (
                 #     seq_name, begin_pos, end_pos, begin_pos - self.cache_start_pos, end_pos - self.cache_start_pos))
-
                 return self.cache[begin_pos - self.cache_start_pos:end_pos - self.cache_start_pos]
 
         cdef SequenceTuple seq_tuple = self.references[seq_name]

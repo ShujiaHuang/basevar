@@ -5,17 +5,25 @@ from scipy.stats.distributions import norm
 import numpy as np
 
 
-def EM(double[::1] init_allele_freq, double[:,::1] ind_allele_likelihood,
-       int iter_num=100, double epsilon=0.001):
+cdef extern from "stdlib.h":
+    void free(void *)
+    void *malloc(size_t)
+    void *calloc(size_t, size_t)
 
-    cdef int nsample = ind_allele_likelihood.shape[0]
-    cdef int ntype = ind_allele_likelihood.shape[1]
-    cdef double[::1] marginal_likelihood = np.zeros((nsample,), dtype=np.double)
-    cdef double[::1] expect_allele_prob = np.zeros((ntype,), dtype=np.double)
-    em(&init_allele_freq[0], &ind_allele_likelihood[0, 0], &marginal_likelihood[0],
-       &expect_allele_prob[0], nsample, ntype, iter_num, epsilon)
 
-    return np.asarray(marginal_likelihood), np.asarray(expect_allele_prob)
+cdef void EM(double* init_allele_freq,
+             double* ind_allele_likelihood,
+             double* marginal_likelihood,
+             double* expect_allele_prob,
+             int nsample,
+             int ntype,
+             int iter_num,
+             double epsilon):
+
+    em(init_allele_freq, ind_allele_likelihood, marginal_likelihood,
+       expect_allele_prob, nsample, ntype, iter_num, epsilon)
+
+    return
 
 
 def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
