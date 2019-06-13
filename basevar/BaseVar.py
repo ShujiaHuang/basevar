@@ -9,6 +9,8 @@ import argparse
 import sys
 import time
 
+from basevar.log import logger
+
 
 def parser_commandline_args():
     desc = "BaseVar: A python software for calling population variants for ultra low pass " \
@@ -27,7 +29,10 @@ def parser_commandline_args():
                               help='Input reference fasta file.')
 
     basetype_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
-                              help='Only include reads with mapping quality >= INT. [10]')
+                              help='Only include reads with mapping quality >= INT. [10]', required=False)
+    basetype_cmd.add_argument("-b", dest="min_base_qual", action='store', type=int, default=20,
+                              help="Minimum allowed base-calling quality. Any bases with qual below "
+                                   "this are ignored in SNP-calling. [20]", required=False)
 
     basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
                               help='Output VCF file. If not provide will skip variants discovery and just output '
@@ -46,17 +51,45 @@ def parser_commandline_args():
                                    'simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=200,
                               help='INT simples per batchfile. [200]')
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
-    basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
+    basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=0.001,
                               help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                    'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                                   '[min(0.001, 100/x, cmm.MINAF)]. '
-                                   'Probably you don\'t need to take care about this parameter.')
+                                   '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t hava to take care about '
+                                   'this parameter.')
 
     # special parameter for calculating specific population allele frequence
+    basetype_cmd.add_argument("--max-read-length", dest="r_len", action='store', type=int, default=150,
+                              help="Maximum read length. [150]")
+    basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
+                              help="Maximium coverage in window. [5000000]")
+    basetype_cmd.add_argument("--compress_reads", dest="is_compress_read", type=int, action='store', default=0,
+                              help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
+                                   "This will slow things down, but reduce memory usage. [0]")
+    basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
+                              help="This sets the granularity used when compressing quality scores. "
+                                   "If > 1 then quality compression is lossy. [1]")
+    basetype_cmd.add_argument("--trim-overlapping", dest="trim_overlapping", action='store_true',
+                              help="If setted, overlapping paired reads have overlap set to qual 0.")
+    basetype_cmd.add_argument("--trim-soft-clipped", dest="trim_soft_clipped", action='store_true',
+                              help="If setted, then sets to qual 0 any soft clipped parts of the read.")
+
+    basetype_cmd.add_argument("--filter-duplicates", dest="filter_duplicates", action='store', type=int, default=1,
+                              help="If set to 1, duplicate reads will be removed based on the read-pair start and "
+                                   "end. [1]", required=False)
+    basetype_cmd.add_argument("--filter-reads-with-unmapped-mates", dest="filter_reads_with_unmapped_mates",
+                              action='store', type=int, default=1, required=False,
+                              help="If set to 1, reads with un-mapped mates will be removed. [1]")
+    basetype_cmd.add_argument("--filter-reads-with-distant-mates", dest="filter_reads_with_distant_mates",
+                              help="If set to 1, reads with mates mapped far away will be removed. [1]",
+                              action='store', type=int, default=1, required=False)
+    basetype_cmd.add_argument("--filter-read-pairs-with-small-inserts", dest="filterReadPairsWithSmallInserts",
+                              help="If set to 1, read pairs with insert sizes < one read length will be removed. [1]",
+                              action='store', type=int, default=1, required=False)
+
     basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
                               help='Calculating the allele frequency for specific population.')
 
@@ -67,6 +100,9 @@ def parser_commandline_args():
 
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
                               help='Rerun process by checking batchfiles.')
+
+    basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=3,
+                              help="Level of logging. [3]")
 
     # For discovery variants from batchfiles
     btb_cmd = commands.add_parser('basetypebatch',
@@ -256,13 +292,13 @@ def basetypebatch(args):
     return is_success
 
 
-def vqsr(args):
-    # Todo: VQSR need to improve
-    from caller.executor import VQSRRuner
-    vq = VQSRRuner(args)
-    vq.run()
-
-    return True
+# def vqsr(args):
+#     # Todo: VQSR need to improve
+#     from caller.executor import VQSRRuner
+#     vq = VQSRRuner(args)
+#     vq.run()
+#
+#     return True
 
 
 def nearby_indel(args):
@@ -273,13 +309,13 @@ def nearby_indel(args):
     return True
 
 
-def popmatrx(args):
-    from caller.executor import PopulationMatrixRunner
-
-    pr = PopulationMatrixRunner(args)
-    pr.create_matrix()
-
-    return True
+# def popmatrx(args):
+#     from caller.executor import PopulationMatrixRunner
+#
+#     pr = PopulationMatrixRunner(args)
+#     pr.create_matrix()
+#
+#     return True
 
 
 def merge(args):
@@ -291,17 +327,17 @@ def merge(args):
     return True
 
 
-def coverage(args):
-    from caller.executor import CoverageRunner
-    cvg = CoverageRunner(args)
-    processer = cvg.run()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
+# def coverage(args):
+#     from caller.executor import CoverageRunner
+#     cvg = CoverageRunner(args)
+#     processer = cvg.run()
+#
+#     is_success = True
+#     for p in processer:
+#         if p.exitcode != 0:
+#             is_success = False
+#
+#     return is_success
 
 
 def main():
@@ -310,24 +346,24 @@ def main():
         'basetype': basetype,
         'basetypebatch': basetypebatch,
         'merge': merge,
-        'coverage': coverage,
         'NearByIndel': nearby_indel,
-        'VQSR': vqsr,
-        'popmatrix': popmatrx
+        # 'coverage': coverage,
+        # 'VQSR': vqsr,
+        # 'popmatrix': popmatrx
     }
 
     args = parser_commandline_args()
-    sys.stderr.write('\n** %s Start at %s **\n' % (args.command, time.asctime()))
+    logger.info("\n** %s Start at %s **\n" % (args.command, time.asctime()))
 
     is_success = runner[args.command](args)
 
     elapsed_time = time.time() - start_time
     if is_success:
-        sys.stderr.write('** %s done at %s, %d seconds elapsed **\n' % (
-            args.command, time.asctime(), elapsed_time))
+        logger.info('%s done, %d seconds elapsed.\n' % (
+            args.command, elapsed_time))
     else:
-        sys.stderr.write('[ERROR] Catch some exception on %s, so "%s" is not done, %d seconds elapsed\n' % (
-            time.asctime(), args.command, elapsed_time))
+        logger.error("Catch some exception, so \"%s\" is not done, %d seconds elapsed\n" % (
+            args.command, elapsed_time))
         sys.exit(1)
 
 
