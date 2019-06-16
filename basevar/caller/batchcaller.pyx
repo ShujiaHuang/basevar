@@ -84,18 +84,14 @@ cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigen
         ``regions``: The coordinate in regions is 1-base system.
     """
     # Just loading baminfo and not need to load header!
-    cdef dict bam_objs = {s: Samfile(f) for s, f in zip(batch_sample_ids, batch_align_files)}
+    cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
     cdef list read_buffers
     cdef bytes refseq_bytes = fa.get_sequence(chrom_name, bigstart, bigend + 5 * options.r_len)
     cdef char* refseq = refseq_bytes
 
     try:
         # load the whole mapping reads in [chrom_name, bigstart, bigend]
-        read_buffers = load_bamdata(bam_objs, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
-
-        # close all the bamfiles
-        for f in bam_objs.values():
-            f.close()
+        read_buffers = load_bamdata(bamfiles, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
 
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))

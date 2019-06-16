@@ -166,7 +166,7 @@ cdef class ReadArray:
 
             if start_pos_of_reads > end_pos_of_reads:
                 logger.error("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
-                start, end, start_pos_of_reads, end_pos_of_reads))
+                    start, end, start_pos_of_reads, end_pos_of_reads))
                 logger.error("There are %s reads here." % (self.__size))
                 raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
 
@@ -382,7 +382,7 @@ cdef class BamReadBuffer(object):
     Utility class for bufffering reads from a single BAM file, so we only make a single pass
     through the data in each BAM in the loop through windows.
     """
-    def __cinit__(self, char* chrom, int start, int end, options):
+    def __cinit__(self, char* chrom, long int start, long int end, options):
         """
         Constructor.
         """
@@ -423,28 +423,28 @@ cdef class BamReadBuffer(object):
         """
         free(self.filtered_read_counts_by_type)
 
-    cdef void log_filter_summary(self):
-        """Useful debug information about which reads have been filtered out.
-        """
-        if self.verbosity >= 3:
-            region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
-            logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
-            logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
-            logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
-            logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-            logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-            logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
-            logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
-            logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
-            logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
-            logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
-
-            if self.trim_overlapping == 1:
-                logger.debug("Overlapping segments of read pairs were clipped")
-            else:
-                logger.debug("Overlapping segments of read pairs were not clipped")
-
-            logger.debug("Overhanging bits of reads were not clipped")
+    # cdef void log_filter_summary(self):
+    #     """Useful debug information about which reads have been filtered out.
+    #     """
+    #     if self.verbosity >= 3:
+    #         region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
+    #         logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
+    #         logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
+    #         logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
+    #         logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
+    #         logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
+    #         logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
+    #         logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
+    #         logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
+    #         logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
+    #         logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
+    #
+    #         if self.trim_overlapping == 1:
+    #             logger.debug("Overlapping segments of read pairs were clipped")
+    #         else:
+    #             logger.debug("Overlapping segments of read pairs were not clipped")
+    #
+    #         logger.debug("Overhanging bits of reads were not clipped")
 
     cdef void add_read_to_buffer(self, cAlignedRead* the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.

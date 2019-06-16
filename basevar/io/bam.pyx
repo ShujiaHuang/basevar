@@ -2,11 +2,18 @@
 import os
 import sys
 
-
 from basevar.log import logger
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 from basevar.io.htslibWrapper cimport compress_read
+
+cdef int LOW_QUAL_BASES = 0
+cdef int UNMAPPED_READ = 1
+cdef int MATE_UNMAPPED = 2
+cdef int MATE_DISTANT = 3
+cdef int SMALL_INSERT = 4
+cdef int DUPLICATE = 5
+cdef int LOW_MAP_QUAL = 6
 
 
 cdef bint is_indexable(filename):
@@ -24,13 +31,15 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
     cdef int file_num = len(bamfiles)
     cdef list sample_names = []
     cdef bytes filename
-    for i, al in enumerate(bamfiles):
+    cdef int i = 0
+    # for i, al in enumerate(bamfiles):
+    for i in range(file_num):
 
         if i % 1000 == 0 and i > 0:
             logger.info("loading %d/%d alignment files ..." % (i+1, file_num))
 
         if filename_has_samplename:
-            filename = os.path.basename(al)
+            filename = os.path.basename(bamfiles[i])
 
             # sample id should be the first element separate by ".",
             # e.g: "CL100045504_L02_61.sorted.rmdup.realign.BQSR.bam", "CL100045504_L02_61" is sample id.
@@ -39,11 +48,11 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
         else:
 
             # This may take a very long time to get sampleID from BAM header.
-            if not is_indexable(al):
-                logger.error("Input file %s is not a BAM/CRAM file" % al)
-                raise StandardError, "Input file %s is not a BAM/CRAM file" % al
+            if not is_indexable(bamfiles[i]):
+                logger.error("Input file %s is not a BAM/CRAM file" % bamfiles[i])
+                raise StandardError, "Input file %s is not a BAM/CRAM file" % bamfiles[i]
 
-            bf = Samfile(al) # load header
+            bf = Samfile(bamfiles[i])
             bf._open("r", True)  # load_index
 
             try:
@@ -51,12 +60,12 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
                 # header info need to be calculate in bf.header function.
                 the_header = bf.header
                 if len(the_header["RG"]) > 1:
-                    logger.debug("Found multiple read group tags in file %s" % al)
+                    logger.debug("Found multiple read group tags in file %s" % bamfiles[i])
 
                 if "RG" not in the_header:
-                    logger.error("%s: missing @RG in the header." % al)
+                    logger.error("%s: missing @RG in the header." % bamfiles[i])
                     bf.close()
-                    raise StandardError, ("%s: missing @RG in the header." % al)
+                    raise StandardError, ("%s: missing @RG in the header." % bamfiles[i])
 
                 sample_names.append(the_header['RG'][0]['SM'])
                 bf.clear_header()
@@ -73,7 +82,7 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
     return sample_names
 
 
-cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int start, long long int end,
+cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start, long int end,
                        char* refseq, options):
     """
     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
@@ -82,8 +91,8 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     ``bam_objs`` is a dict of the object of class ``Samfile`` for ``samples``(one for each), and the handle 
     has been open to set caching for BAM/CRAM to reduce file IO cost. 
     
-    Format in ``bam_objs``: {sample: Samfile}, it could be create by one line code: 
-    bam_objs = {s: Samfile(f) for s, f in zip(samples, input_bamfiles)}
+    Format in ``bam_objs``: {sample: filename}, it could be create by one line code: 
+    bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
     
     ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
     
@@ -103,10 +112,11 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     cdef BamReadBuffer sample_read_buffer
 
     region = "%s:%s-%s" % (chrom, start, end)
-    # assuming the sample is already unique in ``samples``
     for i, sample in enumerate(samples):
-        assert sample in bam_objs, logger.error("Something is screwy here.")
-        reader = bam_objs[sample]
+        # assuming the sample is already unique in ``samples``
+        assert sample in bamfiles, "Something is screwy here."
+        reader = Samfile(bamfiles[sample])
+        reader._open("r", True)
 
         # Need to lock the thread here when sharing BAM files
         if reader.lock is not None:
@@ -142,14 +152,15 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
             if total_reads > max_read_thd:
                 logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
                              "increase --max_reads." % (total_reads, region))
-                for f in bam_objs.values():
-                    f.close()
 
+                reader.close()
                 sys.exit(1)
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 
-        reader.clear_header() # release header to save memory
+        # close all the bamfiles
+        reader.close()
+
         # ``pop_read_buffers`` will keep the same order as ``samples``,
         # which means will keep the same order as input.
         population_read_buffers.append(sample_read_buffer)
@@ -166,13 +177,35 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
         if not sample_read_buffer.is_sorted:
             sample_read_buffer.sort_reads()
 
-        sample_read_buffer.log_filter_summary()
+        log_filter_summary(sample_read_buffer, options.verbosity)
         sorted_population_buffers.append(sample_read_buffer)
 
     # return buffers as the same order of input bamfiles
     return sorted_population_buffers
 
 
+cdef void log_filter_summary(BamReadBuffer read_buffer, int verbosity):
+        """Useful debug information about which reads have been filtered out.
+        """
+        if verbosity >= 3:
+            region = "%s:%s-%s" % (read_buffer.chrom, read_buffer.start+1, read_buffer.end+1)
+            logger.debug("Sample %s has %s good reads in %s" % (read_buffer.sample, read_buffer.reads.get_size(), region))
+            logger.debug("Sample %s has %s bad reads in %s" % (read_buffer.sample, read_buffer.bad_reads.get_size(), region))
+            logger.debug("Sample %s has %s broken mates %s" % (read_buffer.sample, read_buffer.broken_mates.get_size(), region))
+            logger.debug("|-- low map quality reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_MAP_QUAL]))
+            logger.debug("|-- low qual reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_QUAL_BASES]))
+            logger.debug("|-- un-mapped reads = %s" % (read_buffer.filtered_read_counts_by_type[UNMAPPED_READ]))
+            logger.debug("|-- reads with unmapped mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_UNMAPPED]))
+            logger.debug("|-- reads with distant mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_DISTANT]))
+            logger.debug("|-- reads pairs with small inserts = %s" % (read_buffer.filtered_read_counts_by_type[SMALL_INSERT]))
+            logger.debug("|__ duplicate reads = %s\n" % (read_buffer.filtered_read_counts_by_type[DUPLICATE]))
+
+            if read_buffer.trim_overlapping == 1:
+                logger.debug("Overlapping segments of read pairs were clipped")
+            else:
+                logger.debug("Overlapping segments of read pairs were not clipped")
+
+            logger.debug("Overhanging bits of reads were not clipped")
 
 
 

@@ -25,10 +25,10 @@ cdef class BamReadBuffer:
 
     cdef char* chrom
     cdef int chrom_id
-    cdef int start
-    cdef int end
+    cdef long int start
+    cdef long int end
     cdef int* filtered_read_counts_by_type
-    cdef int is_sorted
+    cdef bint is_sorted
     cdef int window_start_base
     cdef int window_end_base
     cdef int max_reads
@@ -38,14 +38,9 @@ cdef class BamReadBuffer:
     cdef int trim_soft_clipped
     cdef int verbosity
 
-    # cdef int min_flank
-    # cdef int trim_read_flank
-    # cdef int min_good_bases
-    # cdef int trim_adapter
-
-    cdef cAlignedRead* last_read
     cdef ReadArray reads
     cdef ReadArray bad_reads
+    cdef cAlignedRead* last_read
 
     cdef void set_window_pointers(self, long long int start, long long int end, long long int refstart,
                                   long long int refend, char* refseq, int qual_bin_size)
@@ -56,7 +51,7 @@ cdef class BamReadBuffer:
     cdef int count_alignment_gaps(self)
     cdef int count_reads_covering_region(self, long long int start, long long int end)
     cdef void sort_reads(self)
-    cdef void log_filter_summary(self)
+    # cdef void log_filter_summary(self)
 
     cdef ReadArray broken_mates
     cdef void sort_broken_mates(self)
