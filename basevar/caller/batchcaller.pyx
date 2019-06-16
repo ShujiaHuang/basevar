@@ -3,12 +3,12 @@ Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
+import sys
 import os
 import time
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-from basevar.io.htslibWrapper cimport Samfile
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.fasta cimport FastaFile
 from basevar.io.bam cimport load_bamdata
@@ -95,8 +95,7 @@ cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigen
 
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))
-        logger.warning("Region %s:%s-%s will be skipped" % (chrom_name, bigstart+1, bigend+1))
-        return
+        sys.exit(1)
 
     if read_buffers is None or len(read_buffers) == 0:
         logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart+1, bigend+1))

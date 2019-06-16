@@ -168,17 +168,19 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         if reader.lock is not None:
             reader.lock.release()
 
-    for i in range(sample_num):
-        if population_read_buffers[i].reads.get_size() > 0:
-            population_read_buffers[i].chrom_id = population_read_buffers[i].reads.array[0].chrom_id
+    cdef list sorted_population_read_buffers = []
+    for sample_read_buffer in population_read_buffers:
+        if sample_read_buffer.reads.get_size() > 0:
+            sample_read_buffer.chrom_id = sample_read_buffer.reads.array[0].chrom_id
 
-        if not population_read_buffers[i].is_sorted:
-            population_read_buffers[i].sort_reads()
+        if not sample_read_buffer.is_sorted:
+            sample_read_buffer.sort_reads()
 
-        log_filter_summary(population_read_buffers[i], options.verbosity)
+        log_filter_summary(sample_read_buffer, options.verbosity)
+        sorted_population_read_buffers.append(sample_read_buffer)
 
     # return buffers as the same order of input samples/bamfiles
-    return population_read_buffers
+    return sorted_population_read_buffers
 
 
 cdef void log_filter_summary(BamReadBuffer read_buffer, int verbosity):
