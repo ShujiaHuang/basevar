@@ -104,8 +104,8 @@ cdef class BaseVarProcess:
             logger.info("**************** variants discovery process ****************")
             try:
                 _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
-            except  Exception, e:
-                logger.error("Exception in region %s:%s-%s. Error: %s" % (
+            except Exception, e:
+                logger.error("variants_discovery in region %s:%s-%s. Error: %s" % (
                     chrid, region_boundary_start+1, region_boundary_end+1, e))
                 sys.exit(1)
 
