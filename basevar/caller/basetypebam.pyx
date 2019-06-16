@@ -3,7 +3,7 @@ This is a Process module for BaseType by BAM/CRAM
 
 """
 from __future__ import division
-
+import sys
 import os
 
 from basevar.io.fasta import FastaFile
@@ -102,7 +102,12 @@ cdef class BaseVarProcess:
 
             # Process of variants discovery
             logger.info("**************** variants discovery process ****************")
-            _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
+            try:
+                _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
+            except  Exception, e:
+                logger.error("Exception in region %s:%s-%s. Error: %s" % (
+                    chrid, region_boundary_start+1, region_boundary_end+1, e))
+                sys.exit(1)
 
             if not _is_empty:
                 is_empty = False

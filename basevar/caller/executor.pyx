@@ -13,12 +13,11 @@ import time
 
 from pysam import tabix_index
 
-from basevar.log import logger
 from basevar import utils
+from basevar.log import logger
 from basevar.io.bam cimport get_sample_names
-from . import CallerProcess, process_runner
-
-from .basetypebam import BaseVarProcess
+from basevar.caller import CallerProcess, process_runner
+from basevar.caller.basetypebam import BaseVarProcess
 # from .coverageprocess import CvgSingleProcess
 
 
