@@ -105,7 +105,7 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     cdef Samfile reader
     cdef ReadIterator reader_iter
     cdef cAlignedRead* the_read
-    cdef int is_compress_read = options.is_compress_read
+    cdef bint is_compress_read = options.is_compress_read
     cdef int qual_bin_size = options.qual_bin_size
     cdef int max_read_thd = options.max_reads
     cdef int total_reads = 0

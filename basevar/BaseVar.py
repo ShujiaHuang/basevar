@@ -66,9 +66,9 @@ def parser_commandline_args():
                               help="Maximum read length. [150]")
     basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
                               help="Maximium coverage in window. [5000000]")
-    basetype_cmd.add_argument("--compress_reads", dest="is_compress_read", type=int, action='store', default=0,
+    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=1,
                               help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
-                                   "This will slow things down, but reduce memory usage. [0]")
+                                   "This will slow things down, but reduce memory usage. [True]")
     basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
                               help="This sets the granularity used when compressing quality scores. "
                                    "If > 1 then quality compression is lossy. [1]")

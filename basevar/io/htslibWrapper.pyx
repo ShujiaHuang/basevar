@@ -469,7 +469,7 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
     """Does exactly what it says on the tin.
     """
     cdef char* seq = read.seq
-    cdef char* new_seq = <char*>(alloca(sizeof(char) * read.r_len * 2))
+    cdef char* new_seq = <char*>(calloc(read.r_len * 2, sizeof(char)))
     cdef char* final_seq = NULL
     cdef int i = 0
     cdef int n_matches = 0
@@ -506,12 +506,12 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
         new_seq_index += 1
 
     new_seq[new_seq_index] = 0
-    final_seq = <char*>malloc(sizeof(char) * (new_seq_index + 1))
+    final_seq = <char*>calloc(new_seq_index + 1, sizeof(char))
     strcpy(final_seq, new_seq)
 
     final_seq[new_seq_index] = 0
     free(read.seq)
-    # free(new_seq)
+    free(new_seq)
 
     read.seq = final_seq
     return
@@ -520,14 +520,14 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
 cdef void compress_qual(cAlignedRead* read, int qual_bin_size):
     """Does exactly what it says on the tin.
     """
-    cdef int i = 0
     cdef char* qual = read.qual
-    cdef char* new_qual = <char*>(alloca(sizeof(char) * 2 * read.r_len))
+    cdef char* new_qual = <char*>(calloc(2 * read.r_len, sizeof(char)))
     cdef char* final_qual = NULL
     cdef char last_char = 0
     cdef int last_count = 0
     cdef int new_qual_index = 0
 
+    cdef int i = 0
     if qual_bin_size > 1:
         for i in range(read.r_len):
             qual[i] = (qual[i] / qual_bin_size) * qual_bin_size
