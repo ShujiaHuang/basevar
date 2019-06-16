@@ -101,22 +101,24 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     """
     cdef list population_read_buffers = []
 
-    cdef bytes sample
     cdef Samfile reader
     cdef ReadIterator reader_iter
     cdef cAlignedRead* the_read
+
     cdef bint is_compress_read = options.is_compress_read
     cdef int qual_bin_size = options.qual_bin_size
     cdef int max_read_thd = options.max_reads
+
     cdef int total_reads = 0
+    cdef int sample_num = len(samples)
     cdef BamReadBuffer sample_read_buffer
 
     region = "%s:%s-%s" % (chrom, start, end)
-    for i, sample in enumerate(samples):
+    cdef int i
+    for i in range(sample_num):
         # assuming the sample is already unique in ``samples``
-        assert sample in bamfiles, "Something is screwy here."
 
-        reader = Samfile(bamfiles[sample])
+        reader = Samfile(bamfiles[samples[i]])
         reader.open("r", True)
 
         # Need to lock the thread here when sharing BAM files
@@ -125,14 +127,14 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
 
         # set initial size for BamReadBuffer
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
-        sample_read_buffer.sample = bytes(sample)
+        sample_read_buffer.sample = samples[i]
 
         try:
             reader_iter = reader.fetch(region)
         except Exception, e:
             logger.warning(e.message)
             logger.warning("No data could be retrieved for sample %s in file %s in "
-                           "region %s" % (sample, reader.filename, region))
+                           "region %s" % (samples[i], reader.filename, region))
 
             population_read_buffers.append(sample_read_buffer)
             continue
@@ -146,9 +148,6 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
             sample_read_buffer.add_read_to_buffer(the_read)
 
             total_reads += 1
-            if total_reads % 200000 == 0:
-                logger.info("Loaded %s reads in regions %s" % (total_reads, region))
-
             if total_reads > max_read_thd:
                 logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
                              "increase --max_reads." % (total_reads, region))
@@ -158,30 +157,28 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 
-        # close all the bamfiles
+        # close bamfile
         reader.close()
 
-        # ``pop_read_buffers`` will keep the same order as ``samples``,
+        # ``population_read_buffers`` will keep the same order as ``samples``,
         # which means will keep the same order as input.
         population_read_buffers.append(sample_read_buffer)
+
         # Need to release thread lock here when sharing BAM files
         if reader.lock is not None:
             reader.lock.release()
 
-    # Todo: Do we need to set output order by the order of samples' name?
-    cdef list sorted_population_buffers = []
-    for sample_read_buffer in population_read_buffers:
-        if sample_read_buffer.reads.get_size() > 0:
-            sample_read_buffer.chrom_id = sample_read_buffer.reads.array[0].chrom_id
+    for i in range(sample_num):
+        if population_read_buffers[i].reads.get_size() > 0:
+            population_read_buffers[i].chrom_id = population_read_buffers[i].reads.array[0].chrom_id
 
-        if not sample_read_buffer.is_sorted:
-            sample_read_buffer.sort_reads()
+        if not population_read_buffers[i].is_sorted:
+            population_read_buffers[i].sort_reads()
 
-        log_filter_summary(sample_read_buffer, options.verbosity)
-        sorted_population_buffers.append(sample_read_buffer)
+        log_filter_summary(population_read_buffers[i], options.verbosity)
 
-    # return buffers as the same order of input bamfiles
-    return sorted_population_buffers
+    # return buffers as the same order of input samples/bamfiles
+    return population_read_buffers
 
 
 cdef void log_filter_summary(BamReadBuffer read_buffer, int verbosity):

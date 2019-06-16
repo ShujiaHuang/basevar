@@ -20,7 +20,7 @@ cdef class ReadArray:
 
 
 cdef class BamReadBuffer:
-    cdef bytes sample
+    cdef char* sample
 
     cdef char* chrom
     cdef int chrom_id
@@ -50,7 +50,6 @@ cdef class BamReadBuffer:
     cdef int count_alignment_gaps(self)
     cdef int count_reads_covering_region(self, long long int start, long long int end)
     cdef void sort_reads(self)
-    # cdef void log_filter_summary(self)
 
     cdef ReadArray broken_mates
     cdef void sort_broken_mates(self)

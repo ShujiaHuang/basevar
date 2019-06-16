@@ -29,10 +29,10 @@ cdef int LOW_MAP_QUAL = 6
 
 
 cdef extern from "stdlib.h":
-    void free(void *)
     void *malloc(size_t)
     void *calloc(size_t, size_t)
     void *realloc(void *, size_t)
+    void free(void *)
     void qsort(void*, size_t, size_t, int(*)(void*, void*))
 
 
@@ -377,7 +377,7 @@ cdef bint check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_rea
 
     return True
 
-cdef class BamReadBuffer(object):
+cdef class BamReadBuffer:
     """
     Utility class for bufffering reads from a single BAM file, so we only make a single pass
     through the data in each BAM in the loop through windows.

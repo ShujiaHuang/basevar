@@ -101,7 +101,7 @@ cdef class BaseVarProcess:
                                                       self.smart_rerun)
 
             # Process of variants discovery
-            logger.info("**************** variants_discovery ****************")
+            logger.info("**************** variants discovery process ****************")
             _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
 
             if not _is_empty:
