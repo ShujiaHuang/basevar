@@ -53,7 +53,7 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
                 raise StandardError, "Input file %s is not a BAM/CRAM file" % bamfiles[i]
 
             bf = Samfile(bamfiles[i])
-            bf._open("r", True)  # load_index
+            bf.open("r", True)  # load_index
 
             try:
 
@@ -115,8 +115,9 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     for i, sample in enumerate(samples):
         # assuming the sample is already unique in ``samples``
         assert sample in bamfiles, "Something is screwy here."
+
         reader = Samfile(bamfiles[sample])
-        reader._open("r", True)
+        reader.open("r", True)
 
         # Need to lock the thread here when sharing BAM files
         if reader.lock is not None:
@@ -125,7 +126,6 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         # set initial size for BamReadBuffer
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
         sample_read_buffer.sample = bytes(sample)
-        sample_read_buffer.sample_order = i
 
         try:
             reader_iter = reader.fetch(region)

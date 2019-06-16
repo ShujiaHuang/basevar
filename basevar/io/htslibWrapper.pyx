@@ -113,7 +113,7 @@ cdef class Samfile:
         """return true if samfile has an existing (and opened) index."""
         return self.index != NULL
 
-    cdef void _open(self, mode, bint load_index):
+    cdef void open(self, mode, bint load_index):
         """open a sam/bam/cram file.
 
         If _open is called on an existing bamfile, the current file will be
@@ -171,7 +171,7 @@ cdef class Samfile:
 
         # Need to load the index for new queries.
         if not self._is_open():
-            self._open("r", True)
+            self.open("r", True)
 
         if self._is_bam() or self._is_cram():
             return ReadIterator(self, region)

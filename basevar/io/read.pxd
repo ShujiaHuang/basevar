@@ -21,7 +21,6 @@ cdef class ReadArray:
 
 cdef class BamReadBuffer:
     cdef bytes sample
-    cdef int sample_order  # A number represent the input order of the sample!
 
     cdef char* chrom
     cdef int chrom_id
