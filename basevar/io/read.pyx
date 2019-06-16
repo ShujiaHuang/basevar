@@ -82,7 +82,7 @@ cdef int read_mate_pos_comp(const void* x, const void* y):
 cdef class ReadArray:
     """Simple structure to wrap a raw C array, with some bounds checking.
     """
-    def __init__(self, int size):
+    def __cinit__(self, int size):
         """Allocate an array of size 'size', with initial values 'init'.
         """
         self.array = <cAlignedRead**> (malloc(size * sizeof(cAlignedRead*)))
@@ -382,7 +382,7 @@ cdef class BamReadBuffer(object):
     Utility class for bufffering reads from a single BAM file, so we only make a single pass
     through the data in each BAM in the loop through windows.
     """
-    def __init__(self, char* chrom, int start, int end, options):
+    def __cinit__(self, char* chrom, int start, int end, options):
         """
         Constructor.
         """

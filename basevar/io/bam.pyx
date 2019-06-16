@@ -43,8 +43,8 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
                 logger.error("Input file %s is not a BAM/CRAM file" % al)
                 raise StandardError, "Input file %s is not a BAM/CRAM file" % al
 
-            bf = Samfile(al)
-            bf._open("r", True)
+            bf = Samfile(al) # load header
+            bf._open("r", True)  # load_index
 
             try:
 
@@ -59,6 +59,7 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
                     raise StandardError, ("%s: missing @RG in the header." % al)
 
                 sample_names.append(the_header['RG'][0]['SM'])
+                bf.clear_header()
                 del the_header
 
             except StandardError, e:
@@ -92,7 +93,6 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     cdef list population_read_buffers = []
 
     cdef bytes sample
-    cdef BamReadBuffer sample_read_buffer
     cdef Samfile reader
     cdef ReadIterator reader_iter
     cdef cAlignedRead* the_read
@@ -100,6 +100,7 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
     cdef int qual_bin_size = options.qual_bin_size
     cdef int max_read_thd = options.max_reads
     cdef int total_reads = 0
+    cdef BamReadBuffer sample_read_buffer
 
     region = "%s:%s-%s" % (chrom, start, end)
     # assuming the sample is already unique in ``samples``
@@ -141,11 +142,14 @@ cdef list load_bamdata(dict bam_objs, list samples, bytes chrom, long long int s
             if total_reads > max_read_thd:
                 logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
                              "increase --max_reads." % (total_reads, region))
-                for f in bam_objs.values(): f.close()
+                for f in bam_objs.values():
+                    f.close()
+
                 sys.exit(1)
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 
+        reader.clear_header() # release header to save memory
         # ``pop_read_buffers`` will keep the same order as ``samples``,
         # which means will keep the same order as input.
         population_read_buffers.append(sample_read_buffer)
