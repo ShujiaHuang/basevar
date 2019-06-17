@@ -133,6 +133,7 @@ def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes
 
 def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
                      popgroup, min_af, cvg_file_handle, vcf_file_handle):
+    
     _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
 
     cdef dict popgroup_bt = {}

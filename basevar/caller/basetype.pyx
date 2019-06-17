@@ -48,25 +48,24 @@ cdef class BaseTuple:
 
     cdef void destory_tuple(self):
         """Free memory"""
-        cdef int index = 0
+        cdef int index
         if self.base_comb_tuple != NULL:
             for index in range(self.combination_num):
                 if self.base_comb_tuple[index] != NULL:
                     free(self.base_comb_tuple[index])
                     self.base_comb_tuple[index] = NULL
 
-                free(self.base_comb_tuple)
-                self.base_comb_tuple = NULL
+            free(self.base_comb_tuple)
+            self.base_comb_tuple = NULL
 
         if self.alleles_freq_list != NULL:
-            index = 0
             for index in range(self.combination_num):
                 if self.alleles_freq_list[index] != NULL:
                     free(self.alleles_freq_list[index])
                     self.alleles_freq_list[index] = NULL
 
-                free(self.alleles_freq_list)
-                self.alleles_freq_list = NULL
+            free(self.alleles_freq_list)
+            self.alleles_freq_list = NULL
 
         if self.sum_marginal_likelihood != NULL:
             free(self.sum_marginal_likelihood)
