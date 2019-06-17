@@ -299,7 +299,8 @@ cdef class BaseType:
                      if self.depth[b] / self.total_depth >= self.min_af]
 
         cdef int bases_num = len(bases)
-        if bases_num == 0:
+        if bases_num == 0 or (bases_num == 1 and bases[0].upper() == self._ref_base.upper()):
+            # no base or is reference base.
             return False
 
         # init. Base combination will just be the ``bases`` if specific_base_comb
