@@ -421,7 +421,8 @@ cdef class BamReadBuffer:
     def __dealloc__(self):
         """Clean up memory.
         """
-        free(self.filtered_read_counts_by_type)
+        if self.filtered_read_counts_by_type != NULL:
+            free(self.filtered_read_counts_by_type)
 
     # cdef void log_filter_summary(self):
     #     """Useful debug information about which reads have been filtered out.

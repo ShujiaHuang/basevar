@@ -345,6 +345,7 @@ cdef class BaseType:
         base_frq = NULL
 
         # Todo: improve the calculation method for var_qual
+        cdef double r
         if len(self._alt_bases):
 
             r = self.depth[bases[0]] / self.total_depth
@@ -354,7 +355,6 @@ cdef class BaseType:
 
             else:
                 chi_prob = chi2.sf(chi_sqrt_value, 1)
-                # self._var_qual = "%.2f" % round(-10 * log10(chi_prob)) if chi_prob > 0 else 10000.0
                 self._var_qual = round(-10 * log10(chi_prob)) if chi_prob > 0 else 10000.0
 
             if self._var_qual == 0:
