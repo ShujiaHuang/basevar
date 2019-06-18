@@ -5,9 +5,6 @@ cdef extern from "stdlib.h":
     void *calloc(size_t, size_t)
     void free(void *)
 
-cdef extern from "string.h":
-    void *memcpy(void *dst, void *src, size_t size)
-
 cdef extern from "math.h":
     double exp(double)
     double round(double)
@@ -43,5 +40,4 @@ cdef class BaseType:
     cdef double sum_likelihood(self, double* data, int num, bint is_log)
     cdef BaseTuple _f(self, list bases, int n)
     cdef double* calculate_chivalue(self, double lr_alt, double* lr_null, int comb_num)
-    cdef list _char_convert_to_list(self, char* data, int n)
     cdef int find_argmin(self, double* data, int comb_num)

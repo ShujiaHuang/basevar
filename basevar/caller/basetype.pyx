@@ -240,15 +240,6 @@ cdef class BaseType:
         expect_allele_freq = NULL
         return base_tuple
 
-    cdef list _char_convert_to_list(self, char* data, int n):
-
-        cdef list lst=[]
-        cdef int i
-        for i in range(n):
-            lst.append(chr(data[i]))
-
-        return lst
-
     cdef double sum_likelihood(self, double* data, int num, bint is_log):
         cdef double s = 0.0
         cdef int i = 0
