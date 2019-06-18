@@ -137,13 +137,13 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
     _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
 
     cdef dict popgroup_bt = {}
-    cdef bint is_good = True
+    cdef bint is_variant = True
     if vcf_file_handle:
 
         bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
-        is_good = bt.lrt(None)  # do not need to set specific_base_combination
+        is_variant = bt.lrt(None)  # do not need to set specific_base_combination
 
-        if is_good and len(bt.alt_bases()) > 0:
+        if is_variant:
 
             popgroup_bt = {}
             for group, index in popgroup.items():

@@ -1,5 +1,20 @@
 """Header for basetype.pyx
 """
+cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void *calloc(size_t, size_t)
+    void free(void *)
+
+cdef extern from "string.h":
+    void *memcpy(void *dst, void *src, size_t size)
+
+cdef extern from "math.h":
+    double exp(double)
+    double round(double)
+    double log(double)
+    double log10(double)
+
+
 cdef class BaseTuple:
     cdef int combination_num
     cdef int base_num
