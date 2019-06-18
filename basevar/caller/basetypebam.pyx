@@ -5,6 +5,7 @@ This is a Process module for BaseType by BAM/CRAM
 from __future__ import division
 import sys
 import os
+import time
 
 from basevar.io.fasta import FastaFile
 
@@ -72,6 +73,7 @@ cdef class BaseVarProcess:
         cdef long int region_boundary_start
         cdef long int region_boundary_end
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
+            start_time = time.time()
 
             tmp_region = []
             p = []
@@ -100,12 +102,16 @@ cdef class BaseVarProcess:
                                                       self.options,
                                                       self.smart_rerun)
 
+            logger.info("Creating batchfiles in %s:%s-%s done, %d seconds elapsed.\n" % (
+                chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
+
             # Process of variants discovery
+            start_time = time.time()
             logger.info("**************** variants discovery process ****************")
             try:
                 _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF)
             except Exception, e:
-                logger.error("variants_discovery in region %s:%s-%s. Error: %s" % (
+                logger.error("Variants discovery in region %s:%s-%s. Error: %s" % (
                     chrid, region_boundary_start+1, region_boundary_end+1, e))
                 sys.exit(1)
 
@@ -115,6 +121,9 @@ cdef class BaseVarProcess:
             if REMOVE_BATCH_FILE:
                 for f in batchfiles:
                     os.remove(f)
+
+            logger.info("Calling variants in %s:%s-%s done, %d seconds elapsed.\n" % (
+                chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 
         CVG.close()
         if VCF:
