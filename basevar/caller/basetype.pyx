@@ -365,15 +365,13 @@ cdef class BaseType:
 
         return index
 
-    def ref_base(self):
-        return self._ref_base
+    property alt_bases:
+        """Return the list of variants"""
+        def __get__(self):
+            return self._alt_bases
 
-    def alt_bases(self):
-        return self._alt_bases
-
-    def var_qual(self):
-        return self._var_qual
-
-    def debug(self):
-        print(self.ref_base(), self.alt_bases(),
-              self.var_qual(), self.depth, self.af_by_lrt)
+    property var_qual:
+        """Return the quality score for the variant site"""
+        def __get__(self):
+            # A double value
+            return self._var_qual
