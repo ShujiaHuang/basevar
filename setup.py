@@ -119,7 +119,7 @@ if __name__ == "__main__":
         entry_points={
 
             'console_scripts': [
-                'basevar = basevar.BaseVar:main'
+                'basevar = basevar.runner:main'
             ]
         },
         classifiers=[

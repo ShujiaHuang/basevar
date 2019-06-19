@@ -10,20 +10,21 @@ VALID_HEADER_TYPES = {"HD": dict,
                       "CO": list}
 
 # order of records within sam headers
-VALID_HEADERS = ("HD", "SQ", "RG", "PG", "CO")
+# VALID_HEADERS = ("HD", "SQ", "RG", "PG", "CO")
 
 # type conversions within sam header records
-VALID_HEADER_FIELDS = {"HD": {"VN": str, "SO": str, "GO": str},
-                       "SQ": {"SN": str, "LN": int, "AH": str, "AS": str, "M5": str, "UR": str, "SP": str},
-                       "RG": {"ID": str, "SM": str, "LB": str, "DS": str, "PU": str, "PI": str, "CN": str, "DT": str,
-                              "PL": str, "PG": str},
-                       "PG": {"ID": str, "VN": str, "CL": str, "PN": str, "PP": str, "DS": str}, }
+cdef dict VALID_HEADER_FIELDS = {
+    "HD": {"VN": str, "SO": str, "GO": str},
+    "SQ": {"SN": str, "LN": int, "AH": str, "AS": str, "M5": str, "UR": str, "SP": str},
+    "RG": {"ID": str, "SM": str, "LB": str, "DS": str, "PU": str, "PI": str, "CN": str, "DT": str,
+           "PL": str, "PG": str},
+    "PG": {"ID": str, "VN": str, "CL": str, "PN": str, "PP": str, "DS": str}, }
 
 # output order of fields within records
-VALID_HEADER_ORDER = {"HD": ("VN", "SO", "GO"),
-                      "SQ": ("SN", "LN", "AH", "AS", "M5", "UR", "SP"),
-                      "RG": ("ID", "SM", "LB", "DS", "PU", "PI", "CN", "DT", "PL", "PG"),
-                      "PG": ("ID", "VN", "CL"), }
+# VALID_HEADER_ORDER = {"HD": ("VN", "SO", "GO"),
+#                       "SQ": ("SN", "LN", "AH", "AS", "M5", "UR", "SP"),
+#                       "RG": ("ID", "SM", "LB", "DS", "PU", "PI", "CN", "DT", "PL", "PG"),
+#                       "PG": ("ID", "VN", "CL"), }
 
 
 cdef int COMPRESS_COUNT = 40
@@ -64,7 +65,7 @@ cdef class Samfile:
     If an index for a BAM file exists (.bai), it will be opened automatically. Without an index random
     access to reads via :meth:`fetch` and :meth:`pileup` is disabled.
     """
-    def __cinit__(self, filename):
+    def __cinit__(self, char* filename):
         """Constructor.
         """
         self.filename = filename
@@ -79,7 +80,6 @@ cdef class Samfile:
         is not guaranteed to work in this function.
         """
         # remember: dealloc cannot call other methods
-        # Note that __del__ is not called.
         if self.samfile != NULL:
             sam_close(self.samfile)
             self.samfile = NULL
@@ -99,21 +99,21 @@ cdef class Samfile:
             hts_idx_destroy(self.index)
             self.index = NULL
 
-    cdef int _is_bam(self):
+    cdef bint _is_bam(self):
         return self.samfile.is_bin
 
-    cdef int _is_cram(self):
+    cdef bint _is_cram(self):
         return self.samfile.is_cram
 
-    cdef int _is_open(self):
+    cdef bint _is_open(self):
         """return true if samfile has been opened."""
         return self.samfile != NULL
 
-    cdef int _has_index(self):
+    cdef bint _has_index(self):
         """return true if samfile has an existing (and opened) index."""
         return self.index != NULL
 
-    cpdef void _open(self, mode, bint load_index):
+    cdef void open(self, mode, bint load_index):
         """open a sam/bam/cram file.
 
         If _open is called on an existing bamfile, the current file will be
@@ -171,22 +171,22 @@ cdef class Samfile:
 
         # Need to load the index for new queries.
         if not self._is_open():
-            self._open("r", True)
+            self.open("r", True)
 
         if self._is_bam() or self._is_cram():
             return ReadIterator(self, region)
         else:
             raise StandardError, "Random access query only allowed for BAM/CRAM files."
 
-    cpdef close(self):
+    cdef void close(self):
         """closes file."""
         if not self._is_cram():
             if self.samfile != NULL:
                 sam_close(self.samfile)
                 self.samfile = NULL
 
-            self.clear_index()
-            self.clear_header()
+        self.clear_index()
+        self.clear_header()
 
     property nreferences:
         """number of :term:`reference` sequences in the file."""
@@ -305,7 +305,6 @@ cdef class ReadIterator:
                                   "does not have an index" % samfile.filename)
 
         self.b = bam_init1()
-        # self.b = self.bam_init()
 
     def __dealloc__(self):
         """remember: dealloc cannot call other methods!"""
@@ -470,7 +469,7 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
     """Does exactly what it says on the tin.
     """
     cdef char* seq = read.seq
-    cdef char* new_seq = <char*>(alloca(sizeof(char) * read.r_len * 2))
+    cdef char* new_seq = <char*>(calloc(read.r_len * 2, sizeof(char)))
     cdef char* final_seq = NULL
     cdef int i = 0
     cdef int n_matches = 0
@@ -507,12 +506,12 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
         new_seq_index += 1
 
     new_seq[new_seq_index] = 0
-    final_seq = <char*>malloc(sizeof(char) * (new_seq_index + 1))
+    final_seq = <char*>calloc(new_seq_index + 1, sizeof(char))
     strcpy(final_seq, new_seq)
 
     final_seq[new_seq_index] = 0
     free(read.seq)
-    # free(new_seq)
+    free(new_seq)
 
     read.seq = final_seq
     return
@@ -521,23 +520,22 @@ cdef void compress_seq(cAlignedRead* read, char* refseq):
 cdef void compress_qual(cAlignedRead* read, int qual_bin_size):
     """Does exactly what it says on the tin.
     """
-    cdef int i = 0
     cdef char* qual = read.qual
-    #cdef char* new_qual = <char*>(malloc(sizeof(char)*2*read.rlen))
-    cdef char* new_qual = <char*>(alloca(sizeof(char) * 2 * read.r_len))
+    cdef char* new_qual = <char*>(calloc(2 * read.r_len, sizeof(char)))
     cdef char* final_qual = NULL
     cdef char last_char = 0
     cdef int last_count = 0
     cdef int new_qual_index = 0
 
+    cdef int i = 0
     if qual_bin_size > 1:
         for i in range(read.r_len):
             qual[i] = (qual[i] / qual_bin_size) * qual_bin_size
 
     for i in range(read.r_len):
 
-        assert qual[i] >= 0, "Shit 3. Qual = %s" % (qual[i])
-        assert qual[i] <= 93, "Shit 4!. Qual = %s" % (qual[i])
+        # assert qual[i] >= 0, "Shit 3. Qual = %s" % (qual[i])
+        # assert qual[i] <= 93, "Shit 4!. Qual = %s" % (qual[i])
 
         if i == 0:
             new_qual[new_qual_index] = qual[i] + 33
@@ -565,7 +563,7 @@ cdef void compress_qual(cAlignedRead* read, int qual_bin_size):
 
     final_qual[new_qual_index] = 0
     free(read.qual)
-    #free(new_qual)
+    free(new_qual)
 
     read.qual = final_qual
     return

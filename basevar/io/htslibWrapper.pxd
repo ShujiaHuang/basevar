@@ -199,18 +199,20 @@ cdef class Samfile:
     cdef void clear_header(self)
     cdef void clear_index(self)
 
-    cpdef void _open(self, mode, bint load_index)  # A main function to open BAM/CRAM/SAM
+    # A main function to open BAM/CRAM/SAM
+    cdef void open(self, mode, bint load_index)
     cdef void _open_bamfile(self, mode)
-    cdef int _is_bam(self)
-    cdef int _is_cram(self)
-    cdef int _is_open(self)
-    cdef int _has_index(self)  # return 1 (for True) or 0 (for False)
+    cdef void close(self)
+    cdef bint _is_bam(self)
+    cdef bint _is_cram(self)
+    cdef bint _is_open(self)
+    cdef bint _has_index(self)  # return 1 (for True) or 0 (for False)
 
     cdef char* getrname(self, int tid)
     cdef ReadIterator fetch(self, const char *region)
-    cpdef close(self)
 
     cdef char* filename
+    cdef bint is_load_header
     cdef samFile *samfile
     cdef bam_hdr_t *the_header
     cdef hts_idx_t *index

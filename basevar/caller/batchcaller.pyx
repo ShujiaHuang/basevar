@@ -3,12 +3,12 @@ Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
+import sys
 import os
 import time
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-from basevar.io.htslibWrapper cimport Samfile
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.fasta cimport FastaFile
 from basevar.io.bam cimport load_bamdata
@@ -67,7 +67,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, long int 
             chrom_name, region_boundary_start, region_boundary_end, regions, sub_align_files, fa,
             options, part_file_name, batch_sample_ids)
 
-        logger.info("Done for batchfile %s , %d seconds elapsed\n" % (
+        logger.info("Done for batchfile %s , %d seconds elapsed." % (
             part_file_name, time.time() - start_time))
 
     return batchfiles
@@ -83,26 +83,23 @@ cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigen
         ``bigend``: It's already 0-base position
         ``regions``: The coordinate in regions is 1-base system.
     """
-    cdef dict bam_objs = {s: Samfile(f) for s, f in zip(batch_sample_ids, batch_align_files)}
+    # Just loading baminfo and not need to load header!
+    cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
     cdef list read_buffers
     cdef bytes refseq_bytes = fa.get_sequence(chrom_name, bigstart, bigend + 5 * options.r_len)
     cdef char* refseq = refseq_bytes
 
     try:
         # load the whole mapping reads in [chrom_name, bigstart, bigend]
-        read_buffers = load_bamdata(bam_objs, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
+        read_buffers = load_bamdata(bamfiles, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
+
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))
-        logger.warning("Region %s:%s-%s will be skipped" % (chrom_name, bigstart+1, bigend+1))
-        return
+        sys.exit(1)
 
     if read_buffers is None or len(read_buffers) == 0:
         logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart+1, bigend+1))
         return
-
-    # close all the bamfiles
-    for f in bam_objs.values():
-        f.close()
 
     # take all the batch information for all samples in ``regions``
     cdef BamReadBuffer sample_read_buffer

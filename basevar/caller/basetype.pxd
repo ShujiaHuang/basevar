@@ -1,5 +1,18 @@
 """Header for basetype.pyx
 """
+cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void *calloc(size_t, size_t)
+    void *memcpy(void *dst, void *src, size_t length)
+    void free(void *)
+
+cdef extern from "math.h":
+    double exp(double)
+    double round(double)
+    double log(double)
+    double log10(double)
+
+
 cdef class BaseTuple:
     cdef int combination_num
     cdef int base_num
@@ -28,5 +41,4 @@ cdef class BaseType:
     cdef double sum_likelihood(self, double* data, int num, bint is_log)
     cdef BaseTuple _f(self, list bases, int n)
     cdef double* calculate_chivalue(self, double lr_alt, double* lr_null, int comb_num)
-    cdef list _char_convert_to_list(self, char* data, int n)
     cdef int find_argmin(self, double* data, int comb_num)

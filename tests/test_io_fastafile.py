@@ -14,7 +14,7 @@ def test_FastaFile(infile):
     # print("chrM:1 %s" % fa.get_character("chrM", 0))
     # print("chrM:1-10 %s" % fa.get_sequence("chrM", 0, 10))
 
-    print("chr1 length: %d" % fa.get_reference_length("chr1"))
+    print("chr1 length: %d, %d" % (fa.get_reference_length("chr1"), fa.references["chr1"].seq_length))
     print("chr2 length: %d" % fa.get_reference_length("chr2"))
     print("chrX length: %d" % fa.get_reference_length("chrX"))
     print("chrY length: %d" % fa.get_reference_length("chrY"))

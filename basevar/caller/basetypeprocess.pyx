@@ -1,13 +1,12 @@
 """This is a Process module for BaseType
 """
 import sys
-import time
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-from basevar.utils import vcf_header_define, cvg_header_define
-from basevar.utils import CommonParameter
+from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
 from basevar.caller.algorithm import strand_bias, ref_vs_alt_ranksumtest
+
 from basevar.caller.basetype cimport BaseType
 
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
@@ -58,8 +57,8 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
         position = int(sampleinfos[0][1])
         ref_base = sampleinfos[0][2]
         if n % 10000 == 0:
-            logger.info("Have been loading %d lines when hit position %s:%d\t%s" %
-                        (n if n > 0 else 1, chrid, position, time.asctime()))
+            logger.info("Have been loading %d lines when hit position %s:%d" %
+                        (n if n > 0 else 1, chrid, position))
         n += 1
 
         (depth,
@@ -133,16 +132,17 @@ def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes
 
 def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
                      popgroup, min_af, cvg_file_handle, vcf_file_handle):
+    
     _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
 
     cdef dict popgroup_bt = {}
-    cdef bint is_good = True
+    cdef bint is_variant = True
     if vcf_file_handle:
 
         bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
-        is_good = bt.lrt(None)  # do not need to set specific_base_combination
+        is_variant = bt.lrt(None)  # do not need to set specific_base_combination
 
-        if is_good and len(bt.alt_bases()) > 0:
+        if is_variant:
 
             popgroup_bt = {}
             for group, index in popgroup.items():
@@ -153,7 +153,7 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
 
                 group_bt = BaseType(ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
 
-                basecombination = [ref_base.upper()] + bt.alt_bases()
+                basecombination = [ref_base.upper()] + bt.alt_bases
                 group_bt.lrt(basecombination)
                 popgroup_bt[group] = group_bt
 
@@ -265,7 +265,7 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
                   strands, BaseType bt, dict pop_group_bt, out_file_handle):
     """output vcf lines into `out_file_handle`"""
 
-    alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases())}
+    alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases)}
     samples = []
 
     for k, b in enumerate(bases):
@@ -284,35 +284,35 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
             samples.append('./.')  # 'N' base or indel
 
     # Rank Sum Test for mapping qualities of REF versus ALT reads
-    mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
+    mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
                                          zip(bases, mapqs))
 
     # Rank Sum Test for variant appear position among read of REF versus ALT
-    read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
+    read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
                                                zip(bases, read_pos_rank))
 
     # Rank Sum Test for base quality of REF versus ALT
-    base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases(),
+    base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
                                              zip(bases, sample_base_qual))
 
     # Variant call confidence normalized by depth of sample reads
     # supporting a variant.
-    ad_sum = sum([bt.depth[b] for b in bt.alt_bases()])
-    qd = round(float(bt.var_qual() / ad_sum), 3)
+    ad_sum = sum([bt.depth[b] for b in bt.alt_bases])
+    qd = round(float(bt.var_qual/ad_sum), 3)
 
     # Strand bias by fisher exact test and Strand bias estimated by the
     # Symmetric Odds Ratio test
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-        ref_base.upper(), bt.alt_bases(), bases, strands)
+        ref_base.upper(), bt.alt_bases, bases, strands)
 
     # base=>[CAF, allele depth], CAF = Allele frequency by read count
     caf = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
-               bt.depth[b]] for b in bt.alt_bases()}
+               bt.depth[b]] for b in bt.alt_bases}
 
     info = {'CM_DP': str(int(bt.total_depth)),
-            'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases()])),
-            'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases()])),
-            'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases()])),
+            'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases])),
+            'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases])),
+            'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases])),
             'MQRankSum': str(mq_rank_sum),
             'ReadPosRankSum': str(read_pos_rank_sum),
             'BaseQRankSum': str(base_q_rank_sum),
@@ -328,12 +328,12 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
     if pop_group_bt:
         for group, g_bt in pop_group_bt.items():
             af = ','.join(map(str, [g_bt.af_by_lrt[b] if b in g_bt.af_by_lrt else 0
-                                    for b in bt.alt_bases()]))
+                                    for b in bt.alt_bases]))
             info[group] = af
 
     out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                                     ','.join(bt.alt_bases()), str(bt.var_qual()),
-                                     '.' if bt.var_qual() > CommonParameter.QUAL_THRESHOLD else 'LowQual',
+                                     ','.join(bt.alt_bases), str(bt.var_qual),
+                                     '.' if bt.var_qual > CommonParameter.QUAL_THRESHOLD else 'LowQual',
                                      ';'.join([k + '=' + v for k, v in sorted(
                                          info.items(), key=lambda x: x[0])]),
                                      'GT:AB:SO:BP'] + samples) + '\n')
