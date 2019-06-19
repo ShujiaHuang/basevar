@@ -1,13 +1,12 @@
 """This is a Process module for BaseType
 """
 import sys
-import time
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-from basevar.utils import vcf_header_define, cvg_header_define
-from basevar.utils import CommonParameter
+from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
 from basevar.caller.algorithm import strand_bias, ref_vs_alt_ranksumtest
+
 from basevar.caller.basetype cimport BaseType
 
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
@@ -58,8 +57,8 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
         position = int(sampleinfos[0][1])
         ref_base = sampleinfos[0][2]
         if n % 10000 == 0:
-            logger.info("Have been loading %d lines when hit position %s:%d\t%s" %
-                        (n if n > 0 else 1, chrid, position, time.asctime()))
+            logger.info("Have been loading %d lines when hit position %s:%d" %
+                        (n if n > 0 else 1, chrid, position))
         n += 1
 
         (depth,

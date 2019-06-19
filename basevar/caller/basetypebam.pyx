@@ -102,7 +102,7 @@ cdef class BaseVarProcess:
                                                       self.options,
                                                       self.smart_rerun)
 
-            logger.info("Creating batchfiles in %s:%s-%s done, %d seconds elapsed.\n" % (
+            logger.info("Creating batchfiles in %s:%s-%s done, %d seconds elapsed." % (
                 chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 
             # Process of variants discovery
@@ -122,7 +122,7 @@ cdef class BaseVarProcess:
                 for f in batchfiles:
                     os.remove(f)
 
-            logger.info("Calling variants in %s:%s-%s done, %d seconds elapsed.\n" % (
+            logger.info("Running variants_discovery() in %s:%s-%s done, %d seconds elapsed.\n" % (
                 chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 
         CVG.close()

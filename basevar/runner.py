@@ -37,8 +37,8 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
                               help='Output VCF file. If not provide will skip variants discovery and just output '
                                    'position coverage file which filename is provided by --output-cvg.')
-    basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, help='Output position coverage file.')
-    basetype_cmd.add_argument('--output-batch-file', dest='outbatchfile', type=str, help='Just emitting batch-file.')
+    basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
+                              help='Output position coverage file.')
 
     basetype_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
                               help='skip unlisted positions one per row. The position format in the file could '
@@ -153,29 +153,6 @@ def parser_commandline_args():
     vqsr_cmd.add_argument('--fig', dest='figure', metavar='FIG', required=True,
                           help='The prefix of figure.')
 
-    # For Coverage
-    coverage_cmd = commands.add_parser('coverage', help='Calculating coverage depth for the whole genome '
-                                                        'or given regions/positions')
-    coverage_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='FILE', required=True,
-                              help='Input alignmernt file list.', default='')
-    coverage_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='FILE', required=True,
-                              help='Input reference fasta file.')
-    coverage_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', default='out',
-                              help='Output file. [out]')
-
-    coverage_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
-                              help='skip unlisted positions one per row. The position format in the file could '
-                                   'be (chrid pos) and (chrid  start  end) in mix. This parameter could be used '
-                                   'with --regions simultaneously.')
-    coverage_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
-                              help='Skip positions which not in these regions. This parameter could be a list of '
-                                   'comma deleimited genome regions(e.g.: chr:start-end,chr:start-end) or a file '
-                                   'contain the list of regions. This parameter could be used with --positions '
-                                   'simultaneously')
-
-    coverage_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int,
-                              help='Number of processor to use. [1]', default=1)
-
     # Merge files
     merge_cmd = commands.add_parser('merge', help='Merge bed/vcf files')
     merge_cmd.add_argument('-I', '--input', dest='input', metavar='FILE', action='append', default=[],
@@ -227,20 +204,13 @@ def parser_commandline_args():
 def basetype(args):
     from caller.executor import BaseTypeRunner
 
-    if args.outbatchfile and (args.outvcf or args.outcvg):
-        sys.stderr.write("[ERROR] No need to set '--output-vcf' or '--output-cvg' if you have "
-                         "'--output-batch-file'.\n\n")
-        sys.exit(1)
-
-    # Make sure you have set at least one output parameter.
-    if not (args.outbatchfile or args.outvcf or args.outcvg):
-        sys.stderr.write("[ERROR] Missing '--output-vcf' or '--output-cvg' or "
-                         "'--output-batch-file'.\n\n")
-        sys.exit(1)
-
-    if not args.outbatchfile and not args.outcvg:
-        sys.stderr.write("[ERROR] argument '--output-cvg' is required if not set '--output-batch-file'\n\n")
-        sys.exit(1)
+    if args.outcvg and not args.outvcf:
+        sys.stderr.write("***************************************************\n"
+                         "********************* WARNING *********************\n"
+                         "***************************************************\n"
+                         ">>>     You have just setted `--output-cvg`     <<<\n"
+                         ".. Program will just output coverage information ..\n"
+                         "***************************************************\n\n")
 
     if args.smartrerun:
         sys.stderr.write("************************************************\n"
@@ -258,11 +228,7 @@ def basetype(args):
 
     # The main function
     bt = BaseTypeRunner(args)
-
-    if not args.outbatchfile:
-        processer = bt.basevar_caller()
-    else:
-        processer = bt.batch_generator()
+    processer = bt.basevar_caller()
 
     is_success = True
     for p in processer:
@@ -292,30 +258,12 @@ def basetype(args):
 #     return is_success
 
 
-# def vqsr(args):
-#     # Todo: VQSR need to improve
-#     from caller.executor import VQSRRuner
-#     vq = VQSRRuner(args)
-#     vq.run()
-#
-#     return True
-
-
 def nearby_indel(args):
     from caller.executor import NearbyIndelRunner
     nbi = NearbyIndelRunner(args)
     nbi.run()
 
     return True
-
-
-# def popmatrx(args):
-#     from caller.executor import PopulationMatrixRunner
-#
-#     pr = PopulationMatrixRunner(args)
-#     pr.create_matrix()
-#
-#     return True
 
 
 def merge(args):
@@ -327,34 +275,16 @@ def merge(args):
     return True
 
 
-# def coverage(args):
-#     from caller.executor import CoverageRunner
-#     cvg = CoverageRunner(args)
-#     processer = cvg.run()
-#
-#     is_success = True
-#     for p in processer:
-#         if p.exitcode != 0:
-#             is_success = False
-#
-#     return is_success
-
-
 def main():
     start_time = time.time()
     runner = {
         'basetype': basetype,
-        # 'coverage': coverage,
         'merge': merge,
         'NearByIndel': nearby_indel,
-        # 'VQSR': vqsr,
-        # 'popmatrix': popmatrx
-        # 'basetypebatch': basetypebatch,
     }
 
     args = parser_commandline_args()
-    logger.info("\n** %s Start at %s **\n" % (args.command, time.asctime()))
-
+    logger.info("... %s starting ...\n" % args.command)
     is_success = runner[args.command](args)
 
     elapsed_time = time.time() - start_time

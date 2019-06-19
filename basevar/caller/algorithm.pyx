@@ -5,10 +5,8 @@ from scipy.stats.distributions import norm
 import numpy as np
 
 
-cdef extern from "stdlib.h":
-    void free(void *)
-    void *malloc(size_t)
-    void *calloc(size_t, size_t)
+cdef extern from "math.h":
+    double log10(double)
 
 
 cdef void EM(double* init_allele_freq,
@@ -107,10 +105,11 @@ def strand_bias(ref_base, alt_base, bases, strands):
             raise ValueError('[ERROR] Get strange strand symbol %s' % s)
 
     cdef double left_p, right_p, twoside_p
+
     # exact_fisher_test from htslib
     kt_fisher_exact(ref_fwd, ref_rev, alt_fwd,
-                    alt_rev, & left_p, & right_p, & twoside_p)
-    fs = round(-10 * np.log10(twoside_p), 3)
+                    alt_rev, &left_p, &right_p, & twoside_p)
+    fs = round(-10 * log10(twoside_p), 3)
 
     if fs == np.inf:
         fs = 10000.0

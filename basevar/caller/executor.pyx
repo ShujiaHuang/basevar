@@ -17,8 +17,7 @@ from basevar import utils
 from basevar.log import logger
 from basevar.io.bam cimport get_sample_names
 from basevar.caller import CallerProcess, process_runner
-from basevar.caller.basetypebam import BaseVarProcess
-# from .coverageprocess import CvgSingleProcess
+from basevar.caller.basetypebam cimport BaseVarProcess
 
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -97,7 +96,7 @@ class BaseTypeRunner(object):
         self.nCPU = args.nCPU
         self.reference_file = args.referencefile
         self.outvcf = args.outvcf if args.outvcf else None
-        self.outcvg = args.outcvg if args.outcvg else None
+        self.outcvg = args.outcvg
         self.options = args
 
         # setting the resolution of MAF
@@ -105,7 +104,7 @@ class BaseTypeRunner(object):
         logger.info("Finish loading arguments and we have %d BAM/CRAM files for "
                     "variants calling." % len(self.alignfiles))
 
-        # Loading positions or load all the genome regions
+        # Loading positions if not been provided we'll load all the genome
         regions = utils.load_target_position(self.reference_file, args.positions, args.regions)
         self.regions_for_each_process = _generate_regions_for_each_process(regions, process_num=self.nCPU)
 
@@ -154,70 +153,6 @@ class BaseTypeRunner(object):
         return processes
 
 
-class CoverageRunner(object):
-
-    def __init__(self, args, cmm=utils.CommonParameter()):
-        """init function
-        """
-        self.referencefile = args.referencefile
-        self.nCPU = args.nCPU
-        self.outputfile = args.outputfile
-        self.cmm = cmm
-
-        # Loading positions if not provid we'll load all the genome
-        self.regions = utils.load_target_position(self.referencefile, args.positions, args.regions)
-
-        # Get all the input alignement files
-        self.alignefiles = utils.load_file_list(args.infilelist)
-        sys.stderr.write('[INFO] Finish loading parameters and input file list %s\n' % time.asctime())
-
-    def run(self):
-        """
-        Run variant caller
-        """
-        sys.stderr.write('[INFO] Start call varaintis by BaseType ... %s\n' % time.asctime())
-
-        # Always create process manager even if nCPU==1, so that we can
-        # listen for signals from main thread
-        regions_for_each_process = [[] for _ in range(self.nCPU)]
-        if len(self.regions) < self.nCPU:
-            # We cut the region evenly to fit nCPU if regions < nCPU
-            for chrid, start, end in self.regions:
-                delta = int((end - start + 1) / self.nCPU)
-                if delta == 0:
-                    delta = 1
-
-                for i, pos in enumerate(range(start - 1, end, delta)):
-                    s = pos + 1 if pos + 1 < end else end
-                    e = pos + delta if pos + delta < end else end
-
-                    regions_for_each_process[i % self.nCPU].append([chrid, s, e])
-
-        else:
-            for i, region in enumerate(self.regions):
-                regions_for_each_process[i % self.nCPU].append(region)
-
-        out_cvg_names = set()
-        processes = []
-        for i in range(self.nCPU):
-            sub_cvg_file = self.outputfile + '_temp_%s' % i
-
-            out_cvg_names.add(sub_cvg_file)
-            # processes.append(CallerProcess(CvgSingleProcess,
-            #                                self.referencefile,
-            #                                self.alignefiles,
-            #                                sub_cvg_file,
-            #                                regions_for_each_process[i],
-            #                                cmm=self.cmm))
-
-        process_runner(processes)
-
-        # Final output file name
-        utils.merge_files(out_cvg_names, self.outputfile, is_del_raw_file=True)
-
-        return processes
-
-
 class MergeRunner(object):
     """Runner for merging files"""
 
@@ -259,4 +194,4 @@ class NearbyIndelRunner(object):
         nbi = NearbyIndel(self.in_vcf_file, self.in_cvg_file, nearby_distance=self.nearby_dis_around_indel)
         nbi.run()
 
-        return self
+        return
