@@ -3,6 +3,7 @@
 cdef extern from "stdlib.h":
     void *malloc(size_t)
     void *calloc(size_t, size_t)
+    void *memcpy(void *dst, void *src, size_t length)
     void free(void *)
 
 cdef extern from "math.h":

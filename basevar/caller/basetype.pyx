@@ -275,7 +275,8 @@ cdef class BaseType:
         # init. Base combination will just be the ``bases`` if specific_base_comb
         cdef BaseTuple the_base_tuple = self._f(bases, bases_num)
         cdef double lr_alt = the_base_tuple.sum_marginal_likelihood[0]
-        cdef list base_frq = [the_base_tuple.alleles_freq_list[0][j] for j in range(self.base_type_num)]
+        cdef double* base_frq = <double*>(calloc(self.base_type_num, sizeof(double)))
+        memcpy(base_frq, the_base_tuple.alleles_freq_list[0], self.base_type_num * sizeof(double))
 
         cdef double chi_sqrt_value = 0
         cdef double* lrt_chi_value = NULL
@@ -297,8 +298,7 @@ cdef class BaseType:
 
             # Take the null hypothesis and continue
             if chi_sqrt_value < CommonParameter.LRT_THRESHOLD:
-                # the_base_tuple.base_num is equal to self.base_type_num
-                base_frq = [the_base_tuple.alleles_freq_list[i_min][j] for j in range(self.base_type_num)]
+                memcpy(base_frq, the_base_tuple.alleles_freq_list[i_min], self.base_type_num * sizeof(double))
                 bases = [chr(the_base_tuple.base_comb_tuple[i_min][j]) for j in range(the_base_tuple.base_num)]
 
             # Take the alternate hypothesis
@@ -322,8 +322,8 @@ cdef class BaseType:
             is_variant = True
 
             r = self.depth[bases[0]] / self.total_depth
-            # mono-allelelic
             if len(bases) == 1 and self.total_depth > 10 and r > 0.5:
+                # mono-allelelic
                 self._var_qual = 5000.0
 
             else:

@@ -66,9 +66,9 @@ def parser_commandline_args():
                               help="Maximum read length. [150]")
     basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
                               help="Maximium coverage in window. [5000000]")
-    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=1,
+    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
                               help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
-                                   "This will slow things down, but reduce memory usage. [True]")
+                                   "This will slow things down, but reduce memory usage. [0]")
     basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
                               help="This sets the granularity used when compressing quality scores. "
                                    "If > 1 then quality compression is lossy. [1]")
@@ -101,8 +101,8 @@ def parser_commandline_args():
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
                               help='Rerun process by checking batchfiles.')
 
-    basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=3,
-                              help="Level of logging. [3]")
+    basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=1,
+                              help="Level of logging(1,3). [1]")
 
     # For discovery variants from batchfiles
     btb_cmd = commands.add_parser('basetypebatch',
@@ -272,24 +272,24 @@ def basetype(args):
     return is_success
 
 
-def basetypebatch(args):
-    from caller.executor import BaseTypeBatchRunner
-
-    # Make sure you have set at least one input file.
-    if not args.input and not args.infilelist:
-        sys.stderr.write("[ERROR] Missing input batch files.\n\n")
-        sys.exit(1)
-
-    bt = BaseTypeBatchRunner(args)
-
-    processer = bt.basevar_caller()
-
-    is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
-
-    return is_success
+# def basetypebatch(args):
+#     from caller.executor import BaseTypeBatchRunner
+#
+#     # Make sure you have set at least one input file.
+#     if not args.input and not args.infilelist:
+#         sys.stderr.write("[ERROR] Missing input batch files.\n\n")
+#         sys.exit(1)
+#
+#     bt = BaseTypeBatchRunner(args)
+#
+#     processer = bt.basevar_caller()
+#
+#     is_success = True
+#     for p in processer:
+#         if p.exitcode != 0:
+#             is_success = False
+#
+#     return is_success
 
 
 # def vqsr(args):
@@ -344,12 +344,12 @@ def main():
     start_time = time.time()
     runner = {
         'basetype': basetype,
-        'basetypebatch': basetypebatch,
+        # 'coverage': coverage,
         'merge': merge,
         'NearByIndel': nearby_indel,
-        # 'coverage': coverage,
         # 'VQSR': vqsr,
         # 'popmatrix': popmatrx
+        # 'basetypebatch': basetypebatch,
     }
 
     args = parser_commandline_args()
@@ -366,6 +366,4 @@ def main():
             args.command, elapsed_time))
         sys.exit(1)
 
-
-if __name__ == '__main__':
-    main()
+    return
