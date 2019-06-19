@@ -6,7 +6,7 @@
 *.so
 .*.sw?
 *.egg
-.DS_Store
+*.html
 
 basevar/*.c
 basevar/caller/*.c
@@ -15,6 +15,7 @@ basevar/io/*.c
 dist/
 build/
 *.egg-info/
+.DS_Store
 
 venv/
 .idea/
