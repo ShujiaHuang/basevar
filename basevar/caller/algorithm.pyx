@@ -135,7 +135,7 @@ def strand_bias(ref_base, alt_base, bases, strands):
     if twoside_p == 1.0:
         fs = 0.0
     elif twoside_p > 0.0:
-        fs = round(-10 * log10(twoside_p), 3)
+        fs = -10 * log10(twoside_p)
     else:
         fs = 10000.0
 
