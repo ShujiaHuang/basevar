@@ -88,8 +88,7 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
     reads for each BAM file in that region.
     
-    ``bam_objs`` is a dict of the object of class ``Samfile`` for ``samples``(one for each), and the handle 
-    has been open to set caching for BAM/CRAM to reduce file IO cost. 
+    ``bam_objs`` is a dict of the object of bamfile path for ``samples``(one for each)
     
     Format in ``bam_objs``: {sample: filename}, it could be create by one line code: 
     bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
@@ -97,7 +96,7 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
     
     This function could just work for unique sample with only one BAM file. You should merge your 
-    bamfile first if there are multiple BAM files for one sample.
+    bamfiles first if there are multiple BAM files for one sample.
     """
     cdef list population_read_buffers = []
 
