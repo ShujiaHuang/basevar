@@ -24,8 +24,8 @@ cdef class BatchElement(object):
     """
     Class to encapsulate information for all position. The basic idea is to tread all position as batch.
     """
-    def __init__(self, bytes ref_name, long int ref_pos, bytes ref_base, bytes read_base,
-                 int mapq, int base_qual, int read_pos_rank, char map_strand):
+    def __cinit__(self, bytes ref_name, long int ref_pos, bytes ref_base, bytes read_base,
+                  int mapq, int base_qual, int read_pos_rank, char map_strand):
 
         self.ref_name = ref_name
         self.ref_pos = ref_pos
@@ -63,7 +63,7 @@ cdef class BatchGenerator(object):
     """
     A class to generate batch informattion from a bunch of reads.
     """
-    def __init__(self, tuple region, FastaFile ref_fa, int min_mapq, int min_base_qual, options):
+    def __cinit__(self, tuple region, FastaFile ref_fa, int min_mapq, int min_base_qual, options):
         """
         Constructor. Create a storage place for batchfile, and store the values of some flags which
         are used in the pysam CIGAR information.
