@@ -10,6 +10,7 @@ import sys
 import time
 
 from basevar.log import logger
+from basevar.utils import do_cprofile
 
 
 def parser_commandline_args():
@@ -201,6 +202,7 @@ def parser_commandline_args():
     return cmdparse.parse_args()
 
 
+# @do_cprofile("./basetype.prof", True)
 def basetype(args):
     from caller.executor import BaseTypeRunner
 

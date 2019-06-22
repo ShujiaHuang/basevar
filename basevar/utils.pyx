@@ -3,8 +3,37 @@ import os
 import heapq
 import time
 
+import cProfile
+import pstats
+
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
+
+
+def do_cprofile(filename, is_do_profiling=False):
+    """
+    Decorator for function profiling.
+    """
+    def wrapper(func):
+        def profiled_func(*args, **kwargs):
+            # Flag for do profiling or not.
+            if is_do_profiling:
+                profile = cProfile.Profile()
+                profile.enable()
+                result = func(*args, **kwargs)
+                profile.disable()
+
+                # Sort stat by internal time.
+                sortby = "tottime"
+                ps = pstats.Stats(profile).sort_stats(sortby)
+                ps.dump_stats(filename)
+            else:
+                result = func(*args, **kwargs)
+
+            return result
+        return profiled_func
+
+    return wrapper
 
 
 cdef class CommonParameter:
