@@ -256,7 +256,10 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
                 [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
                 [str(base_depth[b]) for b in CommonParameter.BASE] +
                 [indel_string] +
-                [str(fs), str("%.3f" % sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
+                [str("%.3f" % fs),
+                 str("%.3f" % sor),
+                 ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
+                group_info
             ) + '\n'
         )
 
@@ -319,7 +322,7 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
             'BaseQRankSum': str("%.3f" % base_q_rank_sum) if base_q_rank_sum != -1 else 'nan',
             'QD': str(qd),
             'SOR': str("%.3f" % sor),
-            'FS': str(fs),
+            'FS': str("%.3f" % fs),
             'SB_REF': str(ref_fwd) + ',' + str(ref_rev),
             'SB_ALT': str(alt_fwd) + ',' + str(alt_rev)}
 
