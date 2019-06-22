@@ -9,8 +9,9 @@ import time
 
 from basevar.io.fasta import FastaFile
 
-from basevar import utils
 from basevar.log import logger
+from basevar import utils
+from basevar.utils import do_cprofile
 from basevar.caller.basetypeprocess import output_header
 from basevar.caller.basetypeprocess cimport variants_discovery
 from basevar.caller.batchcaller cimport create_batchfiles_in_regions
@@ -55,6 +56,7 @@ cdef class BaseVarProcess:
         if options.pop_group_file and len(options.pop_group_file):
             self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
+    @do_cprofile("./basevar_process_run.prof", True)
     def run(self):
         """Run the process of calling variant and output files.
         """

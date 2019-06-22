@@ -5,7 +5,8 @@ import sys
 from basevar.log import logger
 from basevar.io.openfile import Open
 from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
-from basevar.caller.algorithm import strand_bias, ref_vs_alt_ranksumtest
+from basevar.caller.algorithm import strand_bias
+from basevar.caller.algorithm cimport ref_vs_alt_ranksumtest
 
 from basevar.caller.basetype cimport BaseType
 
@@ -255,7 +256,7 @@ def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_
                 [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
                 [str(base_depth[b]) for b in CommonParameter.BASE] +
                 [indel_string] +
-                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
+                [str(fs), str("%.3f" % sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
             ) + '\n'
         )
 
@@ -313,11 +314,11 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
             'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases])),
             'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases])),
             'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases])),
-            'MQRankSum': str(mq_rank_sum),
-            'ReadPosRankSum': str(read_pos_rank_sum),
-            'BaseQRankSum': str(base_q_rank_sum),
+            'MQRankSum': str("%.3f" % mq_rank_sum) if mq_rank_sum != -1 else 'nan',
+            'ReadPosRankSum': str("%.3f" % read_pos_rank_sum) if read_pos_rank_sum != -1 else 'nan',
+            'BaseQRankSum': str("%.3f" % base_q_rank_sum) if base_q_rank_sum != -1 else 'nan',
             'QD': str(qd),
-            'SOR': str(sor),
+            'SOR': str("%.3f" % sor),
             'FS': str(fs),
             'SB_REF': str(ref_fwd) + ',' + str(ref_rev),
             'SB_ALT': str(alt_fwd) + ',' + str(alt_rev)}
