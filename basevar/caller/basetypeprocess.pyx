@@ -138,6 +138,7 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
 
     cdef dict popgroup_bt = {}
     cdef bint is_variant = True
+    cdef BaseType bt, group_bt
     if vcf_file_handle:
 
         bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
@@ -154,8 +155,7 @@ def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strand
 
                 group_bt = BaseType(ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
 
-                basecombination = [ref_base.upper()] + bt.alt_bases
-                group_bt.lrt(basecombination)
+                group_bt.lrt([ref_base.upper()] + bt.alt_bases)
                 popgroup_bt[group] = group_bt
 
             _out_vcf_line(chrid,

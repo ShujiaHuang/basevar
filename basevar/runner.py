@@ -105,46 +105,6 @@ def parser_commandline_args():
     basetype_cmd.add_argument("--verbosity", dest="verbosity", action='store', type=int, default=1,
                               help="Level of logging(1,3). [1]")
 
-    # For discovery variants from batchfiles
-    btb_cmd = commands.add_parser('basetypebatch',
-                                  help='Variants discovery on one or more samples pre-call by basetype')
-    btb_cmd.add_argument('-I', '--input', dest='input', metavar='BatchFile', action='append', default=[],
-                         help='Input batchfile pre-call by basetype and must be compressed by bgzip algorithm. '
-                              'This argument could be specified at least once.')
-    btb_cmd.add_argument('-L', '--batch-file-list', dest='infilelist', metavar='BatchfilesList',
-                         help='batchfiles list pre-call by basetype and must be compressed by bgzip algorithm. '
-                              'One file per row.')
-    btb_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
-                         help='Input reference fasta file.')
-
-    btb_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
-                         help='Output VCF file. If not provide will skip variants discovery and just output '
-                              'position coverage file which filename is provided by --output-cvg.')
-    btb_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
-                         help='Output position coverage file.')
-
-    btb_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
-                         help='Skip unlisted positions one per row. The position format in the file could '
-                              'be (chrid pos) and (chrid start end) in mix. This parameter could be used '
-                              'with --regions simultaneously.')
-    btb_cmd.add_argument('--regions', metavar='chr:start-end', type=str, dest='regions', default='',
-                         help='Skip positions which not in these regions. This parameter could be a list of '
-                              'comma deleimited genome regions(e.g.: chr:start-end,chr:start-end) or a file '
-                              'contain the list of regions. This parameter could be used with --positions '
-                              'simultaneously')
-
-    btb_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=None,
-                         help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
-                              'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                              '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t need to take care about this '
-                              'parameter.')
-
-    # special parameter for calculating specific population allele frequence
-    btb_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
-                         help='Calculating the allele frequency for specific population.')
-    btb_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
-                         help='Number of processer to use. [1]')
-
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
     vqsr_cmd.add_argument('-I', '--input', dest='vcfInfile', metavar='VCF', required=True,
@@ -171,33 +131,6 @@ def parser_commandline_args():
                          help='Input coverage file which has indel information.')
     nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
                          type=int, default=16, help='The distance around indels. [16]')
-
-    # population matrix
-    mat_cmd = commands.add_parser('popmatrix', help='Create population matrix from bamfiles in specific positions.')
-    mat_cmd.add_argument('-I', '--input', dest='input', metavar='BAM/CRAM', action='append', default=[],
-                         help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
-                              'least once.')
-    mat_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='BamfilesList',
-                         help='BAM/CRAM files list, one file per row.')
-    mat_cmd.add_argument('-R', '--reference', type=str, dest='referencefile', metavar='Reference_fasta', required=True,
-                         help='Input reference fasta file.')
-    mat_cmd.add_argument('--positions', metavar='position-file', type=str, dest='positions', required=True,
-                         help='Skip unlisted positions one per row. Position file format must be (CHRID POS REF ALT).')
-    mat_cmd.add_argument('--output', metavar='FILE', type=str, dest='output_file', required=True,
-                         help='Path of output population matrix file.')
-
-    mat_cmd.add_argument('-q', dest='mapq', metavar='INT', type=int, default=10,
-                         help='Only include reads with mapping quality >= INT. [10]')
-    mat_cmd.add_argument('-B', '--batch-count', dest='batchcount', metavar='INT', type=int, default=200,
-                         help='INT simples per batchfile. [200]')
-    mat_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
-                         help='Number of processer to use. [1]')
-    mat_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
-                         help="If the name of bamfile is something like 'SampleID.xxxx.bam', "
-                              "you can set this parameter to save a lot of time during get the "
-                              "sample id from BAM header.")
-    mat_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
-                         help='Rerun process by checking batchfiles.')
 
     return cmdparse.parse_args()
 
@@ -240,26 +173,6 @@ def basetype(args):
     return is_success
 
 
-# def basetypebatch(args):
-#     from caller.executor import BaseTypeBatchRunner
-#
-#     # Make sure you have set at least one input file.
-#     if not args.input and not args.infilelist:
-#         sys.stderr.write("[ERROR] Missing input batch files.\n\n")
-#         sys.exit(1)
-#
-#     bt = BaseTypeBatchRunner(args)
-#
-#     processer = bt.basevar_caller()
-#
-#     is_success = True
-#     for p in processer:
-#         if p.exitcode != 0:
-#             is_success = False
-#
-#     return is_success
-
-
 def nearby_indel(args):
     from caller.executor import NearbyIndelRunner
     nbi = NearbyIndelRunner(args)
@@ -289,13 +202,12 @@ def main():
     logger.info("... %s starting ...\n" % args.command)
     is_success = runner[args.command](args)
 
-    elapsed_time = time.time() - start_time
     if is_success:
         logger.info('%s done, %d seconds elapsed.\n' % (
-            args.command, elapsed_time))
+            args.command, time.time() - start_time))
     else:
         logger.error("Catch some exception, so \"%s\" is not done, %d seconds elapsed\n" % (
-            args.command, elapsed_time))
+            args.command, time.time() - start_time))
         sys.exit(1)
 
     return

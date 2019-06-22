@@ -56,7 +56,7 @@ cdef class BaseVarProcess:
         if options.pop_group_file and len(options.pop_group_file):
             self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
-    @do_cprofile("./basevar_process_run.prof", True)
+    # @do_cprofile("./basevar_process_run.prof", True)
     def run(self):
         """Run the process of calling variant and output files.
         """
