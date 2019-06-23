@@ -14,9 +14,16 @@ from basevar.io.bam cimport load_bamdata
 from basevar.caller.batch cimport BatchGenerator
 
 
-cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, long int region_boundary_start,
-                                       long int region_boundary_end, list align_files, FastaFile fa,
-                                       list samples, bytes outdir, object options, bint is_smart_rerun):
+cdef list create_batchfiles_in_regions(bytes chrom_name,
+                                       list regions,
+                                       long int region_boundary_start,
+                                       long int region_boundary_end,
+                                       list align_files,
+                                       FastaFile fa,
+                                       list samples,
+                                       bytes outdir,
+                                       object options,
+                                       bint is_smart_rerun):
     """
     ``samples``: The sample id of align_files
     ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -33,6 +40,10 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, long int 
     cdef int part_num = len(align_files) / batchcount
     if part_num * batchcount < len(align_files):
         part_num += 1
+
+    cdef bytes refseq_bytes = fa.get_sequence(
+        chrom_name, region_boundary_start, region_boundary_end + 5 * options.r_len)
+    cdef char* refseq = refseq_bytes
 
     cdef int m = 0
     cdef int i = 0
@@ -61,15 +72,29 @@ cdef list create_batchfiles_in_regions(bytes chrom_name, list regions, long int 
         if samples:
             batch_sample_ids = samples[i:i + batchcount]
 
-        generate_batchfile(
-            chrom_name, region_boundary_start, region_boundary_end, regions, sub_align_files, fa,
-            options, part_file_name, batch_sample_ids)
+        generate_batchfile(chrom_name,
+                           region_boundary_start,
+                           region_boundary_end,
+                           regions,
+                           sub_align_files,
+                           refseq,
+                           fa,
+                           options,
+                           part_file_name,
+                           batch_sample_ids)
 
     return batchfiles
 
 
-cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigend, list regions,
-                             list batch_align_files, FastaFile fa, object options, bytes out_batch_file,
+cdef void generate_batchfile(bytes chrom_name,
+                             long int bigstart,
+                             long int bigend,
+                             list regions,
+                             list batch_align_files,
+                             char* refseq,
+                             FastaFile fa,
+                             object options,
+                             bytes out_batch_file,
                              list batch_sample_ids):
     """Loading bamfile and create a batchfile in ``regions``.
     
@@ -81,8 +106,6 @@ cdef void generate_batchfile(bytes chrom_name, long int bigstart, long int bigen
     # Just loading baminfo and not need to load header!
     cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
     cdef list read_buffers
-    cdef bytes refseq_bytes = fa.get_sequence(chrom_name, bigstart, bigend + 5 * options.r_len)
-    cdef char* refseq = refseq_bytes
 
     try:
         # load the whole mapping reads in [chrom_name, bigstart, bigend]

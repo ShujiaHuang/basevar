@@ -89,8 +89,8 @@ cdef class BatchGenerator(object):
         self.reg_start     = region[1]  # start position of region, and region[1] must be 0-base coordinate system
         self.reg_end       = region[2]  # end position of region, and region[2] must be 0-base coordinate system
 
-        self.ref_seq_start = max(0, self.reg_start-500)
-        self.ref_seq_end   = min(self.reg_end+500, self.ref_fa.references[self.ref_name].seq_length-1)
+        self.ref_seq_start = max(0, self.reg_start-200)
+        self.ref_seq_end   = min(self.reg_end+200, self.ref_fa.references[self.ref_name].seq_length-1)
         self.py_refseq     = self.ref_fa.get_sequence(self.ref_name, self.ref_seq_start, self.ref_seq_end) # Cache this
         self.refseq        = self.py_refseq
 
