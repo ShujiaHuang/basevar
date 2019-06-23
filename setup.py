@@ -34,7 +34,6 @@ MOD_NAMES = [
     CALLER_PRE + '.io.fasta',
     CALLER_PRE + '.io.bam',
     CALLER_PRE + '.io.read',
-    # CALLER_PRE + '.caller.algorithm',
     CALLER_PRE + '.caller.basetype',
     CALLER_PRE + '.caller.batch',
     CALLER_PRE + '.caller.batchcaller',
@@ -61,7 +60,8 @@ if __name__ == "__main__":
     extensions.append(Extension(name=algorithm,
                                 sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
                                 language='c',
-                                include_dirs=[BC_INCLUDE_DIR]))
+                                include_dirs=[BC_INCLUDE_DIR],
+                                libraries=['hts']))
 
     # extension for bgzip and tabix
     # the_tabix_pre = CALLER_PRE+'.io.BGZF.tabix'
