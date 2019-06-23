@@ -74,6 +74,7 @@ cdef class BaseVarProcess:
 
         cdef long int region_boundary_start
         cdef long int region_boundary_end
+        cdef int sample_num = len(self.samples)
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
             start_time = time.time()
 
@@ -89,8 +90,7 @@ cdef class BaseVarProcess:
 
             # set cache for fa sequence, this could make the program much faster
             # And remember that ``fa_file_hd`` is 0-base system
-            self.fa_file_hd.set_cache_sequence(chrid,
-                                               region_boundary_start - 10 * self.options.r_len,
+            self.fa_file_hd.set_cache_sequence(chrid, region_boundary_start - 10 * self.options.r_len,
                                                region_boundary_end + 10 * self.options.r_len)
 
             batchfiles = create_batchfiles_in_regions(chrid,
@@ -104,8 +104,8 @@ cdef class BaseVarProcess:
                                                       self.options,
                                                       self.smart_rerun)
 
-            logger.info("Creating batchfiles in %s:%s-%s done, %d seconds elapsed." % (
-                chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
+            logger.info("Batchfiles in %s:%s-%s for %d samples done, %d seconds elapsed." % (
+                chrid, region_boundary_start+1, region_boundary_end, sample_num, time.time() - start_time))
 
             # Process of variants discovery
             start_time = time.time()
@@ -124,7 +124,7 @@ cdef class BaseVarProcess:
                 for f in batchfiles:
                     os.remove(f)
 
-            logger.info("Running variants_discovery() in %s:%s-%s done, %d seconds elapsed.\n" % (
+            logger.info("Running variants_discovery in %s:%s-%s done, %d seconds elapsed.\n" % (
                 chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 
         CVG.close()
