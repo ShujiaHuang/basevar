@@ -215,16 +215,28 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list batch_buffers, 
                         mapqs.append(0)
                         read_pos_rank.append(0)
 
+                # OUT.write("%s\n" % "\t".join([
+                #     chrom_name,
+                #     str(position),
+                #     ref_base,
+                #     str(depth),
+                #     ",".join(map(str, mapqs)),
+                #     ",".join(sample_bases),
+                #     ",".join(map(str, sample_base_quals)),
+                #     ",".join(map(str, read_pos_rank)),
+                #     ",".join(strands)
+                # ]))
+
                 OUT.write("%s\n" % "\t".join([
                     chrom_name,
                     str(position),
                     ref_base,
                     str(depth),
-                    ",".join(map(str, mapqs)),
-                    ",".join(sample_bases),
-                    ",".join(map(str, sample_base_quals)),
-                    ",".join(map(str, read_pos_rank)),
-                    ",".join(strands)
+                    ",".join(map(str, mapqs)) if depth else ".",
+                    ",".join(sample_bases) if depth else ".",
+                    ",".join(map(str, sample_base_quals)) if depth else ".",
+                    ",".join(map(str, read_pos_rank)) if depth else ".",
+                    ",".join(strands) if depth else "."
                 ]))
 
     return
