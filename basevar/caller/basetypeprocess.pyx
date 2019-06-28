@@ -11,7 +11,7 @@ from basevar.caller.algorithm cimport ref_vs_alt_ranksumtest
 from basevar.caller.basetype cimport BaseType
 
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
-                             cvg_file_handle, vcf_file_handle):
+                             cvg_file_handle, vcf_file_handle, batch_count):
     """Function for variants discovery
     """
     cdef list sampleinfos = []
@@ -67,7 +67,8 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
          sample_base_quals,
          strands,
          mapqs,
-         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, sampleinfos)
+         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base,
+                                                                      sampleinfos, batch_count)
 
         # ignore if coverage=0
         if depth == 0:
@@ -95,13 +96,15 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
 
     return is_empty
 
-def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes ref_base, list infolines):
+cdef tuple _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes ref_base,
+                                                       list infolines, int batch_count):
     cdef list sample_bases = []
     cdef list sample_base_quals = []
     cdef list mapqs = []
     cdef list read_pos_rank = []
     cdef list strands = []
     cdef int depth = 0
+    cdef num = 0
     for i, col in enumerate(infolines):
         # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
         if len(col) == 0:
@@ -114,6 +117,21 @@ def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes
                          "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
                          (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
             sys.exit(1)
+
+        if col[3] == 0:
+            t4, t5, t6, t7, t8 = [], [], [], [], []
+            for num in range(batch_count):
+                t4.append('0')
+                t5.append('N')
+                t6.append('0')
+                t7.append('0')
+                t8.append('.')
+
+            col[4] = ",".join(t4)
+            col[5] = ",".join(t5)
+            col[6] = ",".join(t6)
+            col[7] = ",".join(t7)
+            col[8] = ",".join(t8)
 
         depth += col[3]
         mapqs.append(col[4])
@@ -129,7 +147,7 @@ def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes
     read_pos_rank = map(int, ",".join(read_pos_rank).split(","))
     strands = ",".join(strands).split(",")
 
-    return depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
+    return (depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank)
 
 def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
                      popgroup, min_af, cvg_file_handle, vcf_file_handle):
