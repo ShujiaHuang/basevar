@@ -1,6 +1,6 @@
 """Fast cython implementation of some windowing functions.
 """
-import cython
+# import cython
 
 from basevar.log import logger
 from basevar.io.htslibWrapper cimport cAlignedRead
@@ -53,30 +53,30 @@ cdef extern from "string.h":
     int memcmp(void *s1, void *s2, size_t len)
 
 
-@cython.profile(False)
-cdef inline int read_pos_comp(const void* x, const void* y) nogil:
-    """
-    Comparison function for use in qsort, to sort reads by their start positions and
-    then end positions.
-    """
-    cdef cAlignedRead** read_one = <cAlignedRead**> (x)
-    cdef cAlignedRead** read_two = <cAlignedRead**> (y)
-
-    return read_one[0].pos - read_two[0].pos
-
-
-@cython.profile(False)
-cdef int read_mate_pos_comp(const void* x, const void* y):
-    """
-    Comparison function for use in qsort, to sort reads by their mate positions, as long as
-    the mates are on the same chromosome.
-    """
-    cdef cAlignedRead** read_one = <cAlignedRead**> (x)
-    cdef cAlignedRead** read_two = <cAlignedRead**> (y)
-
-    # Sorting is broken for reads with mates on different chromosomes
-    assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
-    return read_one[0].mate_pos - read_two[0].mate_pos
+# @cython.profile(False)
+# cdef inline int read_pos_comp(const void* x, const void* y) nogil:
+#     """
+#     Comparison function for use in qsort, to sort reads by their start positions and
+#     then end positions.
+#     """
+#     cdef cAlignedRead** read_one = <cAlignedRead**> (x)
+#     cdef cAlignedRead** read_two = <cAlignedRead**> (y)
+#
+#     return read_one[0].pos - read_two[0].pos
+#
+#
+# @cython.profile(False)
+# cdef int read_mate_pos_comp(const void* x, const void* y):
+#     """
+#     Comparison function for use in qsort, to sort reads by their mate positions, as long as
+#     the mates are on the same chromosome.
+#     """
+#     cdef cAlignedRead** read_one = <cAlignedRead**> (x)
+#     cdef cAlignedRead** read_two = <cAlignedRead**> (y)
+#
+#     # Sorting is broken for reads with mates on different chromosomes
+#     assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
+#     return read_one[0].mate_pos - read_two[0].mate_pos
 
 
 cdef class ReadArray:
@@ -475,14 +475,17 @@ cdef class BamReadBuffer:
                 read_ok = check_and_trim_read(the_read, NULL, self.filtered_read_counts_by_type, self.min_map_qual,
                                               self.min_base_qual, self.trim_overlapping, self.trim_soft_clipped)
 
-            self.last_read = the_read
+            if self.reads.get_size() > 0 and self.last_read.pos == the_read.pos:
+                return
 
+            # self.last_read = the_read
             # Put read into bad array
             if not read_ok:
                 self.bad_reads.append(the_read)
 
             # Put read into good array
             else:
+                self.last_read = the_read
                 self.reads.append(the_read)
 
     cdef int count_alignment_gaps(self):
@@ -637,24 +640,24 @@ cdef class BamReadBuffer:
 
             the_start += 1
 
-    cdef void sort_reads(self):
-        """
-        Sort the contents of the reads array by position
-        """
-        if not self.is_sorted:
-            if self.reads.get_size() > 0:
-                qsort(self.reads.array, self.reads.get_size(), sizeof(cAlignedRead**), read_pos_comp)
-
-            if self.bad_reads.get_size() > 0:
-                qsort(self.bad_reads.array, self.bad_reads.get_size(), sizeof(cAlignedRead**),
-                      read_pos_comp)
-
-            self.is_sorted = True
-
-    cdef void sort_broken_mates(self):
-        """
-        Sort the contents of the brokenMates array by the co-ordinates of their
-        mates.
-        """
-        qsort(self.broken_mates.array, self.broken_mates.get_size(), sizeof(cAlignedRead**),
-              read_mate_pos_comp)
+    # cdef void sort_reads(self):
+    #     """
+    #     Sort the contents of the reads array by position
+    #     """
+    #     if not self.is_sorted:
+    #         if self.reads.get_size() > 0:
+    #             qsort(self.reads.array, self.reads.get_size(), sizeof(cAlignedRead**), read_pos_comp)
+    #
+    #         if self.bad_reads.get_size() > 0:
+    #             qsort(self.bad_reads.array, self.bad_reads.get_size(), sizeof(cAlignedRead**),
+    #                   read_pos_comp)
+    #
+    #         self.is_sorted = True
+    #
+    # cdef void sort_broken_mates(self):
+    #     """
+    #     Sort the contents of the brokenMates array by the co-ordinates of their
+    #     mates.
+    #     """
+    #     qsort(self.broken_mates.array, self.broken_mates.get_size(), sizeof(cAlignedRead**),
+    #           read_mate_pos_comp)
