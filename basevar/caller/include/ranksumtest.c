@@ -45,12 +45,12 @@ static double rankR1(double *x, int n1, double *y, int n2) {
     // average method
     int k = 0, n = 0;
     for (i = 0; i < n1 + n2; i++){
-        if (x[i] == x[i+1]) {
-            k = k + i + 1;
+        if (i + 1 < n1 + n2 && x[i] == x[i+1]) {
+            k += i + 1;
             n++;
         }else{
             if (k > 0) {
-                k = k + i + 1;
+                k += i + 1;
                 double avg = (double)k / (n + 1);
                 for (j = i; j >= i - n; j--) {
                     x[j] = avg;
@@ -59,7 +59,6 @@ static double rankR1(double *x, int n1, double *y, int n2) {
                 n = 0;
             }else{
                 x[i] = i + 1;
-                continue;
             }
         }
     }
