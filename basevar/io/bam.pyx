@@ -16,6 +16,12 @@ cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
 
+cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void *calloc(size_t, size_t)
+    void free(void *)
+
+
 cdef bint is_indexable(filename):
     return filename.lower().endswith((".bam", ".cram"))
 
@@ -87,9 +93,9 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
     reads for each BAM file in that region.
     
-    ``bam_objs`` is a dict of the object of bamfile path for ``samples``(one for each)
+    ``bamfiles`` is a dict of the object of bamfile path for ``samples``(one for each)
     
-    Format in ``bam_objs``: {sample: filename}, it could be create by one line code: 
+    Format in ``bamfiles``: {sample: filename}, it could be create by one line code: 
     bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
     
     ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
@@ -97,7 +103,6 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     This function could just work for unique sample with only one BAM file. You should merge your 
     bamfiles first if there are multiple BAM files for one sample.
     """
-    cdef list population_read_buffers = []
 
     cdef Samfile reader
     cdef ReadIterator reader_iter
@@ -110,6 +115,8 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     cdef int total_reads = 0
     cdef int sample_num = len(samples)
     cdef BamReadBuffer sample_read_buffer
+
+    cdef list population_read_buffers = []
 
     region = "%s:%s-%s" % (chrom, start, end)
     cdef int i
@@ -129,7 +136,7 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
 
         try:
             reader_iter = reader.fetch(region)
-        except Exception, e:
+        except Exception as e:
             logger.warning(e.message)
             logger.warning("No data could be retrieved for sample %s in file %s in "
                            "region %s" % (samples[i], reader.filename, region))

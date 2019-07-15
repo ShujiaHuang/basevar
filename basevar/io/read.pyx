@@ -475,6 +475,7 @@ cdef class BamReadBuffer:
                 read_ok = check_and_trim_read(the_read, NULL, self.filtered_read_counts_by_type, self.min_map_qual,
                                               self.min_base_qual, self.trim_overlapping, self.trim_soft_clipped)
 
+            # ignore read which mapping the same position
             if self.reads.get_size() > 0 and self.last_read.pos == the_read.pos:
                 return
 

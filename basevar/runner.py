@@ -200,8 +200,8 @@ def main():
 
     args = parser_commandline_args()
     logger.info("... %s starting ...\n" % args.command)
-    is_success = runner[args.command](args)
 
+    is_success = runner[args.command](args)
     if is_success:
         logger.info('%s done, %d seconds elapsed.\n' % (
             args.command, time.time() - start_time))

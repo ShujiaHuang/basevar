@@ -8,10 +8,12 @@ import os
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-from basevar.io.read cimport BamReadBuffer
 from basevar.io.fasta cimport FastaFile
 from basevar.io.bam cimport load_bamdata
 from basevar.caller.batch cimport BatchGenerator
+from basevar.io.read cimport BamReadBuffer
+from basevar.io.htslibWrapper cimport compress_read
+from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 
 
 cdef list create_batchfiles_in_regions(bytes chrom_name,
@@ -86,7 +88,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
     return batchfiles
 
 
-cdef void generate_batchfile(bytes chrom_name,
+cdef void generate_batchfile_old(bytes chrom_name,
                              long int bigstart,
                              long int bigend,
                              list regions,
@@ -125,8 +127,119 @@ cdef void generate_batchfile(bytes chrom_name,
     cdef list batch_buffers = []
     cdef int longest_read_size = 0
     cdef long int reg_start, reg_end
+
     for sample_read_buffer in read_buffers:
 
+        if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
+            longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
+
+        # init the batch generator by the BIG region, but the big region may not be use
+        be_generator = BatchGenerator((chrom_name, bigstart, bigend), fa, options.mapq,
+                                      options.min_base_qual, options)
+
+        # get batch information for each sample in regions
+        for reg_start, reg_end in regions:
+            reg_start -= 1  # set position to be 0-base
+            reg_end -= 1  # set position to be 0-base
+            be_generator.create_batch_in_region(
+                (chrom_name, reg_start, reg_end),
+                sample_read_buffer.reads.array,  # this start pointer will move automatically
+                sample_read_buffer.reads.array + sample_read_buffer.reads.get_size()
+            )
+
+        batch_buffers.append(be_generator)
+
+    # Todo: take care these codes, although they may not been called forever.
+    if longest_read_size > options.r_len:
+        options.r_len = longest_read_size
+
+    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file,
+                      batch_sample_ids, regions)
+    return
+
+
+cdef void generate_batchfile(bytes chrom_name,
+                             long int bigstart,
+                             long int bigend,
+                             list regions,
+                             list batch_align_files,
+                             char* refseq,
+                             FastaFile fa,
+                             object options,
+                             bytes out_batch_file,
+                             list batch_sample_ids):
+    """Loading bamfile and create a batchfile in ``regions``.
+    
+    Parameters:
+        ``bigstart``: It's already 0-base position
+        ``bigend``: It's already 0-base position
+        ``regions``: The coordinate in regions is 1-base system.
+    """
+    cdef Samfile reader
+    cdef ReadIterator reader_iter
+    cdef cAlignedRead* the_read
+
+    cdef bint is_compress_read = options.is_compress_read
+    cdef int qual_bin_size = options.qual_bin_size
+    cdef int max_read_thd = options.max_reads
+
+    cdef int total_reads = 0
+    cdef BamReadBuffer sample_read_buffer
+
+    cdef BatchGenerator be_generator
+    cdef list batch_buffers = []
+    cdef int longest_read_size = 0
+    cdef long int reg_start, reg_end
+
+    cdef bint is_empty = False
+    region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
+    for sample, bamfile in zip(batch_sample_ids, batch_align_files):
+
+        reader = Samfile(bamfile)
+        reader.open("r", True)
+
+        # Need to lock the thread here when sharing BAM files
+        if reader.lock is not None:
+            reader.lock.acquire()
+
+        # set initial size for BamReadBuffer
+        sample_read_buffer = BamReadBuffer(chrom_name, bigstart, bigend, options)
+        sample_read_buffer.sample = sample
+
+        is_empty = False
+        try:
+            reader_iter = reader.fetch(region)
+        except Exception as e:
+            logger.warning(e.message)
+            logger.warning("No data could be retrieved for sample %s in file %s in "
+                           "region %s" % (sample, reader.filename, region))
+
+            is_empty = True
+
+        while (not is_empty) and reader_iter.cnext():
+
+            the_read = reader_iter.get(0, NULL)
+
+            if is_compress_read:
+                compress_read(the_read, refseq, bigstart, bigend, qual_bin_size)
+
+            sample_read_buffer.add_read_to_buffer(the_read)
+
+            total_reads += 1
+            if total_reads > max_read_thd:
+                logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
+                             "increase --max_reads." % (total_reads, region))
+
+                reader.close()
+                sys.exit(1)
+
+        reader.close()  # close bamfile
+
+        # Need to release thread lock here when sharing BAM files
+        if reader.lock is not None:
+            reader.lock.release()
+
+        # population_read_buffers.append(sample_read_buffer)
         if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
             longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
 
