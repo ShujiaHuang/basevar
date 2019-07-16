@@ -5,6 +5,7 @@ Date : 2016-07-19 14:14:21
 """
 import sys
 import os
+import time
 
 from basevar.log import logger
 from basevar.io.openfile import Open
@@ -51,6 +52,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
     cdef int i = 0
     for i in range(0, len(align_files), batchcount):
         # Create a batch of temp files which we call them batchfiles for variant discovery
+        start_time = time.time()
 
         m += 1
         part_file_name = "basevar.%s.%d_%d.batch.gz" % (
@@ -85,6 +87,9 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                            part_file_name,
                            batch_sample_ids)
 
+        logger.info("Done for batchfile %s , %d seconds elapsed." % (
+            part_file_name, time.time() - start_time))
+
     return batchfiles
 
 
@@ -99,7 +104,7 @@ cdef void generate_batchfile_old(bytes chrom_name,
                              bytes out_batch_file,
                              list batch_sample_ids):
     """Loading bamfile and create a batchfile in ``regions``.
-    
+
     Parameters:
         ``bigstart``: It's already 0-base position
         ``bigend``: It's already 0-base position
