@@ -14,7 +14,7 @@ Installation
 Prerequisites
 -------------
 
-BaseVar requires HTSlib 1.2.1 or greater. HTSlib can be downloaded from the
+BaseVar requires HTSlib 1.3 or greater. HTSlib can be downloaded from the
 `htslib web site <http://www.htslib.org/download/>`_.
 
 To build and install HTSlib, cd into HTSlib source and type `make install`.
@@ -24,9 +24,11 @@ in any other directory use `make install prefix=/path/to/dir`.
 ::
 
     NOTE: HTSlib should be installed in a standard location (e.g. /usr/local/).
-    If not installed in a standard location, you will need to set your library paths:
+
+If not installed in a standard location, you will need to set your library paths:
 
 For GNU/Linux
+~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -45,12 +47,14 @@ Note the `/include` and `/lib` sub-directories. e.g. if you installed HTSlib und
 HTSlib will automatically make the `include` and `lib` directories on install.
 
 For OSX
+~~~~~~~
 
 .. code:: bash
 
     export C_INCLUDE_PATH=/path/to/dir/include
     export LIBRARY_PATH=/path/to/dir/lib
     export DYLD_FALLBACK_LIBRARY_PATH=/path/to/dir/lib
+
 
 Quick start
 -----------
