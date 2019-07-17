@@ -47,7 +47,6 @@ cdef class BatchGenerator:
     cdef long int ref_seq_end
     cdef long int reg_start
     cdef long int reg_end
-    cdef int qual_bin_size
     cdef object options
     cdef int* filtered_read_counts_by_type
 

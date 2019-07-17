@@ -90,76 +90,6 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
     return batchfiles
 
 
-# cdef void generate_batchfile_old(bytes chrom_name,
-#                              long int bigstart,
-#                              long int bigend,
-#                              list regions,
-#                              list batch_align_files,
-#                              char* refseq,
-#                              FastaFile fa,
-#                              object options,
-#                              bytes out_batch_file,
-#                              list batch_sample_ids):
-#     """Loading bamfile and create a batchfile in ``regions``.
-#
-#     Parameters:
-#         ``bigstart``: It's already 0-base position
-#         ``bigend``: It's already 0-base position
-#         ``regions``: The coordinate in regions is 1-base system.
-#     """
-#     # Just loading baminfo and not need to load header!
-#     cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
-#     cdef list read_buffers
-#
-#     try:
-#         # load the whole mapping reads in [chrom_name, bigstart, bigend]
-#         read_buffers = load_bamdata(bamfiles, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
-#
-#     except Exception, e:
-#         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))
-#         sys.exit(1)
-#
-#     if read_buffers is None or len(read_buffers) == 0:
-#         logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart+1, bigend+1))
-#         return
-#
-#     # take all the batch information for all samples in ``regions``
-#     cdef BamReadBuffer sample_read_buffer
-#     cdef BatchGenerator be_generator
-#     cdef list batch_buffers = []
-#     cdef int longest_read_size = 0
-#     cdef long int reg_start, reg_end
-#
-#     for sample_read_buffer in read_buffers:
-#
-#         if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
-#             longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
-#
-#         # init the batch generator by the BIG region, but the big region may not be use
-#         be_generator = BatchGenerator((chrom_name, bigstart, bigend), fa, options.mapq,
-#                                       options.min_base_qual, options)
-#
-#         # get batch information for each sample in regions
-#         for reg_start, reg_end in regions:
-#             reg_start -= 1  # set position to be 0-base
-#             reg_end -= 1  # set position to be 0-base
-#             be_generator.create_batch_in_region(
-#                 (chrom_name, reg_start, reg_end),
-#                 sample_read_buffer.reads.array,  # this start pointer will move automatically
-#                 sample_read_buffer.reads.array + sample_read_buffer.reads.get_size()
-#             )
-#
-#         batch_buffers.append(be_generator)
-#
-#     # Todo: take care these codes, although they may not been called forever.
-#     if longest_read_size > options.r_len:
-#         options.r_len = longest_read_size
-#
-#     output_batch_file(chrom_name, fa, batch_buffers, out_batch_file,
-#                       batch_sample_ids, regions)
-#     return
-
-
 cdef void generate_batchfile(bytes chrom_name,
                              long int bigstart,
                              long int bigend,
@@ -186,26 +116,27 @@ cdef void generate_batchfile(bytes chrom_name,
     cdef int longest_read_size = 0
     cdef long int reg_start, reg_end
 
+    cdef int mapq = options.mapq
+    cdef bint trim_overlapping = options.trim_overlapping
+    cdef bint trim_soft_clipped = options.trim_soft_clipped
+
     cdef bint read_ok
-    cdef bint is_empty = False
-    cdef bint is_overlap = False
-    cdef int reg_index = 0
+    cdef bint is_empty
+    cdef bint is_overlap
     cdef int reg_size = len(regions)
+    cdef int reg_index = 0
     cdef int i = 0
 
-    region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
+    _py_region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
+    cdef char* region = _py_region
+
     for sample, bamfile in zip(batch_sample_ids, batch_align_files):
 
         reader = Samfile(bamfile)
         reader.open("r", True)
 
-        # Need to lock the thread here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.acquire()
-
         # init the batch generator by the BIG region, but the big region may not be use
-        be_generator = BatchGenerator((chrom_name, bigstart, bigend), fa, options.mapq,
-                                      options.min_base_qual, options)
+        be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
 
         reg_index = 0
         is_empty  = False
@@ -225,8 +156,7 @@ cdef void generate_batchfile(bytes chrom_name,
                 continue
 
             read_ok = check_and_trim_read(the_read, NULL, be_generator.filtered_read_counts_by_type,
-                                          options.mapq, options.min_base_qual, options.trim_overlapping,
-                                          options.trim_soft_clipped)
+                                          mapq, trim_overlapping, trim_soft_clipped)
 
             if Read_IsQCFail(the_read):
                 continue
@@ -255,10 +185,6 @@ cdef void generate_batchfile(bytes chrom_name,
 
         reader.close()
         batch_buffers.append(be_generator)
-
-        # Need to release thread lock here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.release()
 
     # Todo: take care these codes, although they may not been called forever.
     if longest_read_size > options.r_len:

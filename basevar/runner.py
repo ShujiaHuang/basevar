@@ -62,17 +62,25 @@ def parser_commandline_args():
                                    '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t hava to take care about '
                                    'this parameter.')
 
+    basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
+                              help='Calculating the allele frequency for specific population.')
+
+    basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
+                              help="If the name of bamfile is something like 'SampleID.xxxx.bam', "
+                                   "you can set this parameter to save a lot of time during get the "
+                                   "sample id from BAM header.")
+
     # special parameter for calculating specific population allele frequence
     basetype_cmd.add_argument("--max-read-length", dest="r_len", action='store', type=int, default=150,
                               help="Maximum read length. [150]")
-    basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
-                              help="Maximium coverage in window. [5000000]")
-    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
-                              help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
-                                   "This will slow things down, but reduce memory usage. [0]")
-    basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
-                              help="This sets the granularity used when compressing quality scores. "
-                                   "If > 1 then quality compression is lossy. [1]")
+    # basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
+    #                           help="Maximium coverage in window. [5000000]")
+    # basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
+    #                           help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
+    #                                "This will slow things down, but reduce memory usage. [0]")
+    # basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
+    #                           help="This sets the granularity used when compressing quality scores. "
+    #                                "If > 1 then quality compression is lossy. [1]")
     basetype_cmd.add_argument("--trim-overlapping", dest="trim_overlapping", action='store_true',
                               help="If setted, overlapping paired reads have overlap set to qual 0.")
     basetype_cmd.add_argument("--trim-soft-clipped", dest="trim_soft_clipped", action='store_true',
@@ -90,14 +98,6 @@ def parser_commandline_args():
     basetype_cmd.add_argument("--filter-read-pairs-with-small-inserts", dest="filterReadPairsWithSmallInserts",
                               help="If set to 1, read pairs with insert sizes < one read length will be removed. [1]",
                               action='store', type=int, default=1, required=False)
-
-    basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
-                              help='Calculating the allele frequency for specific population.')
-
-    basetype_cmd.add_argument('--filename-has-samplename', dest='filename_has_samplename', action='store_true',
-                              help="If the name of bamfile is something like 'SampleID.xxxx.bam', "
-                                   "you can set this parameter to save a lot of time during get the "
-                                   "sample id from BAM header.")
 
     basetype_cmd.add_argument('--smart-rerun', dest='smartrerun', action='store_true',
                               help='Rerun process by checking batchfiles.')

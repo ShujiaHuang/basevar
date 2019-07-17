@@ -190,39 +190,3 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     # # return buffers as the same order of input samples/bamfiles
     # return sorted_population_read_buffers
 
-
-cdef void log_filter_summary(BamReadBuffer read_buffer, int verbosity):
-        """Useful debug information about which reads have been filtered out.
-        """
-        if verbosity >= 3:
-            region = "%s:%s-%s" % (read_buffer.chrom, read_buffer.start+1, read_buffer.end+1)
-            logger.debug("Sample %s has %s good reads in %s" % (read_buffer.sample, read_buffer.reads.get_size(), region))
-            logger.debug("Sample %s has %s bad reads in %s" % (read_buffer.sample, read_buffer.bad_reads.get_size(), region))
-            logger.debug("Sample %s has %s broken mates %s" % (read_buffer.sample, read_buffer.broken_mates.get_size(), region))
-            logger.debug("|-- low map quality reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-            logger.debug("|-- low qual reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-            logger.debug("|-- un-mapped reads = %s" % (read_buffer.filtered_read_counts_by_type[UNMAPPED_READ]))
-            logger.debug("|-- reads with unmapped mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_UNMAPPED]))
-            logger.debug("|-- reads with distant mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_DISTANT]))
-            logger.debug("|-- reads pairs with small inserts = %s" % (read_buffer.filtered_read_counts_by_type[SMALL_INSERT]))
-            logger.debug("|__ duplicate reads = %s\n" % (read_buffer.filtered_read_counts_by_type[DUPLICATE]))
-
-            if read_buffer.trim_overlapping == 1:
-                logger.debug("Overlapping segments of read pairs were clipped")
-            else:
-                logger.debug("Overlapping segments of read pairs were not clipped")
-
-            logger.debug("Overhanging bits of reads were not clipped")
-
-
-
-
-
-
-
-
-
-
-
-
-
