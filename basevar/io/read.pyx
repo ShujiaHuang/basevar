@@ -1,7 +1,5 @@
 """Fast cython implementation of some windowing functions.
 """
-# import cython
-
 from basevar.log import logger
 from basevar.io.htslibWrapper cimport cAlignedRead
 from basevar.io.htslibWrapper cimport destroy_read
@@ -450,9 +448,6 @@ cdef class BamReadBuffer:
     cdef void add_read_to_buffer(self, cAlignedRead* the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.
         """
-        # Temp variable for checking that re-alloc works
-        # logger.info("%s, %s" % (the_read.pos, the_read.end))
-
         cdef int read_ok = 0
         cdef int min_good_bases_this_read = 0
         cdef int read_start = -1

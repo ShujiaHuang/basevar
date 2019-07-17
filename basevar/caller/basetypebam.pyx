@@ -90,8 +90,8 @@ cdef class BaseVarProcess:
 
             # set cache for fa sequence, this could make the program much faster
             # And remember that ``fa_file_hd`` is 0-base system
-            self.fa_file_hd.set_cache_sequence(chrid, region_boundary_start - 10 * self.options.r_len,
-                                               region_boundary_end + 10 * self.options.r_len)
+            self.fa_file_hd.set_cache_sequence(chrid, region_boundary_start - 2 * self.options.r_len,
+                                               region_boundary_end + 2 * self.options.r_len)
 
             batchfiles = create_batchfiles_in_regions(chrid,
                                                       regions,
