@@ -17,7 +17,20 @@ cdef int SIN = 0   # Just a single base
 cdef int INS = 1
 cdef int DEL = 2
 
-# cdef list BASE_TYPES = ["SIN", "INS", "DEL"]
+# the same with definition in read.pyx
+cdef int LOW_QUAL_BASES = 0
+cdef int UNMAPPED_READ = 1
+cdef int MATE_UNMAPPED = 2
+cdef int MATE_DISTANT = 3
+cdef int SMALL_INSERT = 4
+cdef int DUPLICATE = 5
+cdef int LOW_MAP_QUAL = 6
+
+
+cdef extern from "stdlib.h":
+    void *calloc(size_t, size_t)
+    void free(void *)
+
 
 @cython.final
 cdef class BatchElement(object):
@@ -94,6 +107,26 @@ cdef class BatchGenerator(object):
         self.py_refseq     = self.ref_fa.get_sequence(self.ref_name, self.ref_seq_start, self.ref_seq_end) # Cache this
         self.refseq        = self.py_refseq
 
+        # the same definition with class ``BamReadBuffer`` in read.pyx
+        self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
+        if options.filter_duplicates == 0:
+            self.filtered_read_counts_by_type[DUPLICATE] = -1
+
+        if options.filter_reads_with_unmapped_mates == 0:
+            self.filtered_read_counts_by_type[MATE_UNMAPPED] = -1
+
+        if options.filter_reads_with_distant_mates == 0:
+            self.filtered_read_counts_by_type[MATE_DISTANT] = -1
+
+        if options.filterReadPairsWithSmallInserts == 0:
+            self.filtered_read_counts_by_type[SMALL_INSERT] = -1
+
+    def __dealloc__(self):
+        """Clean up memory.
+        """
+        if self.filtered_read_counts_by_type != NULL:
+            free(self.filtered_read_counts_by_type)
+
     cdef void add_batchelement_to_list(self, BatchElement be):
         """Check if the element is already in the heap. if not, add it. """
 
@@ -147,7 +180,7 @@ cdef class BatchGenerator(object):
                                 self.ref_seq_end, self.qual_bin_size)
 
             # get batch information here!
-            self._get_batch_from_single_read_in_region(read_start[0], start, end)
+            self.get_batch_from_single_read_in_region(read_start[0], start, end)
 
             if is_compress:
                 compress_read(read_start[0], self.refseq, self.ref_seq_start,
@@ -158,7 +191,7 @@ cdef class BatchGenerator(object):
 
         return
 
-    cdef void _get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end):
+    cdef void get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end):
         """Check a single read for batch. 
         Batch positions are flagged by the CIGAR string. Pysam reports the CIGAR string information as a list 
         of tuples, where each tuple is a pair, and the first element gives the type of feature (match, insertion 
