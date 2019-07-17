@@ -3,7 +3,7 @@
 from basevar.io.htslibWrapper cimport cAlignedRead
 
 cdef bint check_and_trim_read(cAlignedRead*the_read, cAlignedRead* the_last_read, int* filtered_read_counts_by_type,
-                              int min_map_qual, int min_base_qual, int trim_overlapping, int trim_soft_clipped)
+                              int min_map_qual, bint trim_overlapping, bint trim_soft_clipped)
 
 cdef class ReadArray:
     cdef cAlignedRead** array
@@ -50,6 +50,7 @@ cdef class BamReadBuffer:
     cdef int count_improper_pairs(self)
     cdef int count_alignment_gaps(self)
     cdef int count_reads_covering_region(self, long long int start, long long int end)
+    cdef void log_filter_summary(self)
 
     cdef ReadArray broken_mates
     # cdef void sort_reads(self)

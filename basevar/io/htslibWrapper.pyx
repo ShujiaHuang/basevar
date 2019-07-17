@@ -72,7 +72,6 @@ cdef class Samfile:
         self.samfile = NULL
         self.the_header = NULL
         self.index = NULL
-        self.lock = None
 
     def __dealloc__(self):
         """Clean up.

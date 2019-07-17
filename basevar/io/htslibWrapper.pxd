@@ -220,7 +220,6 @@ cdef class Samfile:
     cdef samFile *samfile
     cdef bam_hdr_t *the_header
     cdef hts_idx_t *index
-    cdef object lock
 
 
 ###################################################################################################
