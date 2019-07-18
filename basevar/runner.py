@@ -10,6 +10,7 @@ import sys
 import time
 
 from basevar.log import logger
+from caller.executor import BaseTypeRunner
 from basevar.utils import do_cprofile
 
 
@@ -137,7 +138,6 @@ def parser_commandline_args():
 
 # @do_cprofile("./basetype.prof", True)
 def basetype(args):
-    from caller.executor import BaseTypeRunner
 
     if args.outcvg and not args.outvcf:
         sys.stderr.write("***************************************************\n"

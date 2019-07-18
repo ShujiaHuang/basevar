@@ -11,6 +11,7 @@
 basevar/*.c
 basevar/caller/*.c
 basevar/io/*.c
+basevar/io/BGZF/*.c
 
 dist/
 build/
