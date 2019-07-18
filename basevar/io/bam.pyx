@@ -7,20 +7,6 @@ from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 from basevar.io.htslibWrapper cimport compress_read
 
-cdef int LOW_QUAL_BASES = 0
-cdef int UNMAPPED_READ = 1
-cdef int MATE_UNMAPPED = 2
-cdef int MATE_DISTANT = 3
-cdef int SMALL_INSERT = 4
-cdef int DUPLICATE = 5
-cdef int LOW_MAP_QUAL = 6
-
-
-cdef extern from "stdlib.h":
-    void *malloc(size_t)
-    void *calloc(size_t, size_t)
-    void free(void *)
-
 
 cdef bint is_indexable(filename):
     return filename.lower().endswith((".bam", ".cram"))
@@ -126,10 +112,6 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         reader = Samfile(bamfiles[samples[i]])
         reader.open("r", True)
 
-        # Need to lock the thread here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.acquire()
-
         # set initial size for BamReadBuffer
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
         sample_read_buffer.sample = samples[i]
@@ -162,31 +144,12 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 
-        # close bamfile
         reader.close()
 
         # ``population_read_buffers`` will keep the same order as ``samples``,
         # which means will keep the same order as input.
         population_read_buffers.append(sample_read_buffer)
 
-        # Need to release thread lock here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.release()
-
     # return buffers as the same order of input samples/bamfiles
     return population_read_buffers
-
-    # cdef list sorted_population_read_buffers = []
-    # for sample_read_buffer in population_read_buffers:
-    #     if sample_read_buffer.reads.get_size() > 0:
-    #         sample_read_buffer.chrom_id = sample_read_buffer.reads.array[0].chrom_id
-    #
-    #     if not sample_read_buffer.is_sorted:
-    #         sample_read_buffer.sort_reads()
-    #
-    #     log_filter_summary(sample_read_buffer, options.verbosity)
-    #     sorted_population_read_buffers.append(sample_read_buffer)
-    #
-    # # return buffers as the same order of input samples/bamfiles
-    # return sorted_population_read_buffers
 

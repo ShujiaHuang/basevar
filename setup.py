@@ -67,9 +67,11 @@ MOD_NAMES = [
     CALLER_PRE + '.caller.basetype',
     CALLER_PRE + '.caller.batch',
     CALLER_PRE + '.caller.batchcaller',
-    CALLER_PRE + '.caller.basetypebam',
+    CALLER_PRE + '.caller.variantcaller',
     CALLER_PRE + '.caller.basetypeprocess',
     CALLER_PRE + '.caller.executor',
+
+    CALLER_PRE + '.io.BGZF.libcutils',
 ]
 
 
@@ -79,40 +81,21 @@ def make_extension(modname):
 
 
 if __name__ == "__main__":
-
     # extension for htslib!
-    htslibWrapper = CALLER_PRE+'.io.htslibWrapper'
-    the_cython_file = htslibWrapper.replace('.', os.path.sep) + '.pyx'
-    extensions = [Extension(name=htslibWrapper, sources=[the_cython_file], language='c', libraries=['hts'])]
+    htslib_mod = [
+        CALLER_PRE + '.io.htslibWrapper',
+        CALLER_PRE + '.io.BGZF.libchtslib',
+        CALLER_PRE + '.io.BGZF.bgzf',
+        CALLER_PRE + '.io.BGZF.tabix',
+    ]
+    extensions = [Extension(name=mod, sources=[mod.replace('.', os.path.sep) + '.pyx'], language='c',
+                            include_dirs=[TB_INCLUDE_DIR], libraries=['hts']) for mod in htslib_mod]
 
     algorithm = CALLER_PRE + '.caller.algorithm'
     extensions.append(Extension(name=algorithm,
                                 sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
                                 language='c',
-                                include_dirs=[BC_INCLUDE_DIR],
-                                libraries=['hts']))
-
-    # extension for bgzip and tabix
-    # the_tabix_pre = CALLER_PRE+'.io.BGZF.tabix'
-    # the_tabix_dir = the_tabix_pre.replace('.', os.path.sep)
-    # the_pysam_pre = CALLER_PRE+'.io.BGZF.pysam'
-    # the_pysam_dir = the_pysam_pre.replace('.', os.path.sep)
-    # tabix_flags = ["-Wno-incompatible-pointer-types-discards-qualifiers","-Wno-unused-function","-Wno-unneeded-internal-declaration"]
-    # tabproxies_flags = ["-Wno-unused-function"]
-    # extensions.append(Extension(name=the_pysam_pre+".ctabix",
-    #                             sources=[the_pysam_dir+"/ctabix.pyx"] + [the_pysam_dir+"/tabix_util.c"] + glob.glob(the_tabix_dir+"/*.pysam.c"),
-    #                             include_dirs=[TB_INCLUDE_DIR+"/tabix", TB_INCLUDE_DIR+"/pysam"],
-    #                             libraries=["z"],
-    #                             language="c",
-    #                             extra_compile_args=tabix_flags
-    #                             ))
-    #
-    # extensions.append(Extension(name=the_pysam_pre+".TabProxies",
-    #                             sources=[the_pysam_dir+"/TabProxies.pyx"],
-    #                             libraries=["z"],
-    #                             language="c",
-    #                             extra_compile_args=tabproxies_flags
-    #                             ))
+                                include_dirs=[BC_INCLUDE_DIR]))
 
     # other extensions
     extensions += [make_extension(name) for name in MOD_NAMES]
@@ -137,7 +120,6 @@ if __name__ == "__main__":
             'Cython==0.29.6',
             'Logbook==1.4.3',
             'numpy==1.15.4',
-            'pysam==0.12.0.1',
             'scikit-learn==0.20.2',
             'scipy==1.1.0'
         ],

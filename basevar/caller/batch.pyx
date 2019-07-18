@@ -8,10 +8,7 @@ import cython
 from basevar.log import logger
 from basevar.io.read cimport cAlignedRead
 from basevar.io.htslibWrapper cimport Read_IsQCFail
-from basevar.io.htslibWrapper cimport Read_IsCompressed
 from basevar.io.htslibWrapper cimport Read_IsReverse
-from basevar.io.htslibWrapper cimport compress_read
-from basevar.io.htslibWrapper cimport uncompress_read
 
 cdef int SIN = 0   # Just a single base
 cdef int INS = 1
@@ -155,9 +152,7 @@ cdef class BatchGenerator(object):
             sys.exit(1)
 
         cdef int read_num = 0
-        # cdef int is_compress = 0
         while read_start != read_end:
-            # is_compress = 0
 
             if Read_IsQCFail(read_start[0]):
                 read_start += 1 # QC fail read move to the next one
@@ -172,17 +167,8 @@ cdef class BatchGenerator(object):
                 # Break the loop when mapping start position is outside the region.
                 break
 
-            # if Read_IsCompressed(read_start[0]):
-            #     is_compress = 1
-            #     uncompress_read(read_start[0], self.refseq, self.ref_seq_start,
-            #                     self.ref_seq_end, self.qual_bin_size)
-
             # get batch information here!
             self.get_batch_from_single_read_in_region(read_start[0], start, end)
-
-            # if is_compress:
-            #     compress_read(read_start[0], self.refseq, self.ref_seq_start,
-            #                   self.ref_seq_end, self.qual_bin_size)
 
             read_num += 1 # how many reads in this regions
             read_start += 1  # move to the next read
