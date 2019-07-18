@@ -2,6 +2,8 @@
 """
 from basevar.io.htslibWrapper cimport cAlignedRead
 
+cdef bint check_and_trim_read(cAlignedRead*the_read, cAlignedRead* the_last_read, int* filtered_read_counts_by_type,
+                              int min_map_qual, bint trim_overlapping, bint trim_soft_clipped)
 
 cdef class ReadArray:
     cdef cAlignedRead** array
@@ -18,9 +20,8 @@ cdef class ReadArray:
     cdef int count_reads_covering_region(self, int start, int end)
     cdef void set_window_pointers_based_on_mate_pos(self, int start, int end)
 
-
 cdef class BamReadBuffer:
-    cdef char* sample
+    cdef char*sample
 
     cdef char* chrom
     cdef int chrom_id
@@ -49,9 +50,8 @@ cdef class BamReadBuffer:
     cdef int count_improper_pairs(self)
     cdef int count_alignment_gaps(self)
     cdef int count_reads_covering_region(self, long long int start, long long int end)
-    cdef void sort_reads(self)
+    cdef void log_filter_summary(self)
 
     cdef ReadArray broken_mates
-    cdef void sort_broken_mates(self)
-
-
+    # cdef void sort_reads(self)
+    # cdef void sort_broken_mates(self)

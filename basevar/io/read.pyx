@@ -1,7 +1,5 @@
 """Fast cython implementation of some windowing functions.
 """
-import cython
-
 from basevar.log import logger
 from basevar.io.htslibWrapper cimport cAlignedRead
 from basevar.io.htslibWrapper cimport destroy_read
@@ -53,30 +51,30 @@ cdef extern from "string.h":
     int memcmp(void *s1, void *s2, size_t len)
 
 
-@cython.profile(False)
-cdef inline int read_pos_comp(const void* x, const void* y) nogil:
-    """
-    Comparison function for use in qsort, to sort reads by their start positions and
-    then end positions.
-    """
-    cdef cAlignedRead** read_one = <cAlignedRead**> (x)
-    cdef cAlignedRead** read_two = <cAlignedRead**> (y)
-
-    return read_one[0].pos - read_two[0].pos
-
-
-@cython.profile(False)
-cdef int read_mate_pos_comp(const void* x, const void* y):
-    """
-    Comparison function for use in qsort, to sort reads by their mate positions, as long as
-    the mates are on the same chromosome.
-    """
-    cdef cAlignedRead** read_one = <cAlignedRead**> (x)
-    cdef cAlignedRead** read_two = <cAlignedRead**> (y)
-
-    # Sorting is broken for reads with mates on different chromosomes
-    assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
-    return read_one[0].mate_pos - read_two[0].mate_pos
+# @cython.profile(False)
+# cdef inline int read_pos_comp(const void* x, const void* y) nogil:
+#     """
+#     Comparison function for use in qsort, to sort reads by their start positions and
+#     then end positions.
+#     """
+#     cdef cAlignedRead** read_one = <cAlignedRead**> (x)
+#     cdef cAlignedRead** read_two = <cAlignedRead**> (y)
+#
+#     return read_one[0].pos - read_two[0].pos
+#
+#
+# @cython.profile(False)
+# cdef int read_mate_pos_comp(const void* x, const void* y):
+#     """
+#     Comparison function for use in qsort, to sort reads by their mate positions, as long as
+#     the mates are on the same chromosome.
+#     """
+#     cdef cAlignedRead** read_one = <cAlignedRead**> (x)
+#     cdef cAlignedRead** read_two = <cAlignedRead**> (y)
+#
+#     # Sorting is broken for reads with mates on different chromosomes
+#     assert read_one[0].mate_chrom_id == read_two[0].mate_chrom_id
+#     return read_one[0].mate_pos - read_two[0].mate_pos
 
 
 cdef class ReadArray:
@@ -265,7 +263,7 @@ cdef int bisect_reads_left(cAlignedRead** reads, int test_pos, int n_reads, int 
 
 
 cdef bint check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_read, int* filtered_read_counts_by_type,
-                             int min_map_qual, int min_base_qual, int trim_overlapping, int trim_soft_clipped):
+                             int min_map_qual, bint trim_overlapping, bint trim_soft_clipped):
     """
     Performs various quality checks on the read, and trims read (i.e. set q-scores to zero). Returns
     true if read is ok, and false otherwise.
@@ -342,7 +340,7 @@ cdef bint check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_rea
     # N.B Insert size is from start of forward read to end of reverse read, i.e. fragment size. This is done to
     # remove duplicate information, which gives systematic errors when pcr errors have occured in library prep.
     cdef int i = 0
-    if trim_overlapping == 1 and (
+    if trim_overlapping and (
             Read_IsPaired(the_read) and abs_ins > 0 and (not Read_IsReverse(the_read)) and
             Read_MateIsReverse(the_read) and abs_ins < 2 * the_read.r_len):
 
@@ -355,7 +353,7 @@ cdef bint check_and_trim_read(cAlignedRead* the_read, cAlignedRead* the_last_rea
 
     cdef int index = 0
     cdef int j = 0
-    if trim_soft_clipped == 1:
+    if trim_soft_clipped:
         # Check for soft-clipping (present in BWA reads, for example, but not Stampy). Soft-clipped
         # sequences should be set to QUAL = 0, as they may include contamination by adapters etc.
 
@@ -398,7 +396,6 @@ cdef class BamReadBuffer:
         self.end = end
 
         self.max_reads = options.max_reads
-        self.min_base_qual = options.min_base_qual
         self.min_map_qual = options.mapq
         self.trim_overlapping = options.trim_overlapping
         self.trim_soft_clipped = options.trim_soft_clipped
@@ -424,35 +421,32 @@ cdef class BamReadBuffer:
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
-    # cdef void log_filter_summary(self):
-    #     """Useful debug information about which reads have been filtered out.
-    #     """
-    #     if self.verbosity >= 3:
-    #         region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
-    #         logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
-    #         logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
-    #         logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
-    #         logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-    #         logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-    #         logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
-    #         logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
-    #         logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
-    #         logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
-    #         logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
-    #
-    #         if self.trim_overlapping == 1:
-    #             logger.debug("Overlapping segments of read pairs were clipped")
-    #         else:
-    #             logger.debug("Overlapping segments of read pairs were not clipped")
-    #
-    #         logger.debug("Overhanging bits of reads were not clipped")
+    cdef void log_filter_summary(self):
+        """Useful debug information about which reads have been filtered out.
+        """
+        if self.verbosity >= 3:
+            region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
+            logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
+            logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
+            logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
+            logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
+            logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
+            logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
+            logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
+            logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
+            logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
+            logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
+
+            if self.trim_overlapping == 1:
+                logger.debug("Overlapping segments of read pairs were clipped")
+            else:
+                logger.debug("Overlapping segments of read pairs were not clipped")
+
+            logger.debug("Overhanging bits of reads were not clipped")
 
     cdef void add_read_to_buffer(self, cAlignedRead* the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.
         """
-        # Temp variable for checking that re-alloc works
-        # logger.info("%s, %s" % (the_read.pos, the_read.end))
-
         cdef int read_ok = 0
         cdef int min_good_bases_this_read = 0
         cdef int read_start = -1
@@ -466,23 +460,27 @@ cdef class BamReadBuffer:
             # TODO: Check that this works for duplicates when first read goes into bad reads pile...
             if self.last_read != NULL:
                 read_ok = check_and_trim_read(the_read, self.last_read, self.filtered_read_counts_by_type,
-                                              self.min_map_qual, self.min_base_qual, self.trim_overlapping,
+                                              self.min_map_qual, self.trim_overlapping,
                                               self.trim_soft_clipped)
 
                 if self.last_read.pos > the_read.pos:
                     self.is_sorted = False
             else:
                 read_ok = check_and_trim_read(the_read, NULL, self.filtered_read_counts_by_type, self.min_map_qual,
-                                              self.min_base_qual, self.trim_overlapping, self.trim_soft_clipped)
+                                              self.trim_overlapping, self.trim_soft_clipped)
 
-            self.last_read = the_read
+            # ignore read which the same mapping position
+            if self.reads.get_size() > 0 and self.last_read.pos == the_read.pos:
+                return
 
+            # self.last_read = the_read
             # Put read into bad array
             if not read_ok:
                 self.bad_reads.append(the_read)
 
             # Put read into good array
             else:
+                self.last_read = the_read
                 self.reads.append(the_read)
 
     cdef int count_alignment_gaps(self):
@@ -637,24 +635,24 @@ cdef class BamReadBuffer:
 
             the_start += 1
 
-    cdef void sort_reads(self):
-        """
-        Sort the contents of the reads array by position
-        """
-        if not self.is_sorted:
-            if self.reads.get_size() > 0:
-                qsort(self.reads.array, self.reads.get_size(), sizeof(cAlignedRead**), read_pos_comp)
-
-            if self.bad_reads.get_size() > 0:
-                qsort(self.bad_reads.array, self.bad_reads.get_size(), sizeof(cAlignedRead**),
-                      read_pos_comp)
-
-            self.is_sorted = True
-
-    cdef void sort_broken_mates(self):
-        """
-        Sort the contents of the brokenMates array by the co-ordinates of their
-        mates.
-        """
-        qsort(self.broken_mates.array, self.broken_mates.get_size(), sizeof(cAlignedRead**),
-              read_mate_pos_comp)
+    # cdef void sort_reads(self):
+    #     """
+    #     Sort the contents of the reads array by position
+    #     """
+    #     if not self.is_sorted:
+    #         if self.reads.get_size() > 0:
+    #             qsort(self.reads.array, self.reads.get_size(), sizeof(cAlignedRead**), read_pos_comp)
+    #
+    #         if self.bad_reads.get_size() > 0:
+    #             qsort(self.bad_reads.array, self.bad_reads.get_size(), sizeof(cAlignedRead**),
+    #                   read_pos_comp)
+    #
+    #         self.is_sorted = True
+    #
+    # cdef void sort_broken_mates(self):
+    #     """
+    #     Sort the contents of the brokenMates array by the co-ordinates of their
+    #     mates.
+    #     """
+    #     qsort(self.broken_mates.array, self.broken_mates.get_size(), sizeof(cAlignedRead**),
+    #           read_mate_pos_comp)

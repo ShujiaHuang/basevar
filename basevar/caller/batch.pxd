@@ -47,12 +47,12 @@ cdef class BatchGenerator:
     cdef long int ref_seq_end
     cdef long int reg_start
     cdef long int reg_end
-    cdef int qual_bin_size
     cdef object options
+    cdef int* filtered_read_counts_by_type
 
     cdef void create_batch_in_region(self, tuple region, cAlignedRead** read_start, cAlignedRead** read_end)
     cdef void add_batchelement_to_list(self, BatchElement be)
-    cdef void _get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end)
+    cdef void get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end)
     cdef void _get_matchbase_from_read_segment(self, char* read_seq, char* read_qual, int mapq, char map_strand,
                                                int read_start, int read_offset, int ref_offset, int seglength,
                                                long int region_start, long int region_end)

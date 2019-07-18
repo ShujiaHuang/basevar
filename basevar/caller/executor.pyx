@@ -11,14 +11,14 @@ from __future__ import division
 import sys
 import time
 
-from pysam import tabix_index
-
-from basevar import utils
 from basevar.log import logger
+from basevar import utils
+from basevar.utils import do_cprofile
+
 from basevar.io.bam cimport get_sample_names
 from basevar.caller import CallerProcess, process_runner
-from basevar.caller.basetypebam cimport BaseVarProcess
-
+from basevar.caller.basetypeprocess cimport BaseVarProcess
+from basevar.io.BGZF.tabix import tabix_index
 
 def _generate_regions_for_each_process(regions, process_num=1):
     """create regions for each process"""
@@ -59,7 +59,6 @@ def _generate_regions_for_each_process(regions, process_num=1):
 
     return regions_for_each_process
 
-
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     """CVG file and VCF file could use the same tabix strategy."""
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
@@ -68,7 +67,6 @@ def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
             _output_file(sub_file_list, out_final_file, del_raw_file=True)
 
     return
-
 
 def _output_file(sub_files, out_file_name, del_raw_file=False):
     if out_file_name.endswith(".gz"):
@@ -111,6 +109,7 @@ class BaseTypeRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
 
+    # @do_cprofile("./basevar_caller.prof", True)
     def basevar_caller(self):
         """
         Run variant caller

@@ -7,14 +7,6 @@ from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 from basevar.io.htslibWrapper cimport compress_read
 
-cdef int LOW_QUAL_BASES = 0
-cdef int UNMAPPED_READ = 1
-cdef int MATE_UNMAPPED = 2
-cdef int MATE_DISTANT = 3
-cdef int SMALL_INSERT = 4
-cdef int DUPLICATE = 5
-cdef int LOW_MAP_QUAL = 6
-
 
 cdef bint is_indexable(filename):
     return filename.lower().endswith((".bam", ".cram"))
@@ -32,7 +24,6 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
     cdef list sample_names = []
     cdef bytes filename
     cdef int i = 0
-    # for i, al in enumerate(bamfiles):
     for i in range(file_num):
 
         if i % 1000 == 0 and i > 0:
@@ -88,18 +79,16 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
     reads for each BAM file in that region.
     
-    ``bam_objs`` is a dict of the object of class ``Samfile`` for ``samples``(one for each), and the handle 
-    has been open to set caching for BAM/CRAM to reduce file IO cost. 
+    ``bamfiles`` is a dict of the object of bamfile path for ``samples``(one for each)
     
-    Format in ``bam_objs``: {sample: filename}, it could be create by one line code: 
+    Format in ``bamfiles``: {sample: filename}, it could be create by one line code: 
     bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
     
     ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
     
     This function could just work for unique sample with only one BAM file. You should merge your 
-    bamfile first if there are multiple BAM files for one sample.
+    bamfiles first if there are multiple BAM files for one sample.
     """
-    cdef list population_read_buffers = []
 
     cdef Samfile reader
     cdef ReadIterator reader_iter
@@ -113,6 +102,8 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     cdef int sample_num = len(samples)
     cdef BamReadBuffer sample_read_buffer
 
+    cdef list population_read_buffers = []
+
     region = "%s:%s-%s" % (chrom, start, end)
     cdef int i
     for i in range(sample_num):
@@ -121,17 +112,13 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         reader = Samfile(bamfiles[samples[i]])
         reader.open("r", True)
 
-        # Need to lock the thread here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.acquire()
-
         # set initial size for BamReadBuffer
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
         sample_read_buffer.sample = samples[i]
 
         try:
             reader_iter = reader.fetch(region)
-        except Exception, e:
+        except Exception as e:
             logger.warning(e.message)
             logger.warning("No data could be retrieved for sample %s in file %s in "
                            "region %s" % (samples[i], reader.filename, region))
@@ -157,64 +144,12 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 
-        # close bamfile
         reader.close()
 
         # ``population_read_buffers`` will keep the same order as ``samples``,
         # which means will keep the same order as input.
         population_read_buffers.append(sample_read_buffer)
 
-        # Need to release thread lock here when sharing BAM files
-        if reader.lock is not None:
-            reader.lock.release()
-
-    cdef list sorted_population_read_buffers = []
-    for sample_read_buffer in population_read_buffers:
-        if sample_read_buffer.reads.get_size() > 0:
-            sample_read_buffer.chrom_id = sample_read_buffer.reads.array[0].chrom_id
-
-        if not sample_read_buffer.is_sorted:
-            sample_read_buffer.sort_reads()
-
-        log_filter_summary(sample_read_buffer, options.verbosity)
-        sorted_population_read_buffers.append(sample_read_buffer)
-
     # return buffers as the same order of input samples/bamfiles
-    return sorted_population_read_buffers
-
-
-cdef void log_filter_summary(BamReadBuffer read_buffer, int verbosity):
-        """Useful debug information about which reads have been filtered out.
-        """
-        if verbosity >= 3:
-            region = "%s:%s-%s" % (read_buffer.chrom, read_buffer.start+1, read_buffer.end+1)
-            logger.debug("Sample %s has %s good reads in %s" % (read_buffer.sample, read_buffer.reads.get_size(), region))
-            logger.debug("Sample %s has %s bad reads in %s" % (read_buffer.sample, read_buffer.bad_reads.get_size(), region))
-            logger.debug("Sample %s has %s broken mates %s" % (read_buffer.sample, read_buffer.broken_mates.get_size(), region))
-            logger.debug("|-- low map quality reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-            logger.debug("|-- low qual reads = %s" % (read_buffer.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-            logger.debug("|-- un-mapped reads = %s" % (read_buffer.filtered_read_counts_by_type[UNMAPPED_READ]))
-            logger.debug("|-- reads with unmapped mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_UNMAPPED]))
-            logger.debug("|-- reads with distant mates = %s" % (read_buffer.filtered_read_counts_by_type[MATE_DISTANT]))
-            logger.debug("|-- reads pairs with small inserts = %s" % (read_buffer.filtered_read_counts_by_type[SMALL_INSERT]))
-            logger.debug("|__ duplicate reads = %s\n" % (read_buffer.filtered_read_counts_by_type[DUPLICATE]))
-
-            if read_buffer.trim_overlapping == 1:
-                logger.debug("Overlapping segments of read pairs were clipped")
-            else:
-                logger.debug("Overlapping segments of read pairs were not clipped")
-
-            logger.debug("Overhanging bits of reads were not clipped")
-
-
-
-
-
-
-
-
-
-
-
-
+    return population_read_buffers
 

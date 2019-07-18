@@ -36,6 +36,10 @@ cdef extern from "stdint.h":
     ctypedef int uint8_t
     ctypedef int uint64_t
 
+cdef extern from "htslib/kfunc.h":
+    # exact_fisher_test from htslib
+    double kt_fisher_exact(int n11, int n12, int n21, int n22, double *_left, double *_right, double *two)
+
 cdef extern from "htslib/bgzf.h":
     ctypedef struct z_stream:
         pass
@@ -216,7 +220,6 @@ cdef class Samfile:
     cdef samFile *samfile
     cdef bam_hdr_t *the_header
     cdef hts_idx_t *index
-    cdef object lock
 
 
 ###################################################################################################

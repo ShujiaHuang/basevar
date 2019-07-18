@@ -1,3 +1,9 @@
+
+cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void *memcpy(void *dst, void *src, size_t length)
+    void free(void *)
+
 cdef extern from "include/em.c":
     pass
 
@@ -11,12 +17,6 @@ cdef extern from "include/ranksumtest.c":
 cdef extern from "include/ranksumtest.h":
     double RankSumTest(double *x, int n1, double *y, int n2)
 
-cdef extern from "include/kfunc.c":
-    pass
-
-cdef extern from "include/kfunc.h":
-    double kt_fisher_exact(int n11, int n12, int n21, int n22, double *_left, double *_right, double *two)
-
 cdef void EM(double* init_allele_freq,
              double* ind_allele_likelihood,
              double* marginal_likelihood,
@@ -25,4 +25,6 @@ cdef void EM(double* init_allele_freq,
              int ntype,
              int iter_num,
              double epsilon)
+
+cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, list data)
 

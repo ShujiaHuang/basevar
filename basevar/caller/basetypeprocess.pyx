@@ -1,340 +1,147 @@
-"""This is a Process module for BaseType
 """
+This is a Process module for BaseType by BAM/CRAM
+
+"""
+from __future__ import division
 import sys
+import os
+import time
+
+from basevar.io.fasta import FastaFile
 
 from basevar.log import logger
-from basevar.io.openfile import Open
-from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
-from basevar.caller.algorithm import strand_bias, ref_vs_alt_ranksumtest
+from basevar import utils
+from basevar.caller.variantcaller import output_header
+from basevar.caller.variantcaller cimport variants_discovery
+from basevar.caller.batchcaller cimport create_batchfiles_in_regions
 
-from basevar.caller.basetype cimport BaseType
+cdef bint REMOVE_BATCH_FILE = False
 
-cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
-                             cvg_file_handle, vcf_file_handle):
-    """Function for variants discovery
+
+cdef class BaseVarProcess:
     """
-    cdef list sampleinfos = []
-    cdef list batch_files_hd = [Open(f, 'rb') for f in batchfiles]
-    cdef bint is_empty = True
-    cdef bint eof = False
-    cdef bint is_error = False
-    cdef int n = 0
-    cdef int depth = 0
-    cdef list sample_bases = []
-    cdef list sample_base_quals = []
-    cdef list mapqs = []
-    cdef list read_pos_rank = []
-    cdef list strands = []
+    simple class to repesent a single BaseVar process.
+    """
 
-    while True:
-        # Loading ...
-        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
-        sampleinfos = []
-        for fh in batch_files_hd:
-            line = fh.readline()
-            if line:
-                if line.startswith("#"):
-                    continue
+    def __init__(self, samples, align_files, ref_file, regions, out_vcf_file=None,
+                 out_cvg_file=None, options=None):
+        """Constructor.
 
-                sampleinfos.append(line.strip().split())
-            else:
-                sampleinfos.append(None)
-                eof = True
+        Store input file, options and output file name.
 
-        # hit the end of files
-        if eof:
-            is_error = True if any(sampleinfos) else False
-            if is_error:
-                logger.warning(
-                    "%s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
-                    "positions in above files." % "\n".join(batchfiles))
-            break
+        Parameters:
+        ===========
+            samples: list like
+                A list of sample id
 
-        # Empty! Just have header information.
-        if not sampleinfos:
-            continue
+            regions: 2d-array like, required
+                    It's region info , format like: [[chrid, start, end], ...]
+        """
+        self.samples = samples
+        self.align_files = align_files
+        self.fa_file_hd = FastaFile(ref_file, ref_file + ".fai")
+        self.out_vcf_file = out_vcf_file
+        self.out_cvg_file = out_cvg_file
 
-        position = int(sampleinfos[0][1])
-        ref_base = sampleinfos[0][2]
-        if n % 10000 == 0:
-            logger.info("Have been loading %d lines when hit position %s:%d" %
-                        (n if n > 0 else 1, chrid, position))
-        n += 1
+        self.smart_rerun = True if options.smartrerun else False
+        self.options = options
 
-        (depth,
-         sample_bases,
-         sample_base_quals,
-         strands,
-         mapqs,
-         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base, sampleinfos)
+        # store the region into a dict
+        self.regions = utils.regions2dict(regions)
 
-        # ignore if coverage=0
-        if depth == 0:
-            continue
+        # loading population group
+        # group_id => [a list samples_index]
+        self.popgroup = {}
+        if options.pop_group_file and len(options.pop_group_file):
+            self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
-        # Not empty
-        is_empty = False
+    def run(self):
+        """Run the process of calling variant and output files.
+        """
+        VCF = open(self.out_vcf_file, "w") if self.out_vcf_file else None
+        CVG = open(self.out_cvg_file, "w")
+        output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
-        # Calling varaints by Basetypes and output VCF and Coverage files.
-        _basetypeprocess(chrid,
-                         position,
-                         ref_base,
-                         sample_bases,
-                         sample_base_quals,
-                         mapqs,
-                         strands,
-                         read_pos_rank,
-                         popgroup,
-                         min_af,
-                         cvg_file_handle,
-                         vcf_file_handle)
+        is_empty = True
+        tmpd, name = os.path.split(os.path.realpath(self.out_cvg_file))
+        cache_dir = utils.safe_makedir(tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name)
 
-    for fh in batch_files_hd:
-        fh.close()
+        if self.smart_rerun:
+            # remove the last modification file
+            utils.safe_remove(utils.get_last_modification_file(cache_dir))
 
-    return is_empty
+        cdef long int region_boundary_start
+        cdef long int region_boundary_end
+        cdef int sample_num = len(self.samples)
+        for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
+            start_time = time.time()
 
-def _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes ref_base, list infolines):
-    cdef list sample_bases = []
-    cdef list sample_base_quals = []
-    cdef list mapqs = []
-    cdef list read_pos_rank = []
-    cdef list strands = []
-    cdef int depth = 0
-    for i, col in enumerate(infolines):
-        # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
-        if len(col) == 0:
-            logger.error(" %d lines happen to be empty in batchfiles!" % (i + 1))
-            sys.exit(1)
+            tmp_region = []
+            for p in regions:
+                tmp_region.extend(p)
 
-        col[1], col[3] = map(int, [col[1], col[3]])
-        if col[0] != chrid or col[1] != position or col[2] != ref_base:
-            logger.error("%d lines, chromosome [%s and %s] or position [%d and %d] "
-                         "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
-                         (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
-            sys.exit(1)
+            tmp_region = sorted(tmp_region)
+            # get region boundary and set the coordinate to be 0-base
+            region_boundary_start = max(0, tmp_region[0] - 1)
+            region_boundary_end = min(tmp_region[-1] - 1, self.fa_file_hd.get_reference_length(chrid) - 1)
 
-        depth += col[3]
-        mapqs.append(col[4])
-        sample_bases.append(col[5].upper())
-        sample_base_quals.append(col[6])
-        read_pos_rank.append(col[7])
-        strands.append(col[8])
+            # set cache for fa sequence, this could make the program much faster
+            # And remember that ``fa_file_hd`` is 0-base system
+            self.fa_file_hd.set_cache_sequence(chrid, region_boundary_start - 2 * self.options.r_len,
+                                               region_boundary_end + 2 * self.options.r_len)
 
-    # cat all the info together and create ...
-    mapqs = map(int, ",".join(mapqs).split(","))
-    sample_bases = ",".join(sample_bases).split(",")
-    sample_base_quals = map(int, ",".join(sample_base_quals).split(","))
-    read_pos_rank = map(int, ",".join(read_pos_rank).split(","))
-    strands = ",".join(strands).split(",")
+            batchfiles = create_batchfiles_in_regions(chrid,
+                                                      regions,
+                                                      region_boundary_start, # 0-base
+                                                      region_boundary_end, # 0-base
+                                                      self.align_files,
+                                                      self.fa_file_hd,
+                                                      self.samples,
+                                                      cache_dir,
+                                                      self.options,
+                                                      self.smart_rerun)
 
-    return depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
+            logger.info("Batchfiles in %s:%s-%s for %d samples done, %d seconds elapsed." % (
+                chrid, region_boundary_start+1, region_boundary_end, sample_num, time.time() - start_time))
 
-def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
-                     popgroup, min_af, cvg_file_handle, vcf_file_handle):
-    
-    _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
+            # Process of variants discovery
+            start_time = time.time()
+            logger.info("**************** variants discovery process ****************")
+            try:
+                _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF,
+                                               self.options.batch_count)
+            except Exception, e:
+                logger.error("Variants discovery in region %s:%s-%s. Error: %s" % (
+                    chrid, region_boundary_start+1, region_boundary_end+1, e))
+                sys.exit(1)
 
-    cdef dict popgroup_bt = {}
-    cdef bint is_variant = True
-    if vcf_file_handle:
+            if not _is_empty:
+                is_empty = False
 
-        bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
-        is_variant = bt.lrt(None)  # do not need to set specific_base_combination
+            if REMOVE_BATCH_FILE:
+                for f in batchfiles:
+                    os.remove(f)
 
-        if is_variant:
+            logger.info("Running variants_discovery in %s:%s-%s done, %d seconds elapsed.\n" % (
+                chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 
-            popgroup_bt = {}
-            for group, index in popgroup.items():
-                group_sample_bases, group_sample_base_quals = [], []
-                for i in index:
-                    group_sample_bases.append(bases[i])
-                    group_sample_base_quals.append(base_quals[i])
+        CVG.close()
+        if VCF:
+            VCF.close()
 
-                group_bt = BaseType(ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
+        self.fa_file_hd.close()
 
-                basecombination = [ref_base.upper()] + bt.alt_bases
-                group_bt.lrt(basecombination)
-                popgroup_bt[group] = group_bt
+        if is_empty:
+            logger.warning("\n***************************************************************************\n"
+                           "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
+                           "input files. We get nothing in %s \n\n" % (self.options.mapq, self.out_cvg_file))
+            if VCF:
+                logger.warning("and %s " % self.out_vcf_file)
 
-            _out_vcf_line(chrid,
-                          position,
-                          ref_base,
-                          bases,
-                          mapqs,
-                          read_pos_rank,
-                          base_quals,
-                          strands,
-                          bt,
-                          popgroup_bt,
-                          vcf_file_handle)
-    return
+        if REMOVE_BATCH_FILE:
+            try:
+                os.removedirs(cache_dir)
+            except OSError:
+                logger.warning("Directory not empty: %s, please delete it by yourself\n" % cache_dir)
 
-def _base_depth_and_indel(bases):
-    # coverage info for each position
-    base_depth = {b: 0 for b in CommonParameter.BASE}
-    indel_depth = {}
-
-    for b in bases:
-
-        if b == "N":
-            continue
-
-        if b in base_depth:
-            # ignore all bases('*') which not match ``cmm.BASE``
-            base_depth[b] += 1
-        else:
-            # Indel
-            indel_depth[b] = indel_depth.get(b, 0) + 1
-
-    indel_string = ','.join(
-        [k + '|' + str(v) for k, v in indel_depth.items()]
-    ) if indel_depth else "."
-
-    return [base_depth, indel_string]
-
-def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handle, out_vcf_handle=None):
-    info, group = [], []
-    if pop_group_sample_dict:
-        for g in pop_group_sample_dict.keys():
-            g_id = g.split('_AF')[0]  # ignore '_AF'
-            group.append(g_id)
-            info.append('##INFO=<ID=%s_AF,Number=A,Type=Float,Description="Allele frequency in the %s '
-                        'populations calculated base on LRT, in the range (0,1)">' % (g_id, g_id))
-
-    if out_vcf_handle:
-        vcf_header = vcf_header_define(fa_file_name, info="\n".join(info), samples=sample_ids)
-        out_vcf_handle.write("%s\n" % "\n".join(vcf_header))
-
-    out_cvg_handle.write('%s\n' % "\n".join(cvg_header_define(group)))
-
-    return
-
-def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle):
-    """output coverage information into `out_file_handle`"""
-
-    # coverage info for each position
-    base_depth, indel_string = _base_depth_and_indel(bases)
-
-    # base depth and indels for each subgroup
-    group_cvg = {}
-    for group, index in popgroup.items():
-
-        group_sample_bases = []
-        for i in index:
-            group_sample_bases.append(bases[i])
-
-        bd, ind = _base_depth_and_indel(group_sample_bases)
-        group_cvg[group] = [bd, ind]
-
-    fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
-    if sum(base_depth.values()) > 0:
-        base_sorted = sorted(base_depth.items(), key=lambda x: x[1], reverse=True)
-
-        b1, b2 = base_sorted[0][0], base_sorted[1][0]
-        fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-            ref_base.upper(),
-            [b1 if b1 != ref_base.upper() else b2],
-            bases,
-            strands
-        )
-
-    if sum(base_depth.values()):
-
-        group_info = []
-        if group_cvg:
-            for k in popgroup.keys():
-                depth, indel = group_cvg[k]
-
-                indel = [indel] if indel != "." else []
-                s = ':'.join(map(str, [depth[b] for b in CommonParameter.BASE]) + indel)
-                group_info.append(s)
-
-        out_file_handle.write(
-            '\t'.join(
-                [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in CommonParameter.BASE] +
-                [indel_string] +
-                [str(fs), str(sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] + group_info
-            ) + '\n'
-        )
-
-    return
-
-def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample_base_qual,
-                  strands, BaseType bt, dict pop_group_bt, out_file_handle):
-    """output vcf lines into `out_file_handle`"""
-
-    alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases)}
-    samples = []
-
-    for k, b in enumerate(bases):
-
-        # For sample FORMAT
-        if b != 'N' and b[0] not in ['-', '+']:
-            # For the base which not in bt.alt_bases()
-            if b not in alt_gt:
-                alt_gt[b] = './.'
-
-            gt = '0/.' if b == ref_base.upper() else alt_gt[b]
-
-            samples.append(gt + ':' + b + ':' + strands[k] + ':' +
-                           str(round(bt.qual_pvalue[k], 6)))
-        else:
-            samples.append('./.')  # 'N' base or indel
-
-    # Rank Sum Test for mapping qualities of REF versus ALT reads
-    mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                         zip(bases, mapqs))
-
-    # Rank Sum Test for variant appear position among read of REF versus ALT
-    read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                               zip(bases, read_pos_rank))
-
-    # Rank Sum Test for base quality of REF versus ALT
-    base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                             zip(bases, sample_base_qual))
-
-    # Variant call confidence normalized by depth of sample reads
-    # supporting a variant.
-    ad_sum = sum([bt.depth[b] for b in bt.alt_bases])
-    qd = round(float(bt.var_qual/ad_sum), 3)
-
-    # Strand bias by fisher exact test and Strand bias estimated by the
-    # Symmetric Odds Ratio test
-    fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-        ref_base.upper(), bt.alt_bases, bases, strands)
-
-    # base=>[CAF, allele depth], CAF = Allele frequency by read count
-    caf = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
-               bt.depth[b]] for b in bt.alt_bases}
-
-    info = {'CM_DP': str(int(bt.total_depth)),
-            'CM_AC': ','.join(map(str, [caf[b][1] for b in bt.alt_bases])),
-            'CM_AF': ','.join(map(str, [bt.af_by_lrt[b] for b in bt.alt_bases])),
-            'CM_CAF': ','.join(map(str, [caf[b][0] for b in bt.alt_bases])),
-            'MQRankSum': str(mq_rank_sum),
-            'ReadPosRankSum': str(read_pos_rank_sum),
-            'BaseQRankSum': str(base_q_rank_sum),
-            'QD': str(qd),
-            'SOR': str(sor),
-            'FS': str(fs),
-            'SB_REF': str(ref_fwd) + ',' + str(ref_rev),
-            'SB_ALT': str(alt_fwd) + ',' + str(alt_rev)}
-
-    cdef BaseType g_bt
-    cdef bytes group
-
-    if pop_group_bt:
-        for group, g_bt in pop_group_bt.items():
-            af = ','.join(map(str, [g_bt.af_by_lrt[b] if b in g_bt.af_by_lrt else 0
-                                    for b in bt.alt_bases]))
-            info[group] = af
-
-    out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
-                                     ','.join(bt.alt_bases), str(bt.var_qual),
-                                     '.' if bt.var_qual > CommonParameter.QUAL_THRESHOLD else 'LowQual',
-                                     ';'.join([k + '=' + v for k, v in sorted(
-                                         info.items(), key=lambda x: x[0])]),
-                                     'GT:AB:SO:BP'] + samples) + '\n')
-    return
+        return

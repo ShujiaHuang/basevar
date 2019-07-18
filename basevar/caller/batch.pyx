@@ -8,24 +8,34 @@ import cython
 from basevar.log import logger
 from basevar.io.read cimport cAlignedRead
 from basevar.io.htslibWrapper cimport Read_IsQCFail
-from basevar.io.htslibWrapper cimport Read_IsCompressed
 from basevar.io.htslibWrapper cimport Read_IsReverse
-from basevar.io.htslibWrapper cimport compress_read
-from basevar.io.htslibWrapper cimport uncompress_read
 
 cdef int SIN = 0   # Just a single base
 cdef int INS = 1
 cdef int DEL = 2
 
-# cdef list BASE_TYPES = ["SIN", "INS", "DEL"]
+# the same with definition in read.pyx
+cdef int LOW_QUAL_BASES = 0
+cdef int UNMAPPED_READ = 1
+cdef int MATE_UNMAPPED = 2
+cdef int MATE_DISTANT = 3
+cdef int SMALL_INSERT = 4
+cdef int DUPLICATE = 5
+cdef int LOW_MAP_QUAL = 6
+
+
+cdef extern from "stdlib.h":
+    void *calloc(size_t, size_t)
+    void free(void *)
+
 
 @cython.final
 cdef class BatchElement(object):
     """
     Class to encapsulate information for all position. The basic idea is to tread all position as batch.
     """
-    def __init__(self, bytes ref_name, long int ref_pos, bytes ref_base, bytes read_base,
-                 int mapq, int base_qual, int read_pos_rank, char map_strand):
+    def __cinit__(self, bytes ref_name, long int ref_pos, bytes ref_base, bytes read_base,
+                  int mapq, int base_qual, int read_pos_rank, char map_strand):
 
         self.ref_name = ref_name
         self.ref_pos = ref_pos
@@ -63,7 +73,8 @@ cdef class BatchGenerator(object):
     """
     A class to generate batch informattion from a bunch of reads.
     """
-    def __init__(self, tuple region, FastaFile ref_fa, int min_mapq, int min_base_qual, options):
+    def __cinit__(self, bytes ref_name, long int reg_start, long int reg_end, FastaFile ref_fa,
+                  options):
         """
         Constructor. Create a storage place for batchfile, and store the values of some flags which
         are used in the pysam CIGAR information.
@@ -78,21 +89,38 @@ cdef class BatchGenerator(object):
         self.CIGAR_EQ = 7 # Alignment match; sequence match
         self.CIGAR_X  = 8 # Alignment match; sequence mismatch
 
-        self.batch_heap    = {} # List of batch position
-        self.min_map_qual  = min_mapq
-        self.min_base_qual = min_base_qual
-        self.options       = options
-        self.qual_bin_size = options.qual_bin_size
+        self.batch_heap = {} # List of batch position
+        self.options    = options
 
         self.ref_fa        = ref_fa
-        self.ref_name      = region[0]
-        self.reg_start     = region[1]  # start position of region, and region[1] must be 0-base coordinate system
-        self.reg_end       = region[2]  # end position of region, and region[2] must be 0-base coordinate system
+        self.ref_name      = ref_name
+        self.reg_start     = reg_start  # start position of region, and region[1] must be 0-base coordinate system
+        self.reg_end       = reg_end  # end position of region, and region[2] must be 0-base coordinate system
 
-        self.ref_seq_start = max(0, self.reg_start-500)
-        self.ref_seq_end   = min(self.reg_end+500, self.ref_fa.references[self.ref_name].seq_length-1)
+        self.ref_seq_start = max(0, self.reg_start-200)
+        self.ref_seq_end   = min(self.reg_end+200, self.ref_fa.references[self.ref_name].seq_length-1)
         self.py_refseq     = self.ref_fa.get_sequence(self.ref_name, self.ref_seq_start, self.ref_seq_end) # Cache this
         self.refseq        = self.py_refseq
+
+        # the same definition with class ``BamReadBuffer`` in read.pyx
+        self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
+        if options.filter_duplicates == 0:
+            self.filtered_read_counts_by_type[DUPLICATE] = -1
+
+        if options.filter_reads_with_unmapped_mates == 0:
+            self.filtered_read_counts_by_type[MATE_UNMAPPED] = -1
+
+        if options.filter_reads_with_distant_mates == 0:
+            self.filtered_read_counts_by_type[MATE_DISTANT] = -1
+
+        if options.filterReadPairsWithSmallInserts == 0:
+            self.filtered_read_counts_by_type[SMALL_INSERT] = -1
+
+    def __dealloc__(self):
+        """Clean up memory.
+        """
+        if self.filtered_read_counts_by_type != NULL:
+            free(self.filtered_read_counts_by_type)
 
     cdef void add_batchelement_to_list(self, BatchElement be):
         """Check if the element is already in the heap. if not, add it. """
@@ -124,9 +152,7 @@ cdef class BatchGenerator(object):
             sys.exit(1)
 
         cdef int read_num = 0
-        cdef int is_compress = 0
         while read_start != read_end:
-            is_compress = 0
 
             if Read_IsQCFail(read_start[0]):
                 read_start += 1 # QC fail read move to the next one
@@ -141,24 +167,15 @@ cdef class BatchGenerator(object):
                 # Break the loop when mapping start position is outside the region.
                 break
 
-            if Read_IsCompressed(read_start[0]):
-                is_compress = 1
-                uncompress_read(read_start[0], self.refseq, self.ref_seq_start,
-                                self.ref_seq_end, self.qual_bin_size)
-
             # get batch information here!
-            self._get_batch_from_single_read_in_region(read_start[0], start, end)
-
-            if is_compress:
-                compress_read(read_start[0], self.refseq, self.ref_seq_start,
-                              self.ref_seq_end, self.qual_bin_size)
+            self.get_batch_from_single_read_in_region(read_start[0], start, end)
 
             read_num += 1 # how many reads in this regions
             read_start += 1  # move to the next read
 
         return
 
-    cdef void _get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end):
+    cdef void get_batch_from_single_read_in_region(self, cAlignedRead* read, long int start, long int end):
         """Check a single read for batch. 
         Batch positions are flagged by the CIGAR string. Pysam reports the CIGAR string information as a list 
         of tuples, where each tuple is a pair, and the first element gives the type of feature (match, insertion 
