@@ -22,3 +22,5 @@ venv/
 .idea/
 .ipynb_checkpoints/
 trash/
+basevar/caller/backup/
+basevar/io/pysam_BGZF_trash/
