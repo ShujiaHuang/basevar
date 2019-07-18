@@ -1,7 +1,7 @@
 BaseVar
 =======
 
-Call variants from ultra low-pass WGS data.
+Call variants for ultra low-pass WGS data.
 
 Installation
 ------------
