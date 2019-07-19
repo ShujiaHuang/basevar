@@ -8,6 +8,7 @@ the lord to rule them all, in a word, it's "The Ring".
 """
 from __future__ import division
 
+import os
 import sys
 import time
 
@@ -132,9 +133,18 @@ class BaseTypeRunner(object):
             else:
                 sub_vcf_file = None
 
+            tmpd, name = os.path.split(os.path.realpath(sub_cvg_file))
+            cache_dir = tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
+
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
+            if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
+                # if `cache_dir` is not exist and `sub_cvg_file` is exists means
+                # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+                continue
+
+            cache_dir = utils.safe_makedir(cache_dir)
             processes.append(CallerProcess(BaseVarProcess,
                                            self.sample_id,
                                            self.alignfiles,
@@ -142,6 +152,7 @@ class BaseTypeRunner(object):
                                            self.regions_for_each_process[i],
                                            out_cvg_file=sub_cvg_file,
                                            out_vcf_file=sub_vcf_file,
+                                           cache_dir=cache_dir,
                                            options=self.options))
 
         process_runner(processes)

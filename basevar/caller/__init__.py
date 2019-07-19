@@ -22,7 +22,7 @@ class CallerProcess(multiprocessing.Process):
 
     def run(self):
         """ Run the BaseVar process"""
-        self.single_process.run()
+        return self.single_process.run()
 
 
 def process_runner(processes):
