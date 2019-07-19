@@ -23,8 +23,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        FastaFile fa,
                                        list samples,
                                        bytes outdir,
-                                       object options,
-                                       bint is_smart_rerun):
+                                       object options):
     """
     ``samples``: The sample id of align_files
     ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
@@ -58,7 +57,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
 
         # store the name of batchfiles into a list.
         batchfiles.append(part_file_name)
-        if is_smart_rerun and os.path.isfile(part_file_name):
+        if options.smartrerun and os.path.isfile(part_file_name):
             # ``part_file_name`` is exists We don't have to create it again if setting `smartrerun`
             logger.info("%s already exists, we don't have to create it again, "
                         "when you set `smartrerun`" % part_file_name)
@@ -111,7 +110,7 @@ cdef void generate_batchfile(bytes chrom_name,
     cdef ReadIterator reader_iter
     cdef cAlignedRead* the_read
 
-    cdef BatchGenerator be_generator
+    # cdef BatchGenerator be_generator
     cdef list batch_buffers = []
     cdef int longest_read_size = 0
     cdef long int reg_start, reg_end
@@ -157,7 +156,6 @@ cdef void generate_batchfile(bytes chrom_name,
 
             read_ok = check_and_trim_read(the_read, NULL, be_generator.filtered_read_counts_by_type,
                                           mapq, trim_overlapping, trim_soft_clipped)
-
             if Read_IsQCFail(the_read):
                 continue
 
