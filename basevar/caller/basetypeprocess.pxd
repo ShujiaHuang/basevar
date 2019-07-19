@@ -8,10 +8,14 @@ from basevar.io.fasta cimport FastaFile
 cdef class BaseVarProcess:
     cdef list samples
     cdef list align_files
+
     cdef FastaFile fa_file_hd
     cdef dict regions
     cdef dict popgroup
+
     cdef bytes out_vcf_file
     cdef bytes out_cvg_file
+    cdef bytes cache_dir
+
     cdef bint smart_rerun
     cdef object options

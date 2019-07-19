@@ -15,7 +15,7 @@ from basevar.caller.variantcaller import output_header
 from basevar.caller.variantcaller cimport variants_discovery
 from basevar.caller.batchcaller cimport create_batchfiles_in_regions
 
-cdef bint REMOVE_BATCH_FILE = False
+cdef bint REMOVE_BATCH_FILE = True
 
 
 cdef class BaseVarProcess:
@@ -24,7 +24,7 @@ cdef class BaseVarProcess:
     """
 
     def __init__(self, samples, align_files, ref_file, regions, out_vcf_file=None,
-                 out_cvg_file=None, options=None):
+                 out_cvg_file=None, cache_dir=None, options=None):
         """Constructor.
 
         Store input file, options and output file name.
@@ -42,6 +42,7 @@ cdef class BaseVarProcess:
         self.fa_file_hd = FastaFile(ref_file, ref_file + ".fai")
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
+        self.cache_dir = cache_dir
 
         self.smart_rerun = True if options.smartrerun else False
         self.options = options
@@ -63,16 +64,13 @@ cdef class BaseVarProcess:
         output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
         is_empty = True
-        tmpd, name = os.path.split(os.path.realpath(self.out_cvg_file))
-        cache_dir = utils.safe_makedir(tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name)
-
         if self.smart_rerun:
-            # remove the last modification file
-            utils.safe_remove(utils.get_last_modification_file(cache_dir))
+            utils.safe_remove(utils.get_last_modification_file(self.cache_dir))
 
         cdef long int region_boundary_start
         cdef long int region_boundary_end
         cdef int sample_num = len(self.samples)
+        cdef list total_batch_files = []
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
             start_time = time.time()
 
@@ -97,14 +95,13 @@ cdef class BaseVarProcess:
                                                       self.align_files,
                                                       self.fa_file_hd,
                                                       self.samples,
-                                                      cache_dir,
+                                                      self.cache_dir,
                                                       self.options,
                                                       self.smart_rerun)
 
             logger.info("Batchfiles in %s:%s-%s for %d samples done, %d seconds elapsed." % (
                 chrid, region_boundary_start+1, region_boundary_end, sample_num, time.time() - start_time))
 
-            # Process of variants discovery
             start_time = time.time()
             logger.info("**************** variants discovery process ****************")
             try:
@@ -118,9 +115,8 @@ cdef class BaseVarProcess:
             if not _is_empty:
                 is_empty = False
 
-            if REMOVE_BATCH_FILE:
-                for f in batchfiles:
-                    os.remove(f)
+            # collect together will be convenient when we want to clear up these temporary files.
+            total_batch_files += batchfiles
 
             logger.info("Running variants_discovery in %s:%s-%s done, %d seconds elapsed.\n" % (
                 chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
@@ -139,9 +135,13 @@ cdef class BaseVarProcess:
                 logger.warning("and %s " % self.out_vcf_file)
 
         if REMOVE_BATCH_FILE:
+
+            for f in total_batch_files:
+                os.remove(f)
+
             try:
-                os.removedirs(cache_dir)
+                os.removedirs(self.cache_dir)
             except OSError:
-                logger.warning("Directory not empty: %s, please delete it by yourself\n" % cache_dir)
+                logger.warning("Directory not empty: %s, please delete it by yourself\n" % self.cache_dir)
 
         return
