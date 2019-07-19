@@ -14,5 +14,4 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        FastaFile fa,
                                        list sample_ids,
                                        bytes outdir,
-                                       object options,
-                                       bint is_smart_rerun)
+                                       object options)

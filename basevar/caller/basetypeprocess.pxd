@@ -17,5 +17,4 @@ cdef class BaseVarProcess:
     cdef bytes out_cvg_file
     cdef bytes cache_dir
 
-    cdef bint smart_rerun
     cdef object options

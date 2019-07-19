@@ -43,8 +43,6 @@ cdef class BaseVarProcess:
         self.out_vcf_file = out_vcf_file
         self.out_cvg_file = out_cvg_file
         self.cache_dir = cache_dir
-
-        self.smart_rerun = True if options.smartrerun else False
         self.options = options
 
         # store the region into a dict
@@ -64,7 +62,7 @@ cdef class BaseVarProcess:
         output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
         is_empty = True
-        if self.smart_rerun:
+        if self.options.smartrerun:
             utils.safe_remove(utils.get_last_modification_file(self.cache_dir))
 
         cdef long int region_boundary_start
@@ -96,8 +94,7 @@ cdef class BaseVarProcess:
                                                       self.fa_file_hd,
                                                       self.samples,
                                                       self.cache_dir,
-                                                      self.options,
-                                                      self.smart_rerun)
+                                                      self.options)
 
             logger.info("Batchfiles in %s:%s-%s for %d samples done, %d seconds elapsed." % (
                 chrid, region_boundary_start+1, region_boundary_end, sample_num, time.time() - start_time))
@@ -105,8 +102,8 @@ cdef class BaseVarProcess:
             start_time = time.time()
             logger.info("**************** variants discovery process ****************")
             try:
-                _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af, CVG, VCF,
-                                               self.options.batch_count)
+                _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af,
+                                               CVG, VCF, self.options.batch_count)
             except Exception, e:
                 logger.error("Variants discovery in region %s:%s-%s. Error: %s" % (
                     chrid, region_boundary_start+1, region_boundary_end+1, e))

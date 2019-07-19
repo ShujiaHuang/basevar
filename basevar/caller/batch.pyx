@@ -119,6 +119,7 @@ cdef class BatchGenerator(object):
     def __dealloc__(self):
         """Clean up memory.
         """
+        self.batch_heap = {}
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
