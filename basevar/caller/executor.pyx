@@ -16,9 +16,9 @@ from basevar import utils
 from basevar.utils import do_cprofile
 
 from basevar.io.bam cimport get_sample_names
+from basevar.io.BGZF.tabix import tabix_index
 from basevar.caller import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
-from basevar.io.BGZF.tabix import tabix_index
 
 def _generate_regions_for_each_process(regions, process_num=1):
     """create regions for each process"""
