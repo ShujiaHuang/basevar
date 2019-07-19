@@ -2,12 +2,14 @@
 cdef extern from "fcntl.h":
     int open(char *pathname, int flags)
 
+
 cdef extern from "unistd.h" nogil:
     ctypedef int ssize_t
     ssize_t read(int fd, void *buf, size_t count)
     int close(int fd)
 
-from basevar.io.BGZF.libchtslib cimport hts_itr_t, tbx_t, kstring_t, BGZF, HTSFile
+
+from basevar.io.htslibWrapper cimport hts_itr_t, tbx_t, kstring_t, BGZF, HTSFile
 
 
 cdef extern from "b_stream.h" nogil:

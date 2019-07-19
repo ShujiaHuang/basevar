@@ -71,7 +71,7 @@ MOD_NAMES = [
     CALLER_PRE + '.caller.basetypeprocess',
     CALLER_PRE + '.caller.executor',
 
-    CALLER_PRE + '.io.BGZF.libcutils',
+    CALLER_PRE + '.io.libcutils',
 ]
 
 
@@ -84,7 +84,6 @@ if __name__ == "__main__":
     # extension for htslib!
     htslib_mod = [
         CALLER_PRE + '.io.htslibWrapper',
-        CALLER_PRE + '.io.BGZF.libchtslib',
         CALLER_PRE + '.io.BGZF.bgzf',
         CALLER_PRE + '.io.BGZF.tabix',
     ]
@@ -95,7 +94,8 @@ if __name__ == "__main__":
     extensions.append(Extension(name=algorithm,
                                 sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
                                 language='c',
-                                include_dirs=[BC_INCLUDE_DIR]))
+                                include_dirs=[BC_INCLUDE_DIR],
+                                libraries=['hts']))
 
     # other extensions
     extensions += [make_extension(name) for name in MOD_NAMES]

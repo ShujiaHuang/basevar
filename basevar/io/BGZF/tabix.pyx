@@ -35,7 +35,7 @@ from posix.unistd cimport dup
 from cpython cimport PyObject_AsFileDescriptor
 from cpython.version cimport PY_MAJOR_VERSION
 
-from basevar.io.BGZF.libchtslib cimport htsFile, hts_open, hts_close, HTS_IDX_START,\
+from basevar.io.htslibWrapper cimport htsFile, hts_open, hts_close, HTS_IDX_START,\
     BGZF, bgzf_open, bgzf_dopen, bgzf_close, bgzf_write, \
     tbx_index_build2, tbx_index_load2, tbx_itr_queryi, tbx_itr_querys, \
     tbx_conf_t, tbx_seqnames, tbx_itr_next, tbx_itr_destroy, \
@@ -43,8 +43,8 @@ from basevar.io.BGZF.libchtslib cimport htsFile, hts_open, hts_close, HTS_IDX_ST
     TBX_GENERIC, TBX_SAM, TBX_VCF, TBX_UCSC, htsExactFormat, bcf, \
     bcf_index_build2
 
-from basevar.io.BGZF.libcutils cimport force_bytes, force_str, charptr_to_str
-from basevar.io.BGZF.libcutils cimport encode_filename
+from basevar.io.libcutils cimport force_bytes, force_str, charptr_to_str
+from basevar.io.libcutils cimport encode_filename
 
 cdef extern from "stdlib.h":
     void *malloc(size_t)

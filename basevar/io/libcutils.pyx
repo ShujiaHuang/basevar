@@ -4,8 +4,6 @@ import sys
 from cpython.version cimport PY_MAJOR_VERSION, PY_MINOR_VERSION
 from cpython cimport PyBytes_Check, PyUnicode_Check
 
-
-# filename encoding (adapted from lxml.etree.pyx)
 cdef str FILENAME_ENCODING = sys.getfilesystemencoding() or sys.getdefaultencoding() or 'ascii'
 
 
@@ -68,6 +66,7 @@ cdef force_str(object s, encoding="ascii"):
     (bytes in Py2, unicode in Py3)"""
     if s is None:
         return None
+
     if PY_MAJOR_VERSION < 3:
         return s
     elif PyBytes_Check(s):

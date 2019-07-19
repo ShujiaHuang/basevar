@@ -1,16 +1,18 @@
 # cython: embedsignature=True
 # cython: profile=True
 # adds doc-strings for sphinx
-
 import io
 from cpython cimport PyBytes_FromStringAndSize
 
-from basevar.io.BGZF.libchtslib cimport *
-from basevar.io.BGZF.libcutils cimport force_bytes
-from basevar.io.BGZF.libcutils cimport encode_filename
 
-cdef extern from "stdlib.h":
-    void free(void *)
+from basevar.io.htslibWrapper cimport BGZF, bgzf_open, bgzf_close, bgzf_write, bgzf_read, \
+    bgzf_index_build_init, bgzf_flush, bgzf_index_dump, bgzf_seek, bgzf_tell, bgzf_getline, \
+    int64_t, kstring_t, free
+
+
+from basevar.io.libcutils cimport force_bytes
+from basevar.io.libcutils cimport encode_filename
+
 
 # defines imported from samtools
 DEF SEEK_SET = 0
