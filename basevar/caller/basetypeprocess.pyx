@@ -61,7 +61,6 @@ cdef class BaseVarProcess:
         CVG = open(self.out_cvg_file, "w")
         output_header(self.fa_file_hd.filename, self.samples, self.popgroup, CVG, out_vcf_handle=VCF)
 
-        is_empty = True
         if self.options.smartrerun:
             utils.safe_remove(utils.get_last_modification_file(self.cache_dir))
 
@@ -69,6 +68,7 @@ cdef class BaseVarProcess:
         cdef long int region_boundary_end
         cdef int sample_num = len(self.samples)
         cdef list total_batch_files = []
+        cdef bint is_empty = True
         for chrid, regions in sorted(self.regions.items(), key=lambda x: x[0]):
             start_time = time.time()
 
@@ -83,8 +83,11 @@ cdef class BaseVarProcess:
 
             # set cache for fa sequence, this could make the program much faster
             # And remember that ``fa_file_hd`` is 0-base system
-            self.fa_file_hd.set_cache_sequence(chrid, region_boundary_start - 2 * self.options.r_len,
-                                               region_boundary_end + 2 * self.options.r_len)
+            self.fa_file_hd.set_cache_sequence(
+                chrid,
+                max(0, region_boundary_start - 5 * self.options.r_len),
+                min(region_boundary_end + 5 * self.options.r_len, self.fa_file_hd.get_reference_length(chrid) - 1)
+            )
 
             batchfiles = create_batchfiles_in_regions(chrid,
                                                       regions,
@@ -114,7 +117,6 @@ cdef class BaseVarProcess:
 
             # collect together will be convenient when we want to clear up these temporary files.
             total_batch_files += batchfiles
-
             logger.info("Running variants_discovery in %s:%s-%s done, %d seconds elapsed.\n" % (
                 chrid, region_boundary_start+1, region_boundary_end, time.time() - start_time))
 

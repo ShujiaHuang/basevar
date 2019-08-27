@@ -14,7 +14,7 @@ import time
 
 from basevar.log import logger
 from basevar import utils
-from basevar.utils import do_cprofile
+# from basevar.utils import do_cprofile
 
 from basevar.io.bam cimport get_sample_names
 from basevar.io.BGZF.tabix import tabix_index

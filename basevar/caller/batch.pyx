@@ -119,7 +119,6 @@ cdef class BatchGenerator(object):
     def __dealloc__(self):
         """Clean up memory.
         """
-        self.batch_heap = {}
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
@@ -159,13 +158,13 @@ cdef class BatchGenerator(object):
                 read_start += 1 # QC fail read move to the next one
                 continue
 
+            # still behind the region, do nothing but continue
             if read_start[0].end < start:
-                # still behind the region, do nothing but continue
                 read_start += 1
                 continue
 
+            # Break the loop when mapping start position is outside the region.
             if read_start[0].pos > end:
-                # Break the loop when mapping start position is outside the region.
                 break
 
             # get batch information here!
@@ -321,9 +320,6 @@ cdef class BatchGenerator(object):
             read_index = read_offset + index
             read_char = read_seq[read_index]
             base_qual = read_qual[read_index]
-
-            # assert base_qual >= 0, "Something is very wrong. Base qual is %s" % base_qual
-            # assert base_qual <= 93, "Something is very wrong. Base qual is %s" % base_qual
 
             ref_index = ref_pos - self.ref_seq_start
             ref_char = self.refseq[ref_index]
