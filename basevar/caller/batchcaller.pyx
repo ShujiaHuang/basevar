@@ -14,6 +14,10 @@ from basevar.io.read cimport check_and_trim_read
 from basevar.io.htslibWrapper cimport Read_IsQCFail
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 
+import sys
+from basevar.io.bam cimport load_bamdata
+from basevar.io.read cimport BamReadBuffer
+
 
 cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        list regions,
@@ -25,14 +29,12 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        bytes outdir,
                                        object options):
     """
-    ``samples``: The sample id of align_files
     ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+    ``samples``: The sample id of align_files
     ``fa``:
         # get sequence of chrom_name from reference fasta
         fa = self.ref_file_hd.fetch(chrid)
 
-    justbase: bool
-        Just outout base in batch file.
     """
     # store all the batch files
     cdef list batchfiles = []
@@ -65,7 +67,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
         else:
             logger.info("Creating batchfile %s\n" % part_file_name)
 
-        # One batch of alignment files, the size and order are the same between ``sub_align_files`` and
+        # One batch of alignment files, the size and order are the same with ``sub_align_files`` and
         # ``batch_sample_ids``
         sub_align_files = align_files[i:i+batchcount]
         batch_sample_ids = None
@@ -99,6 +101,75 @@ cdef void generate_batchfile(bytes chrom_name,
                              object options,
                              bytes out_batch_file,
                              list batch_sample_ids):
+
+    """Loading bamfile and create a batchfile in ``regions``.
+
+    Parameters:
+        ``bigstart``: It's already 0-base position
+        ``bigend``: It's already 0-base position
+        ``regions``: The coordinate in regions is 1-base system.
+    """
+    # Just loading baminfo and not need to load header!
+    cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
+    cdef list read_buffers
+
+    try:
+        # load the whole mapping reads in [chrom_name, bigstart, bigend]
+        read_buffers = load_bamdata(bamfiles, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
+
+    except Exception, e:
+        logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))
+        sys.exit(1)
+
+    if read_buffers is None or len(read_buffers) == 0:
+        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart+1, bigend+1))
+        return
+
+    # take all the batch information for all samples in ``regions``
+    cdef BamReadBuffer sample_read_buffer
+    cdef BatchGenerator be_generator
+    cdef list batch_buffers = []
+    cdef int longest_read_size = 0
+    cdef long int reg_start, reg_end
+    for sample_read_buffer in read_buffers:
+
+        if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
+            longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
+
+        # init the batch generator by the BIG region, but the big region may not be use
+        be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
+
+        # get batch information for each sample in regions
+        for reg_start, reg_end in regions:
+            reg_start -= 1  # set position to be 0-base
+            reg_end -= 1  # set position to be 0-base
+            be_generator.create_batch_in_region(
+                (chrom_name, reg_start, reg_end),
+                sample_read_buffer.reads.array,  # this start pointer will move automatically
+                sample_read_buffer.reads.array + sample_read_buffer.reads.get_size()
+            )
+
+        batch_buffers.append(be_generator)
+
+    # Todo: take care these codes, although they may not been called forever.
+    if longest_read_size > options.r_len:
+        options.r_len = longest_read_size
+
+    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
+    return
+
+
+# This function take much more memery than the ``generate_batchfile``, but I don't know why.
+cdef void generate_batchfile_2(bytes chrom_name,
+                               long int bigstart,
+                               long int bigend,
+                               list regions,
+                               list batch_align_files,
+                               char* refseq,
+                               FastaFile fa,
+                               object options,
+                               bytes out_batch_file,
+                               list batch_sample_ids):
     """Loading bamfile and create a batchfile in ``regions``.
     
     Parameters:
@@ -110,7 +181,7 @@ cdef void generate_batchfile(bytes chrom_name,
     cdef ReadIterator reader_iter
     cdef cAlignedRead* the_read
 
-    # cdef BatchGenerator be_generator
+    cdef BatchGenerator be_generator
     cdef list batch_buffers = []
     cdef int longest_read_size = 0
     cdef long int reg_start, reg_end
@@ -188,8 +259,7 @@ cdef void generate_batchfile(bytes chrom_name,
     if longest_read_size > options.r_len:
         options.r_len = longest_read_size
 
-    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file,
-                      batch_sample_ids, regions)
+    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
     return
 
 
