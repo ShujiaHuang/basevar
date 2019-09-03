@@ -117,11 +117,11 @@ if __name__ == "__main__":
         ext_modules=cythonize(extensions),
         cmdclass={'build_ext': build_ext, 'sdist': sdist, 'install': install},
         install_requires=[
-            'Cython==0.29.6',
-            'Logbook==1.4.3',
-            'numpy==1.15.4',
-            'scikit-learn==0.20.2',
-            'scipy==1.1.0'
+            'Cython>=0.29.6',
+            'Logbook>=1.4.3',
+            'numpy>=1.15.4',
+            'scikit-learn>=0.20.2',
+            'scipy>=1.1.0'
         ],
         # scripts=[],
         entry_points={
