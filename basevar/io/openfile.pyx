@@ -8,8 +8,7 @@ import os
 import gzip
 import heapq
 
-
-from pysam import BGZFile
+from basevar.io.BGZF.bgzf import BGZFile
 
 def _expanded_open(path, mode):
     try:

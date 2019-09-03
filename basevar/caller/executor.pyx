@@ -8,17 +8,18 @@ the lord to rule them all, in a word, it's "The Ring".
 """
 from __future__ import division
 
+import os
 import sys
 import time
 
-from pysam import tabix_index
-
-from basevar import utils
 from basevar.log import logger
-from basevar.io.bam cimport get_sample_names
-from basevar.caller import CallerProcess, process_runner
-from basevar.caller.basetypebam cimport BaseVarProcess
+from basevar import utils
+# from basevar.utils import do_cprofile
 
+from basevar.io.bam cimport get_sample_names
+from basevar.io.BGZF.tabix import tabix_index
+from basevar.caller import CallerProcess, process_runner
+from basevar.caller.basetypeprocess cimport BaseVarProcess
 
 def _generate_regions_for_each_process(regions, process_num=1):
     """create regions for each process"""
@@ -59,7 +60,6 @@ def _generate_regions_for_each_process(regions, process_num=1):
 
     return regions_for_each_process
 
-
 def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     """CVG file and VCF file could use the same tabix strategy."""
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
@@ -68,7 +68,6 @@ def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
             _output_file(sub_file_list, out_final_file, del_raw_file=True)
 
     return
-
 
 def _output_file(sub_files, out_file_name, del_raw_file=False):
     if out_file_name.endswith(".gz"):
@@ -111,6 +110,7 @@ class BaseTypeRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
 
+    # @do_cprofile("./basevar_caller.prof", True)
     def basevar_caller(self):
         """
         Run variant caller
@@ -133,9 +133,18 @@ class BaseTypeRunner(object):
             else:
                 sub_vcf_file = None
 
+            tmpd, name = os.path.split(os.path.realpath(sub_cvg_file))
+            cache_dir = tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
+
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
+            if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
+                # if `cache_dir` is not exist and `sub_cvg_file` is exists means
+                # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+                continue
+
+            cache_dir = utils.safe_makedir(cache_dir)
             processes.append(CallerProcess(BaseVarProcess,
                                            self.sample_id,
                                            self.alignfiles,
@@ -143,6 +152,7 @@ class BaseTypeRunner(object):
                                            self.regions_for_each_process[i],
                                            out_cvg_file=sub_cvg_file,
                                            out_vcf_file=sub_vcf_file,
+                                           cache_dir=cache_dir,
                                            options=self.options))
 
         process_runner(processes)

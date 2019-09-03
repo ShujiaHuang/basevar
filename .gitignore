@@ -11,6 +11,7 @@
 basevar/*.c
 basevar/caller/*.c
 basevar/io/*.c
+basevar/io/BGZF/*.c
 
 dist/
 build/
@@ -21,3 +22,5 @@ venv/
 .idea/
 .ipynb_checkpoints/
 trash/
+basevar/caller/backup/
+basevar/io/pysam_BGZF_trash/

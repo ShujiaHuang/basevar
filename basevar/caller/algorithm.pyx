@@ -2,8 +2,8 @@
 This module contain some main algorithms of BaseVar
 """
 from scipy.stats.distributions import norm
-import numpy as np
 
+from basevar.io.htslibWrapper cimport kt_fisher_exact
 
 cdef extern from "math.h":
     double log10(double)
@@ -24,7 +24,7 @@ cdef void EM(double* init_allele_freq,
     return
 
 
-def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
+cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, list data):
     """Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
 
     ``data`` : A 2-D list,
@@ -32,34 +32,56 @@ def ref_vs_alt_ranksumtest(ref_base, alt_base, data):
              e.g: zip(sample_base, mapq)
 
     """
-    cdef list ref = []
-    cdef list alt = []
-    for b, d in data:
+    cdef int data_size = len(data)
+    cdef double* ref = <double*>(malloc(data_size * sizeof(double)))
+    cdef double* alt = <double*>(malloc(data_size * sizeof(double)))
 
-        if b == 'N' or b[0] in ['-', '+']:
+    cdef int i = 0
+    cdef int size_ref = 0
+    cdef int size_alt = 0
+    for i in range(data_size):
+
+        b, d = data[i]
+        if b == 'N' or b[0] == '-' or b[0] == '+':
             continue
 
         if b == ref_base:
-            ref.append(d)
+            ref[size_ref] = d
+            size_ref += 1
 
         elif b in alt_base:
-            alt.append(d)
+            alt[size_alt] = d
+            size_alt += 1
 
-    cdef double[::1] x = np.asarray(ref, dtype=np.double)
-    cdef double[::1] y = np.asarray(alt, dtype=np.double)
-    cdef int nx = x.shape[0]
-    cdef int ny = y.shape[0]
+    if size_ref == 0 or size_alt == 0:
+        free(ref)
+        free(alt)
+        # -1 represent to None
+        return -1.0
 
-    if nx == 0 or ny == 0:
-        return np.nan
+    cdef double* x = <double*>(malloc(size_ref * sizeof(double)))
+    cdef double* y = <double*>(malloc(size_alt * sizeof(double)))
+    memcpy(x, ref, size_ref * sizeof(double))
+    memcpy(y, alt, size_alt * sizeof(double))
 
-    cdef double z = RankSumTest(&x[0], nx, &y[0], ny)
+    free(ref)
+    free(alt)
+
+    cdef double z = RankSumTest(x, size_ref, y, size_alt)
     cdef double pvalue = 2 * norm.sf(abs(z))
-    cdef double phred_scale_value = round(-10 * np.log10(pvalue), 3)
-    if phred_scale_value == np.inf:
+
+    cdef double phred_scale_value
+    if pvalue == 1.0:
+        phred_scale_value = 0.0
+    elif pvalue > 0:
+        phred_scale_value = -10 * log10(pvalue)
+    else:
         phred_scale_value = 10000.0
 
-    return phred_scale_value if phred_scale_value != 0 else 0.0
+    free(x)
+    free(y)
+
+    return phred_scale_value
 
 
 def strand_bias(ref_base, alt_base, bases, strands):
@@ -104,24 +126,20 @@ def strand_bias(ref_base, alt_base, bases, strands):
         else:
             raise ValueError('[ERROR] Get strange strand symbol %s' % s)
 
-    cdef double left_p, right_p, twoside_p
+    cdef double left_p, right_p, twoside_p, fs
 
     # exact_fisher_test from htslib
     kt_fisher_exact(ref_fwd, ref_rev, alt_fwd,
-                    alt_rev, &left_p, &right_p, & twoside_p)
-    fs = round(-10 * log10(twoside_p), 3)
+                    alt_rev, &left_p, &right_p, &twoside_p)
 
-    if fs == np.inf:
-        fs = 10000.0
-
-    if fs == 0:
-        # ``fs`` will been setted as -0.0 instand of 0.0 if it's 0,
-        # and I don't know why it so weird!
+    if twoside_p == 1.0:
         fs = 0.0
+    elif twoside_p > 0.0:
+        fs = -10 * log10(twoside_p)
+    else:
+        fs = 10000.0
 
     # Strand bias estimated by the Symmetric Odds Ratio test
     # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php
-    sor = round(float(ref_fwd * alt_rev) / (ref_rev * alt_fwd), 3) \
-        if ref_rev * alt_fwd > 0 else 10000.0
-
+    sor = float(ref_fwd * alt_rev) / (ref_rev * alt_fwd) if ref_rev * alt_fwd > 0 else 10000.0
     return fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev
