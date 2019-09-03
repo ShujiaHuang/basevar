@@ -1,21 +1,18 @@
 BaseVar
 =======
 
-Call variants for ultra low-pass WGS data.
-
-Installation
-------------
-
-.. code:: bash
-
-
-    pip install basevar
+Call variants for ultra low-pass (<1.0x) WGS data, especially for NIPT data.
 
 Prerequisites
 -------------
 
-BaseVar requires HTSlib 1.3 or greater. HTSlib can be downloaded from the
-`htslib web site <http://www.htslib.org/download/>`_.
+BaseVar requires HTSlib 1.3(or later) and Cython. You should install Cython before build BaseVar.
+
+.. code:: bash
+
+    pip install cython
+
+HTSlib can be downloaded from the `htslib web site <http://www.htslib.org/download/>`_.
 
 To build and install HTSlib, cd into HTSlib source and type `make install`.
 This will install HTSlib under `/usr/local/` (see note below). To install HTSlib
@@ -55,6 +52,23 @@ For OSX
     export LIBRARY_PATH=/path/to/dir/lib
     export DYLD_FALLBACK_LIBRARY_PATH=/path/to/dir/lib
 
+Installation
+------------
+
+To build BaseVar, do the following:
+
+.. code:: bash
+
+    git clone https://github.com/ShujiaHuang/basevar.git
+
+Then do
+
+.. code:: bash
+
+    $ cd basevar
+    $ python setup.py install
+
+Now you can use `basevar` in your commandline.
 
 Quick start
 -----------
@@ -82,7 +96,6 @@ Or call variants from bamlist
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
-
 
     basevar basetype -R reference.fasta \
         --regions chr11:5246595-5248428,chr17:41197764-41276135 \
