@@ -4,7 +4,7 @@ This module will contain all the executor steps of BaseVar.
 We have many important modules in BaseVar while this one is
 the lord to rule them all, in a word, it's "The Ring".
 
-``BaseVar.py`` is "Sauron", and 'executor.py' module could just be called by it.
+``runner.py`` is "Sauron", and 'launch.pyx' module could just be called by it.
 """
 from __future__ import division
 
@@ -18,7 +18,7 @@ from basevar import utils
 
 from basevar.io.bam cimport get_sample_names
 from basevar.io.BGZF.tabix import tabix_index
-from basevar.caller import CallerProcess, process_runner
+from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
 
 def _generate_regions_for_each_process(regions, process_num=1):

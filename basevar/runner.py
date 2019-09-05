@@ -10,7 +10,7 @@ import sys
 import time
 
 from basevar.log import logger
-from caller.executor import BaseTypeRunner
+from caller.launch import BaseTypeRunner
 # from basevar.utils import do_cprofile
 
 
@@ -176,7 +176,7 @@ def basetype(args):
 
 
 def nearby_indel(args):
-    from caller.executor import NearbyIndelRunner
+    from caller.launch import NearbyIndelRunner
     nbi = NearbyIndelRunner(args)
     nbi.run()
 
@@ -184,7 +184,7 @@ def nearby_indel(args):
 
 
 def merge(args):
-    from caller.executor import MergeRunner
+    from caller.launch import MergeRunner
 
     mg = MergeRunner(args)
     mg.run()

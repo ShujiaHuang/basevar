@@ -69,7 +69,8 @@ MOD_NAMES = [
     CALLER_PRE + '.caller.batchcaller',
     CALLER_PRE + '.caller.variantcaller',
     CALLER_PRE + '.caller.basetypeprocess',
-    CALLER_PRE + '.caller.executor',
+    CALLER_PRE + '.caller.launch',
+    CALLER_PRE + '.caller.do',
 
     CALLER_PRE + '.io.libcutils',
 ]
