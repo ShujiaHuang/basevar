@@ -26,5 +26,6 @@ cdef void EM(double* init_allele_freq,
              int iter_num,
              double epsilon)
 
-cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, list data)
+cdef tuple strand_bias(bytes ref_base, list alt_bases, char **bases, char *strands, int size)
+cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, char **bases, int *info, int data_size)
 
