@@ -1,3 +1,4 @@
+# cython: profile=True
 """
 This is a Process module for BaseType by BAM/CRAM
 
@@ -106,7 +107,7 @@ cdef class BaseVarProcess:
             logger.info("**************** variants discovery process ****************")
             try:
                 _is_empty = variants_discovery(chrid, batchfiles, self.popgroup, self.options.min_af,
-                                               CVG, VCF, self.options.batch_count)
+                                               self.options.batch_count, CVG, VCF)
             except Exception, e:
                 logger.error("Variants discovery in region %s:%s-%s. Error: %s" % (
                     chrid, region_boundary_start+1, region_boundary_end+1, e))

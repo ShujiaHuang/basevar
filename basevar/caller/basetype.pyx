@@ -1,3 +1,5 @@
+# cython: profile=True
+
 """
 This module contain functions of LRT and Base genotype.
 """
@@ -33,9 +35,9 @@ cdef class BaseTuple:
             "Could not allocate memory for sum_marginal_likelihood in BaseTuple.")
 
     def __dealloc__(self):
-        self.destory_tuple()
+        self.destroy_tuple()
 
-    cdef void destory_tuple(self):
+    cdef void destroy_tuple(self):
         """Free memory"""
         cdef int index
         if self.base_comb_tuple != NULL:
@@ -306,7 +308,7 @@ cdef class BaseType:
                 break
 
         # clear the_base_tuple
-        the_base_tuple.destory_tuple()
+        the_base_tuple.destroy_tuple()
 
         if lrt_chi_value != NULL:
             free(lrt_chi_value)

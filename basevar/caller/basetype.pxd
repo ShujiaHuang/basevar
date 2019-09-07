@@ -1,12 +1,12 @@
 """Header for basetype.pyx
 """
-cdef extern from "stdlib.h":
+cdef extern from "stdlib.h" nogil:
     void *malloc(size_t)
     void *calloc(size_t, size_t)
     void *memcpy(void *dst, void *src, size_t length)
     void free(void *)
 
-cdef extern from "math.h":
+cdef extern from "math.h" nogil:
     double exp(double)
     double round(double)
     double log(double)
@@ -19,7 +19,7 @@ cdef class BaseTuple:
     cdef char** base_comb_tuple  # => bc
     cdef double* sum_marginal_likelihood  # => lr
     cdef double** alleles_freq_list  # => bp
-    cdef void destory_tuple(self)
+    cdef void destroy_tuple(self)
 
 
 cdef class BaseType:
