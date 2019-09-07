@@ -1,3 +1,4 @@
+# cython: profile=True
 """
 Package for parsing bamfile
 Author: Shujia Huang

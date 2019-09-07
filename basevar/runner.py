@@ -11,7 +11,7 @@ import time
 
 from basevar.log import logger
 from caller.launch import BaseTypeRunner
-# from basevar.utils import do_cprofile
+from basevar.utils import do_cprofile
 
 
 def parser_commandline_args():
@@ -138,7 +138,7 @@ def parser_commandline_args():
     return cmdparse.parse_args()
 
 
-# @do_cprofile("./basetype.prof", True)
+@do_cprofile("./basetype.prof", is_do_profiling=True, stdout=True)
 def basetype(args):
 
     if args.outcvg and not args.outvcf:
@@ -165,12 +165,12 @@ def basetype(args):
 
     # The main function
     bt = BaseTypeRunner(args)
-    processer = bt.basevar_caller()
-
+    bt.basevar_caller_singleprocess()
     is_success = True
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
+    # processer = bt.basevar_caller()
+    # for p in processer:
+    #     if p.exitcode != 0:
+    #         is_success = False
 
     return is_success
 
