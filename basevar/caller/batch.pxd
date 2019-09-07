@@ -3,13 +3,26 @@
 Author: Shujia Huang
 Date: 2019-06-05 10:28:22
 """
-import cython
-
 from basevar.io.fasta cimport FastaFile
 from basevar.io.read cimport cAlignedRead
 
 
-@cython.final
+cdef class BatchInfo:
+    # record the size of array: `*mapqs`==`*strands`==`**sample_bases` == `*sample_base_quals` == `*read_pos_rank`
+    cdef int size
+
+    cdef bytes chrid
+    cdef int position
+    cdef bytes ref_base
+    cdef int depth
+    cdef int *mapqs
+    cdef char *strands
+    cdef char **sample_bases  # could be indel sequence
+    cdef int *sample_base_quals
+    cdef int *read_pos_rank
+    cdef void destroy(self)
+
+
 cdef class BatchElement:
     cdef public bytes ref_name
     cdef public long int ref_pos
@@ -23,7 +36,6 @@ cdef class BatchElement:
     cdef void add_batch_element(self, BatchElement other)
 
 
-@cython.final
 cdef class BatchGenerator:
     cdef int CIGAR_M
     cdef int CIGAR_I

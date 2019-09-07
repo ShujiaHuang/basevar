@@ -44,7 +44,8 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
     if part_num * batchcount < len(align_files):
         part_num += 1
 
-    cdef bytes refseq_bytes = fa.get_sequence(chrom_name, region_boundary_start, region_boundary_end+1.0*options.r_len)
+    cdef bytes refseq_bytes = fa.get_sequence(chrom_name, region_boundary_start,
+                                              region_boundary_end+1.0*options.r_len)
     cdef char* refseq = refseq_bytes
 
     cdef int m = 0
@@ -269,7 +270,7 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list batch_buffers, 
     cdef int depth = 0
     cdef BatchGenerator be_generator
     cdef list sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
-    cdef long int position
+    cdef int position
     cdef bytes ref_base
     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
             open(out_batch_file, "w") as OUT:
