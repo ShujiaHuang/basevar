@@ -19,7 +19,7 @@ cdef class BaseTuple:
     cdef char** base_comb_tuple  # => bc
     cdef double* sum_marginal_likelihood  # => lr
     cdef double** alleles_freq_list  # => bp
-    cdef void destroy_tuple(self)
+    cdef void destroy(self)
 
 
 cdef class BaseType:

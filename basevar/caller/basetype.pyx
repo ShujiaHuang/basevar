@@ -35,9 +35,9 @@ cdef class BaseTuple:
             "Could not allocate memory for sum_marginal_likelihood in BaseTuple.")
 
     def __dealloc__(self):
-        self.destroy_tuple()
+        self.destroy()
 
-    cdef void destroy_tuple(self):
+    cdef void destroy(self):
         """Free memory"""
         cdef int index
         if self.base_comb_tuple != NULL:
@@ -311,7 +311,7 @@ cdef class BaseType:
                 break
 
         # clear the_base_tuple
-        the_base_tuple.destroy_tuple()
+        the_base_tuple.destroy()
 
         if lrt_chi_value != NULL:
             free(lrt_chi_value)
