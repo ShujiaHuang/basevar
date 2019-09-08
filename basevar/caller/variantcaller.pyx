@@ -76,11 +76,7 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
         is_empty = False
 
         # Calling varaints position one by one and output files.
-        _basetypeprocess(batchinfo,
-                         popgroup,
-                         min_af,
-                         cvg_file_handle,
-                         vcf_file_handle)
+        _basetypeprocess(batchinfo, popgroup, min_af, cvg_file_handle, vcf_file_handle)
 
     for fh in batch_files_hd:
         fh.close()
@@ -149,42 +145,46 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
 
     cdef dict popgroup_bt = {}
     cdef bint is_variant = True
-    cdef BaseType bt, group_bt
 
-    cdef list bases = []
-    cdef list strands = []
-    cdef list base_quals = []
+    cdef BaseType bt, group_bt
+    cdef char **group_sample_bases
+    cdef int *group_sample_base_quals
+    cdef int group_sample_size
     cdef int i = 0
     if vcf_file_handle:
 
-        # change later
-        for i in range(batchinfo.size):
-            bases.append(batchinfo.sample_bases[i])
-            base_quals.append(batchinfo.sample_base_quals[i])
-            strands.append(chr(batchinfo.strands[i]))
+        bt = BaseType()
+        bt.cinit(batchinfo.ref_base.upper(), batchinfo.sample_bases, batchinfo.sample_base_quals,
+                 batchinfo.size, min_af)
 
-        bt = BaseType(batchinfo.ref_base.upper(), bases, base_quals, min_af)
         is_variant = bt.lrt(None)  # do not need to set specific_base_combination
 
         if is_variant:
 
             popgroup_bt = {}
             for group, index in popgroup.items():
-                group_sample_bases, group_sample_base_quals = [], []
-                for i in index:
-                    group_sample_bases.append(bases[i])
-                    group_sample_base_quals.append(base_quals[i])
 
-                group_bt = BaseType(batchinfo.ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
+                group_sample_size = len(index)
+                group_sample_bases = <char**>(calloc(group_sample_size, sizeof(char*)))
+                assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _basetypeprocess."
+
+                group_sample_base_quals = <int *>(calloc(group_sample_size, sizeof(int)))
+                assert group_sample_base_quals != NULL, "Could not allocate memory for ``group_sample_base_quals`` in _basetypeprocess."
+
+                # for i in index:
+                for i in range(group_sample_size):
+                    group_sample_bases[i] = batchinfo.sample_bases[index[i]]
+                    group_sample_base_quals[i] = batchinfo.sample_base_quals[index[i]]
+
+                group_bt = BaseType()
+                group_bt.cinit(batchinfo.ref_base.upper(), group_sample_bases, group_sample_base_quals,
+                               group_sample_size, min_af)
 
                 group_bt.lrt([batchinfo.ref_base.upper()] + bt.alt_bases)
                 popgroup_bt[group] = group_bt
 
-
-            mapqs, read_pos_rank = [], []
-            for i in range(batchinfo.size):
-                mapqs.append(batchinfo.mapqs[i])
-                read_pos_rank.append(batchinfo.read_pos_rank[i])
+                free(group_sample_bases)
+                free(group_sample_base_quals)
 
             _out_vcf_line(batchinfo, bt, popgroup_bt, vcf_file_handle)
     return
@@ -247,21 +247,21 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     cdef dict group_cvg = {}
     cdef bytes group
     cdef list index
-    cdef int index_size
+    cdef int group_sample_size
 
     cdef int i = 0
     cdef dict sub_bd
     cdef bytes sub_inds
     for group, index in popgroup.items():
 
-        index_size = len(index)
-        group_sample_bases = <char**>(calloc(index_size, sizeof(char*)))
+        group_sample_size = len(index)
+        group_sample_bases = <char**>(calloc(group_sample_size, sizeof(char*)))
         assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _out_cvg_file."
 
-        for i in range(index_size):
+        for i in range(group_sample_size):
             group_sample_bases[i] = batchinfo.sample_bases[index[i]]
 
-        sub_bd, sub_inds = _base_depth_and_indel(group_sample_bases, index_size)
+        sub_bd, sub_inds = _base_depth_and_indel(group_sample_bases, group_sample_size)
         group_cvg[group] = [sub_bd, sub_inds]
 
         free(group_sample_bases)
