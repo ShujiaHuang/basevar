@@ -51,6 +51,40 @@ cdef class BatchInfo:
         assert self.read_pos_rank != NULL, "Could not allocate memory for self.read_pos_rank in BaseInfo."
         assert self.mapqs != NULL, "Could not allocate memory for self.mapqs in BaseInfo."
 
+    def __str__(self):
+        """
+        __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
+        describing the BatchInfo.
+        """
+        cdef list sample_bases      = []
+        cdef list sample_base_quals = []
+        cdef list read_pos_rank     = []
+        cdef list mapqs             = []
+        cdef list strands           = []
+
+        cdef int i = 0
+        if self.depth > 0:
+            for i in range(self.size):
+                mapqs.append(str(self.mapqs[i]))
+                sample_bases.append(str.upper(self.sample_bases[i]))  # charater to upper()
+                sample_base_quals.append(str(self.sample_base_quals[i]))
+                read_pos_rank.append(str(self.read_pos_rank[i]))
+                strands.append(chr(self.strands[i]))
+
+            return "\t".join([
+                self.chrid,
+                str(self.position),
+                self.ref_base,
+                str(self.depth),
+                ",".join(mapqs),
+                ",".join(sample_bases),
+                ",".join(sample_base_quals),
+                ",".join(read_pos_rank),
+                ",".join(strands)
+            ])
+        else:
+            return "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
+
     def __dealloc__(self):
         self.destroy()
 
