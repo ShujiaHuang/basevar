@@ -20,6 +20,8 @@ cdef class BatchInfo:
     cdef char **sample_bases  # could be indel sequence
     cdef int *sample_base_quals
     cdef int *read_pos_rank
+
+    cdef basestring get_str(self)
     cdef void destroy(self)
 
 
@@ -54,13 +56,13 @@ cdef class BatchGenerator:
     cdef FastaFile ref_fa
     cdef bytes ref_name
     cdef bytes py_refseq
-    cdef char* refseq
+    cdef char *refseq
     cdef long int ref_seq_start
     cdef long int ref_seq_end
     cdef long int reg_start
     cdef long int reg_end
     cdef object options
-    cdef int* filtered_read_counts_by_type
+    cdef int *filtered_read_counts_by_type
 
     cdef void create_batch_in_region(self, tuple region, cAlignedRead** read_start, cAlignedRead** read_end)
     cdef void add_batchelement_to_list(self, BatchElement be)

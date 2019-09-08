@@ -52,6 +52,9 @@ cdef class BatchInfo:
         assert self.mapqs != NULL, "Could not allocate memory for self.mapqs in BaseInfo."
 
     def __str__(self):
+        return self.get_str()
+
+    cdef basestring get_str(self):
         """
         __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
         describing the BatchInfo.

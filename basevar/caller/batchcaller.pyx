@@ -5,6 +5,7 @@ Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
 import os
+import sys
 import time
 
 from basevar.log import logger
@@ -15,7 +16,6 @@ from basevar.io.read cimport check_and_trim_read
 from basevar.io.htslibWrapper cimport Read_IsQCFail
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 
-import sys
 from basevar.io.bam cimport load_bamdata
 from basevar.io.read cimport BamReadBuffer
 
@@ -48,8 +48,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                               region_boundary_end+1.0*options.r_len)
     cdef char* refseq = refseq_bytes
 
-    cdef int m = 0
-    cdef int i = 0
+    cdef int m = 0, i = 0
     for i in range(0, len(align_files), batchcount):
         # Create a batch of temp files which we call them batchfiles for variant discovery
         start_time = time.time()
@@ -111,7 +110,7 @@ cdef void generate_batchfile(bytes chrom_name,
         ``bigend``: It's already 0-base position
         ``regions``: The coordinate in regions is 1-base system.
     """
-    # Just loading baminfo and not need to load header!
+    # Just loading baminfo without loading header!
     cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
     cdef list read_buffers
 
@@ -173,7 +172,7 @@ cdef void generate_batchfile_2(bytes chrom_name,
                                bytes out_batch_file,
                                list batch_sample_ids):
     """Loading bamfile and create a batchfile in ``regions``.
-    
+
     Parameters:
         ``bigstart``: It's already 0-base position
         ``bigend``: It's already 0-base position
@@ -265,15 +264,88 @@ cdef void generate_batchfile_2(bytes chrom_name,
     return
 
 
+# This function is slow
+# cdef void output_batch_file_1(bytes chrom_name, FastaFile fa, list sample_batch_buffers, bytes out_batch_file,
+#                             list batch_sample_ids, list regions):
+#
+#     cdef int sample_size = len(sample_batch_buffers)
+#     cdef BatchInfo batch_info = BatchInfo(chrom_name, sample_size)
+#
+#     cdef BatchGenerator be_generator
+#     cdef bytes kk, tmp_bytes
+#     cdef int position, i
+#     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
+#             open(out_batch_file, "w") as OUT:
+#
+#         OUT.write("##fileformat=BaseVarBatchFile_v1.0\n")
+#         if batch_sample_ids:
+#             OUT.write("##SampleIDs=%s\n" % ",".join(batch_sample_ids))
+#
+#         suff_header = ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
+#                        "ReadbasesQuality", "ReadPositionRank", "Strand"]
+#         OUT.write("%s\n" % "\t".join(suff_header))
+#
+#         for reg_start, reg_end in regions:
+#             for position in range(reg_start, reg_end+1):
+#
+#                 # `batch_info` will be update each loop here.
+#                 # reset depth
+#                 batch_info.depth = 0
+#                 batch_info.position = position
+#                 batch_info.ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
+#
+#                 # set to be 0-base: position - 1
+#                 kk = bytes("%s:%s" % (chrom_name, position-1))
+#                 i = 0
+#                 for i in range(sample_size):
+#                     be_generator = sample_batch_buffers[i]
+#                     if kk in be_generator.batch_heap:
+#
+#                         batch_info.depth += 1
+#                         if be_generator.batch_heap[kk].base_type == 0:
+#                             # Single base
+#                             batch_info.sample_bases[i] = be_generator.batch_heap[kk].read_base
+#                         elif be_generator.batch_heap[kk].base_type == 1:
+#                             # insertion
+#                             tmp_bytes = "+"+be_generator.batch_heap[kk].read_base
+#                             batch_info.sample_bases[i] = tmp_bytes
+#                         elif be_generator.batch_heap[kk].base_type == 2:
+#                             # deletion
+#                             tmp_bytes = "-"+be_generator.batch_heap[kk].ref_base
+#                             batch_info.sample_bases[i] = tmp_bytes
+#                         else:
+#                             raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
+#                                               "\n" % be_generator.batch_heap[kk].read_base)
+#
+#                         batch_info.sample_base_quals[i] = be_generator.batch_heap[kk].base_qual
+#                         batch_info.strands[i] = be_generator.batch_heap[kk].map_strand
+#                         batch_info.mapqs[i] = be_generator.batch_heap[kk].mapq
+#                         batch_info.read_pos_rank[i] = be_generator.batch_heap[kk].read_pos_rank+1
+#                     else:
+#                         batch_info.sample_bases[i] = 'N'
+#                         batch_info.sample_base_quals[i] = 0
+#                         batch_info.strands[i] = '.'
+#                         batch_info.mapqs[i] = 0
+#                         batch_info.read_pos_rank[i] = 0
+#
+#                 OUT.write("%s\n" % batch_info)
+#     return
+
+
 cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_buffers, bytes out_batch_file,
                             list batch_sample_ids, list regions):
 
     cdef int sample_size = len(sample_batch_buffers)
-    cdef BatchInfo batch_info = BatchInfo(chrom_name, sample_size)
+    cdef char *sample_bases
+    cdef char *sample_base_quals
+    cdef char *mapqs
+    cdef char *strands
+    cdef char *read_pos_rank
 
     cdef BatchGenerator be_generator
-    cdef bytes kk, tmp_bytes
-    cdef int position, i
+    cdef bytes kk, tmp_bytes, ref_base
+    cdef int position, depth, i
+
     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
             open(out_batch_file, "w") as OUT:
 
@@ -288,11 +360,14 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_bu
         for reg_start, reg_end in regions:
             for position in range(reg_start, reg_end+1):
 
-                # `batch_info` will be update each loop here.
-                # reset depth
-                batch_info.depth = 0
-                batch_info.position = position
-                batch_info.ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
+                depth = 0
+                sample_bases = <char*>(calloc(10 * sample_size, sizeof(char)))
+                sample_base_quals = <char*>(calloc(10 * sample_size, sizeof(char)))
+                mapqs = <char*>(calloc(10 * sample_size, sizeof(char)))
+                read_pos_rank = <char*>(calloc(10 * sample_size, sizeof(char)))
+                strands = <char*>(calloc(10 * sample_size, sizeof(char)))
+
+                ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
 
                 # set to be 0-base: position - 1
                 kk = bytes("%s:%s" % (chrom_name, position-1))
@@ -301,32 +376,56 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_bu
                     be_generator = sample_batch_buffers[i]
                     if kk in be_generator.batch_heap:
 
-                        batch_info.depth += 1
+                        depth += 1
                         if be_generator.batch_heap[kk].base_type == 0:
                             # Single base
-                            batch_info.sample_bases[i] = be_generator.batch_heap[kk].read_base
+                            strcat(sample_bases, be_generator.batch_heap[kk].read_base)
                         elif be_generator.batch_heap[kk].base_type == 1:
                             # insertion
                             tmp_bytes = "+"+be_generator.batch_heap[kk].read_base
-                            batch_info.sample_bases[i] = tmp_bytes
+                            strcat(sample_bases, tmp_bytes)
                         elif be_generator.batch_heap[kk].base_type == 2:
                             # deletion
-                            tmp_bytes = "-"+be_generator.batch_heap[kk].ref_base
-                            batch_info.sample_bases[i] = tmp_bytes
+                            tmp_bytes = "-"+str.upper(be_generator.batch_heap[kk].ref_base)
+                            strcat(sample_bases, tmp_bytes)
                         else:
                             raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
                                               "\n" % be_generator.batch_heap[kk].read_base)
 
-                        batch_info.sample_base_quals[i] = be_generator.batch_heap[kk].base_qual
-                        batch_info.strands[i] = be_generator.batch_heap[kk].map_strand
-                        batch_info.mapqs[i] = be_generator.batch_heap[kk].mapq
-                        batch_info.read_pos_rank[i] = be_generator.batch_heap[kk].read_pos_rank+1
-                    else:
-                        batch_info.sample_bases[i] = 'N'
-                        batch_info.sample_base_quals[i] = 0
-                        batch_info.strands[i] = '.'
-                        batch_info.mapqs[i] = 0
-                        batch_info.read_pos_rank[i] = 0
+                        strcat(sample_base_quals, b"%d" % be_generator.batch_heap[kk].base_qual)
+                        strcat(mapqs, b"%d" % be_generator.batch_heap[kk].mapq)
+                        strcat(strands, chr(be_generator.batch_heap[kk].map_strand))
+                        strcat(read_pos_rank, b"%d" % (be_generator.batch_heap[kk].read_pos_rank+1))
 
-                OUT.write("%s\n" % batch_info)
+                    else:
+                        strcat(sample_bases, "N")
+                        strcat(sample_base_quals, "0")
+                        strcat(mapqs, "0")
+                        strcat(strands, ".")
+                        strcat(read_pos_rank, "0")
+
+                    if i + 1 < sample_size:
+                        strcat(sample_bases, ",")
+                        strcat(sample_base_quals, ",")
+                        strcat(mapqs, ",")
+                        strcat(strands, ",")
+                        strcat(read_pos_rank, ",")
+
+                OUT.write("%s\n" % "\t".join([
+                    chrom_name,
+                    str(position),
+                    ref_base,
+                    str(depth),
+                    mapqs if depth > 0 else '.',
+                    sample_bases if depth > 0 else '.',
+                    sample_base_quals if depth > 0 else '.',
+                    read_pos_rank if depth > 0 else '.',
+                    strands if depth > 0 else '.'
+                ]))
+
+                free(sample_bases)
+                free(sample_base_quals)
+                free(mapqs)
+                free(read_pos_rank)
+                free(strands)
     return

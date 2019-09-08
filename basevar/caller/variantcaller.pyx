@@ -16,7 +16,7 @@ from basevar.caller.batch cimport BatchInfo
 
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
                              int batch_count, cvg_file_handle, vcf_file_handle):
-    """Function for variants discovery
+    """Function for variants discovery.
     """
     cdef list sampleinfos = []
     cdef list batch_files_hd = [Open(f, 'rb') for f in batchfiles]
@@ -82,6 +82,33 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
         fh.close()
 
     return is_empty
+
+
+# cdef bint variants_discovery(FastaFile fa,
+#                              list align_files,
+#                              bytes chrid,
+#                              list regions,
+#                              long int region_boundary_start,
+#                              long int region_boundary_end,
+#                              dict popgroup,
+#                              list sample_ids,
+#                              float min_af,
+#                              object options,
+#                              cvg_file_handle,
+#                              vcf_file_handle):
+#
+#     cdef bint is_empty = True
+#     cdef int total_sample_num = len(sample_ids)
+#
+#     # All the information for all samples for variants calling are here!
+#     cdef BatchInfo batchinfo = BatchInfo(chrid, total_sample_num)
+#
+#     cdef bytes refseq_bytes = fa.get_sequence(chrid, region_boundary_start, region_boundary_end+1.0*options.r_len)
+#     cdef char* refseq = refseq_bytes
+#
+#     pass
+#
+#     return is_empty
 
 
 cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int batch_count, BatchInfo batchinfo):
