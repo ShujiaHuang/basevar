@@ -10,7 +10,7 @@ from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
 
 
-def do_cprofile(filename, is_do_profiling=False):
+def do_cprofile(filename, is_do_profiling=False, stdout=False):
     """
     Decorator for function profiling.
     """
@@ -27,6 +27,10 @@ def do_cprofile(filename, is_do_profiling=False):
                 sortby = "tottime"
                 ps = pstats.Stats(profile).sort_stats(sortby)
                 ps.dump_stats(filename)
+
+                # Output profile to STDOUT
+                if stdout:
+                    ps.strip_dirs().sort_stats("time").print_stats()
             else:
                 result = func(*args, **kwargs)
 

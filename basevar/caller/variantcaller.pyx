@@ -1,17 +1,21 @@
+# cython: profile=True
 """This is a Process module for BaseType
 """
 import sys
 
 from basevar.log import logger
+
 from basevar.io.openfile import Open
 from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
-from basevar.caller.algorithm import strand_bias
+from basevar.caller.algorithm cimport strand_bias
 from basevar.caller.algorithm cimport ref_vs_alt_ranksumtest
 
 from basevar.caller.basetype cimport BaseType
+from basevar.caller.batch cimport BatchInfo
+
 
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
-                             cvg_file_handle, vcf_file_handle, batch_count):
+                             int batch_count, cvg_file_handle, vcf_file_handle):
     """Function for variants discovery
     """
     cdef list sampleinfos = []
@@ -19,14 +23,11 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
     cdef bint is_empty = True
     cdef bint eof = False
     cdef bint is_error = False
-    cdef int n = 0
-    cdef int depth = 0
-    cdef list sample_bases = []
-    cdef list sample_base_quals = []
-    cdef list mapqs = []
-    cdef list read_pos_rank = []
-    cdef list strands = []
 
+    cdef int total_sample_num = batch_count * len(batchfiles)
+    cdef BatchInfo batchinfo = BatchInfo(chrid, total_sample_num)
+
+    cdef int n = 0
     while True:
         # Loading ...
         # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
@@ -51,60 +52,50 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
                     "positions in above files." % "\n".join(batchfiles))
             break
 
-        # Empty! Just have header information.
+        # Empty!! Just get header information.
         if not sampleinfos:
             continue
 
-        position = int(sampleinfos[0][1])
-        ref_base = sampleinfos[0][2]
+        # reset position and ref_base
+        batchinfo.position = int(sampleinfos[0][1])
+        batchinfo.ref_base = sampleinfos[0][2]
+
         if n % 10000 == 0:
             logger.info("Have been loading %d lines when hit position %s:%d" %
-                        (n if n > 0 else 1, chrid, position))
+                        (n if n > 0 else 1, chrid, batchinfo.position))
         n += 1
 
-        (depth,
-         sample_bases,
-         sample_base_quals,
-         strands,
-         mapqs,
-         read_pos_rank) = _fetch_baseinfo_by_position_from_batchfiles(chrid, position, ref_base,
-                                                                      sampleinfos, batch_count)
+        # data in ``batchinfo`` will been updated automatically in this funcion
+        _fetch_baseinfo_by_position_from_batchfiles(sampleinfos, batch_count, batchinfo)
 
         # ignore if coverage=0
-        if depth == 0:
+        if batchinfo.depth == 0:
             continue
 
         # Not empty
         is_empty = False
 
-        # Calling varaints by Basetypes and output VCF and Coverage files.
-        _basetypeprocess(chrid,
-                         position,
-                         ref_base,
-                         sample_bases,
-                         sample_base_quals,
-                         mapqs,
-                         strands,
-                         read_pos_rank,
-                         popgroup,
-                         min_af,
-                         cvg_file_handle,
-                         vcf_file_handle)
+        # Calling varaints position one by one and output files.
+        _basetypeprocess(batchinfo, popgroup, min_af, cvg_file_handle, vcf_file_handle)
 
     for fh in batch_files_hd:
         fh.close()
 
     return is_empty
 
-cdef tuple _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position, bytes ref_base,
-                                                       list infolines, int batch_count):
-    cdef list sample_bases = []
-    cdef list sample_base_quals = []
-    cdef list mapqs = []
-    cdef list read_pos_rank = []
-    cdef list strands = []
-    cdef int depth = 0
-    cdef num = 0
+
+cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int batch_count, BatchInfo batchinfo):
+
+    # reset depth
+    batchinfo.depth = 0
+
+    cdef char *c_t4
+    cdef char *c_t5
+    cdef char *c_t6
+    cdef char *c_t7
+    cdef char *c_t8
+
+    cdef int n = 0, index = 0
     for i, col in enumerate(infolines):
         # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
         if len(col) == 0:
@@ -112,105 +103,118 @@ cdef tuple _fetch_baseinfo_by_position_from_batchfiles(bytes chrid, int position
             sys.exit(1)
 
         col[1], col[3] = map(int, [col[1], col[3]])
-        if col[0] != chrid or col[1] != position or col[2] != ref_base:
+        if col[0] != batchinfo.chrid or col[1] != batchinfo.position or col[2] != batchinfo.ref_base:
             logger.error("%d lines, chromosome [%s and %s] or position [%d and %d] "
                          "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
-                         (i + 1, col[0], chrid, col[1], position, col[2], ref_base))
+                         (i + 1, col[0], batchinfo.chrid, col[1], batchinfo.position, col[2], batchinfo.ref_base))
             sys.exit(1)
 
-        if col[3] == 0:
-            t4, t5, t6, t7, t8 = [], [], [], [], []
-            for num in range(batch_count):
-                t4.append('0')
-                t5.append('N')
-                t6.append('0')
-                t7.append('0')
-                t8.append('.')
+        batchinfo.depth += col[3]
+        if col[3] > 0:
 
-            col[4] = ",".join(t4)
-            col[5] = ",".join(t5)
-            col[6] = ",".join(t6)
-            col[7] = ",".join(t7)
-            col[8] = ",".join(t8)
+            c_t4, c_t5, c_t6, c_t7, c_t8 = col[4:9]
+            for n in range(batch_count):
 
-        depth += col[3]
-        mapqs.append(col[4])
-        sample_bases.append(col[5].upper())
-        sample_base_quals.append(col[6])
-        read_pos_rank.append(col[7])
-        strands.append(col[8])
+                # if catch segmentation fault then the problem would probably be here!
+                batchinfo.mapqs[index] = atoi(strsep(&c_t4, ","))
+                batchinfo.sample_bases[index] = strsep(&c_t5, ",")  # must all be all upper charater in batchfile!
+                batchinfo.sample_base_quals[index] = atoi(strsep(&c_t6, ","))
+                batchinfo.read_pos_rank[index] = atoi(strsep(&c_t7, ","))
+                batchinfo.strands[index] = strsep(&c_t8, ",")[0] # It's char not string
 
-    # cat all the info together and create ...
-    mapqs = map(int, ",".join(mapqs).split(","))
-    sample_bases = ",".join(sample_bases).split(",")
-    sample_base_quals = map(int, ",".join(sample_base_quals).split(","))
-    read_pos_rank = map(int, ",".join(read_pos_rank).split(","))
-    strands = ",".join(strands).split(",")
+                # move to the next
+                index += 1
+        else:
+            for n in range(batch_count):
 
-    return (depth, sample_bases, sample_base_quals, strands, mapqs, read_pos_rank)
+                batchinfo.mapqs[index] = 0
+                batchinfo.sample_bases[index] = "N"
+                batchinfo.sample_base_quals[index] = 0
+                batchinfo.read_pos_rank[index] = 0
+                batchinfo.strands[index] = "."
 
-def _basetypeprocess(chrid, position, ref_base, bases, base_quals, mapqs, strands, read_pos_rank,
-                     popgroup, min_af, cvg_file_handle, vcf_file_handle):
-    
-    _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, cvg_file_handle)
+                # move to the next
+                index += 1
+
+    return
+
+
+cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg_file_handle, vcf_file_handle):
+
+    _out_cvg_file(batchinfo, popgroup, cvg_file_handle)
 
     cdef dict popgroup_bt = {}
     cdef bint is_variant = True
+
     cdef BaseType bt, group_bt
+    cdef char **group_sample_bases
+    cdef int *group_sample_base_quals
+    cdef int group_sample_size
+    cdef int i = 0
     if vcf_file_handle:
 
-        bt = BaseType(ref_base.upper(), bases, base_quals, min_af)
+        bt = BaseType()
+        bt.cinit(batchinfo.ref_base.upper(), batchinfo.sample_bases, batchinfo.sample_base_quals,
+                 batchinfo.size, min_af)
+
         is_variant = bt.lrt(None)  # do not need to set specific_base_combination
 
         if is_variant:
 
             popgroup_bt = {}
             for group, index in popgroup.items():
-                group_sample_bases, group_sample_base_quals = [], []
-                for i in index:
-                    group_sample_bases.append(bases[i])
-                    group_sample_base_quals.append(base_quals[i])
 
-                group_bt = BaseType(ref_base.upper(), group_sample_bases, group_sample_base_quals, min_af)
+                group_sample_size = len(index)
+                group_sample_bases = <char**>(calloc(group_sample_size, sizeof(char*)))
+                assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _basetypeprocess."
 
-                group_bt.lrt([ref_base.upper()] + bt.alt_bases)
+                group_sample_base_quals = <int *>(calloc(group_sample_size, sizeof(int)))
+                assert group_sample_base_quals != NULL, "Could not allocate memory for ``group_sample_base_quals`` in _basetypeprocess."
+
+                # for i in index:
+                for i in range(group_sample_size):
+                    group_sample_bases[i] = batchinfo.sample_bases[index[i]]
+                    group_sample_base_quals[i] = batchinfo.sample_base_quals[index[i]]
+
+                group_bt = BaseType()
+                group_bt.cinit(batchinfo.ref_base.upper(), group_sample_bases, group_sample_base_quals,
+                               group_sample_size, min_af)
+
+                group_bt.lrt([batchinfo.ref_base.upper()] + bt.alt_bases)
                 popgroup_bt[group] = group_bt
 
-            _out_vcf_line(chrid,
-                          position,
-                          ref_base,
-                          bases,
-                          mapqs,
-                          read_pos_rank,
-                          base_quals,
-                          strands,
-                          bt,
-                          popgroup_bt,
-                          vcf_file_handle)
+                free(group_sample_bases)
+                free(group_sample_base_quals)
+
+            _out_vcf_line(batchinfo, bt, popgroup_bt, vcf_file_handle)
     return
 
-def _base_depth_and_indel(bases):
+
+cdef list _base_depth_and_indel(char **bases, int size):
     # coverage info for each position
-    base_depth = {b: 0 for b in CommonParameter.BASE}
-    indel_depth = {}
+    cdef dict base_depth = {b: 0 for b in CommonParameter.BASE}
+    cdef dict indel_depth = {}
 
-    for b in bases:
+    cdef int i = 0
+    # for b in bases:
+    for i in range(size):
 
-        if b == "N":
+        # The size of `base[i]` would be 1 except indel!
+        if bases[i][0] == 'N':
             continue
 
-        if b in base_depth:
+        if bases[i] in base_depth:
             # ignore all bases('*') which not match ``cmm.BASE``
-            base_depth[b] += 1
+            base_depth[bases[i]] += 1
         else:
             # Indel
-            indel_depth[b] = indel_depth.get(b, 0) + 1
+            indel_depth[bases[i]] = indel_depth.get(bases[i], 0) + 1
 
-    indel_string = ','.join(
+    cdef bytes indels = bytes(','.join(
         [k + '|' + str(v) for k, v in indel_depth.items()]
-    ) if indel_depth else "."
+    ) if indel_depth else ".")
 
-    return [base_depth, indel_string]
+    return [base_depth, indels]
 
 def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handle, out_vcf_handle=None):
     info, group = [], []
@@ -229,93 +233,114 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
 
     return
 
-def _out_cvg_file(chrid, position, ref_base, bases, strands, popgroup, out_file_handle):
+cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     """output coverage information into `out_file_handle`"""
 
     # coverage info for each position
-    base_depth, indel_string = _base_depth_and_indel(bases)
+    cdef dict base_depth
+    cdef bytes indels
+    base_depth, indels = _base_depth_and_indel(batchinfo.sample_bases, batchinfo.size)
 
     # base depth and indels for each subgroup
-    group_cvg = {}
+    cdef char **group_sample_bases
+
+    cdef dict group_cvg = {}
+    cdef bytes group
+    cdef list index
+    cdef int group_sample_size
+
+    cdef int i = 0
+    cdef dict sub_bd
+    cdef bytes sub_inds
     for group, index in popgroup.items():
 
-        group_sample_bases = []
-        for i in index:
-            group_sample_bases.append(bases[i])
+        group_sample_size = len(index)
+        group_sample_bases = <char**>(calloc(group_sample_size, sizeof(char*)))
+        assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _out_cvg_file."
 
-        bd, ind = _base_depth_and_indel(group_sample_bases)
-        group_cvg[group] = [bd, ind]
+        for i in range(group_sample_size):
+            group_sample_bases[i] = batchinfo.sample_bases[index[i]]
 
+        sub_bd, sub_inds = _base_depth_and_indel(group_sample_bases, group_sample_size)
+        group_cvg[group] = [sub_bd, sub_inds]
+
+        free(group_sample_bases)
+
+    cdef double fs, sor
+    cdef int ref_fwd, ref_rev, alt_fwd, alt_rev
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
+
+    cdef bytes ref_base = batchinfo.ref_base
+    cdef bytes b1, b2
     if sum(base_depth.values()) > 0:
         base_sorted = sorted(base_depth.items(), key=lambda x: x[1], reverse=True)
-
         b1, b2 = base_sorted[0][0], base_sorted[1][0]
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-            ref_base.upper(),
-            [b1 if b1 != ref_base.upper() else b2],
-            bases,
-            strands
+            ref_base.upper(),  # reference
+            [b1 if b1 != ref_base.upper() else b2],  # alt-allele
+            batchinfo.sample_bases,
+            batchinfo.strands,
+            batchinfo.size
         )
 
+    cdef list group_info
     if sum(base_depth.values()):
 
         group_info = []
         if group_cvg:
-            for k in popgroup.keys():
+            for k in group_cvg.keys():
                 depth, indel = group_cvg[k]
-
                 indel = [indel] if indel != "." else []
                 s = ':'.join(map(str, [depth[b] for b in CommonParameter.BASE]) + indel)
                 group_info.append(s)
 
         out_file_handle.write(
             '\t'.join(
-                [chrid, str(position), ref_base, str(sum(base_depth.values()))] +
+                [batchinfo.chrid, str(batchinfo.position), ref_base, str(sum(base_depth.values()))] +
                 [str(base_depth[b]) for b in CommonParameter.BASE] +
-                [indel_string] +
-                [str("%.3f" % fs),
-                 str("%.3f" % sor),
-                 ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
+                [indels] +
+                [str("%.3f" % fs), str("%.3f" % sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
                 group_info
             ) + '\n'
         )
 
     return
 
-def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample_base_qual,
-                  strands, BaseType bt, dict pop_group_bt, out_file_handle):
+cdef void _out_vcf_line(BatchInfo batchinfo, BaseType bt, dict pop_group_bt, out_file_handle):
     """output vcf lines into `out_file_handle`"""
 
-    alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases)}
-    samples = []
+    cdef dict alt_gt = {b: './' + str(k + 1) for k, b in enumerate(bt.alt_bases)}
+    cdef list samples = []
+    cdef int k
+    cdef char *b
+    # for k, b in enumerate(bases):
+    for k in range(batchinfo.size):
 
-    for k, b in enumerate(bases):
-
+        b = batchinfo.sample_bases[k]
         # For sample FORMAT
-        if b != 'N' and b[0] not in ['-', '+']:
+        if b[0] not in ['N', '-', '+']:
             # For the base which not in bt.alt_bases()
             if b not in alt_gt:
                 alt_gt[b] = './.'
 
-            gt = '0/.' if b == ref_base.upper() else alt_gt[b]
+            gt = '0/.' if b == batchinfo.ref_base.upper() else alt_gt[b]
 
-            samples.append(gt + ':' + b + ':' + strands[k] + ':' +
+            samples.append(gt + ':' + b + ':' + chr(batchinfo.strands[k]) + ':' +
                            str(round(bt.qual_pvalue[k], 6)))
         else:
             samples.append('./.')  # 'N' base or indel
 
     # Rank Sum Test for mapping qualities of REF versus ALT reads
-    mq_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                         zip(bases, mapqs))
+    mq_rank_sum = ref_vs_alt_ranksumtest(batchinfo.ref_base.upper(), bt.alt_bases, batchinfo.sample_bases,
+                                         batchinfo.mapqs, batchinfo.size)
 
     # Rank Sum Test for variant appear position among read of REF versus ALT
-    read_pos_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                               zip(bases, read_pos_rank))
+    read_pos_rank_sum = ref_vs_alt_ranksumtest(batchinfo.ref_base.upper(), bt.alt_bases, batchinfo.sample_bases,
+                                               batchinfo.read_pos_rank, batchinfo.size)
 
     # Rank Sum Test for base quality of REF versus ALT
-    base_q_rank_sum = ref_vs_alt_ranksumtest(ref_base.upper(), bt.alt_bases,
-                                             zip(bases, sample_base_qual))
+    base_q_rank_sum = ref_vs_alt_ranksumtest(batchinfo.ref_base.upper(), bt.alt_bases, batchinfo.sample_bases,
+                                             batchinfo.sample_base_quals, batchinfo.size)
 
     # Variant call confidence normalized by depth of sample reads
     # supporting a variant.
@@ -325,7 +350,12 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
     # Strand bias by fisher exact test and Strand bias estimated by the
     # Symmetric Odds Ratio test
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
-        ref_base.upper(), bt.alt_bases, bases, strands)
+        batchinfo.ref_base.upper(),
+        bt.alt_bases,
+        batchinfo.sample_bases,
+        batchinfo.strands,
+        batchinfo.size
+    )
 
     # base=>[CAF, allele depth], CAF = Allele frequency by read count
     caf = {b: ['%f' % round(bt.depth[b] / float(bt.total_depth), 6),
@@ -349,14 +379,14 @@ def _out_vcf_line(chrid, position, ref_base, bases, mapqs, read_pos_rank, sample
 
     if pop_group_bt:
         for group, g_bt in pop_group_bt.items():
-            af = ','.join(map(str, [g_bt.af_by_lrt[b] if b in g_bt.af_by_lrt else 0
-                                    for b in bt.alt_bases]))
+            af = ','.join(map(str, [g_bt.af_by_lrt[bb] if bb in g_bt.af_by_lrt else 0
+                                    for bb in bt.alt_bases]))
             info[group] = af
 
-    out_file_handle.write('\t'.join([chrid, str(position), '.', ref_base,
+    out_file_handle.write('\t'.join([batchinfo.chrid, str(batchinfo.position), '.', batchinfo.ref_base,
                                      ','.join(bt.alt_bases), str(bt.var_qual),
                                      '.' if bt.var_qual > CommonParameter.QUAL_THRESHOLD else 'LowQual',
-                                     ';'.join([k + '=' + v for k, v in sorted(
+                                     ';'.join([kk + '=' + vv for kk, vv in sorted(
                                          info.items(), key=lambda x: x[0])]),
                                      'GT:AB:SO:BP'] + samples) + '\n')
     return

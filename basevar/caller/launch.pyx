@@ -1,10 +1,11 @@
+# cython: profile=True
 """
 This module will contain all the executor steps of BaseVar.
 
 We have many important modules in BaseVar while this one is
 the lord to rule them all, in a word, it's "The Ring".
 
-``BaseVar.py`` is "Sauron", and 'executor.py' module could just be called by it.
+``runner.py`` is "Sauron", and 'launch.pyx' module could just be called by it.
 """
 from __future__ import division
 
@@ -14,11 +15,10 @@ import time
 
 from basevar.log import logger
 from basevar import utils
-# from basevar.utils import do_cprofile
 
 from basevar.io.bam cimport get_sample_names
 from basevar.io.BGZF.tabix import tabix_index
-from basevar.caller import CallerProcess, process_runner
+from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
 
 def _generate_regions_for_each_process(regions, process_num=1):
@@ -110,7 +110,6 @@ class BaseTypeRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
 
-    # @do_cprofile("./basevar_caller.prof", True)
     def basevar_caller(self):
         """
         Run variant caller
@@ -156,6 +155,55 @@ class BaseTypeRunner(object):
                                            options=self.options))
 
         process_runner(processes)
+
+        # Final output
+        _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
+
+        return processes
+
+    def basevar_caller_singleprocess(self):
+        """
+        Run variant caller --------- Just for Testting, when we done, please delete this function!!!!!!
+        """
+        sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' % time.asctime())
+
+        out_vcf_names = []
+        out_cvg_names = []
+
+        processes = []
+        # Always create process manager even if nCPU==1, so that we can
+        # listen signals from main thread
+        for i in range(self.nCPU):
+            sub_cvg_file = self.outcvg + '_temp_%s' % i
+            out_cvg_names.append(sub_cvg_file)
+
+            if self.outvcf:
+                sub_vcf_file = self.outvcf + '_temp_%s' % i
+                out_vcf_names.append(sub_vcf_file)
+            else:
+                sub_vcf_file = None
+
+            tmpd, name = os.path.split(os.path.realpath(sub_cvg_file))
+            cache_dir = tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
+
+            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
+                             '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
+
+            if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
+                # if `cache_dir` is not exist and `sub_cvg_file` is exists means
+                # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+                continue
+
+            cache_dir = utils.safe_makedir(cache_dir)
+            bp = BaseVarProcess(self.sample_id,
+                                self.alignfiles,
+                                self.reference_file,
+                                self.regions_for_each_process[i],
+                                out_cvg_file=sub_cvg_file,
+                                out_vcf_file=sub_vcf_file,
+                                cache_dir=cache_dir,
+                                options=self.options)
+            bp.run()
 
         # Final output
         _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)

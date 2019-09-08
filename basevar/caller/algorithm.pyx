@@ -24,25 +24,29 @@ cdef void EM(double* init_allele_freq,
     return
 
 
-cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, list data):
+cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, char **bases, int *info, int data_size):
     """Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
 
-    ``data`` : A 2-D list,
+    ``bases`` : A string array
              A tuple content pair-data for sample_base with other.
-             e.g: zip(sample_base, mapq)
+             
+    ``info`` : A integer array
+        ``info`` is the same size as ``bases`` for record information for bases
+        e.g: ``bases`` = sample_base and ``info`` is mapqs (mapping quality)
 
     """
-    cdef int data_size = len(data)
     cdef double* ref = <double*>(malloc(data_size * sizeof(double)))
     cdef double* alt = <double*>(malloc(data_size * sizeof(double)))
 
     cdef int i = 0
     cdef int size_ref = 0
     cdef int size_alt = 0
+    cdef char *b
+    cdef int d
     for i in range(data_size):
 
-        b, d = data[i]
-        if b == 'N' or b[0] == '-' or b[0] == '+':
+        b, d = bases[i], info[i]
+        if b[0] in ['N', '-', '+']:
             continue
 
         if b == ref_base:
@@ -84,15 +88,15 @@ cdef double ref_vs_alt_ranksumtest(bytes ref_base, list alt_base, list data):
     return phred_scale_value
 
 
-def strand_bias(ref_base, alt_base, bases, strands):
+cdef tuple strand_bias(bytes ref_base, list alt_bases, char **bases, char *strands, int size):
     """
     A method for calculating the strand bias of REF_BASE and ALT_BASE
 
     :param ref_base:  char, required
         The reference base
 
-    :param alt_base: array like, required
-        A list of alt bases.
+    :param alt_bases: array like, required
+        A list of alt bases
 
     :param sample_base: array-like, required
         A list of bases cover this position
@@ -105,33 +109,35 @@ def strand_bias(ref_base, alt_base, bases, strands):
     """
     cdef int ref_fwd = 0, ref_rev = 0, alt_fwd = 0, alt_rev = 0
 
-    for s, b in zip(strands, bases):
+    cdef int i = 0
+    # for s, b in zip(strands, bases):
+    for i in range(size):
 
-        # ignore non bases or indels
-        if b == 'N' or b[0] in ['-', '+']:
+        # ignore "N" or indels
+        if bases[i][0] in ['N', '-', '+']:
+            # `bases[i]` is char*
             continue
 
-        if s == '+':
-            if b == ref_base:
+        if strands[i] == '+':
+            if bases[i] == ref_base:
                 ref_fwd += 1
-            elif b in alt_base:
+
+            elif bases[i] in alt_bases:
                 alt_fwd += 1
 
-        elif s == '-':
-            if b == ref_base:
+        elif strands[i] == '-':
+            if bases[i] == ref_base:
                 ref_rev += 1
-            elif b in alt_base:
+            elif bases[i] in alt_bases:
                 alt_rev += 1
 
         else:
-            raise ValueError('[ERROR] Get strange strand symbol %s' % s)
+            raise ValueError('[ERROR] Get strange strand symbol: "%s"' % chr(strands[i]))
 
     cdef double left_p, right_p, twoside_p, fs
 
     # exact_fisher_test from htslib
-    kt_fisher_exact(ref_fwd, ref_rev, alt_fwd,
-                    alt_rev, &left_p, &right_p, &twoside_p)
-
+    kt_fisher_exact(ref_fwd, ref_rev, alt_fwd, alt_rev, &left_p, &right_p, &twoside_p)
     if twoside_p == 1.0:
         fs = 0.0
     elif twoside_p > 0.0:
@@ -141,5 +147,5 @@ def strand_bias(ref_base, alt_base, bases, strands):
 
     # Strand bias estimated by the Symmetric Odds Ratio test
     # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php
-    sor = float(ref_fwd * alt_rev) / (ref_rev * alt_fwd) if ref_rev * alt_fwd > 0 else 10000.0
-    return fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev
+    cdef double sor = float(ref_fwd * alt_rev) / (ref_rev * alt_fwd) if ref_rev * alt_fwd > 0 else 10000.0
+    return (fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev)

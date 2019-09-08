@@ -1,3 +1,4 @@
+# cython: profile=True
 """
 Author: Shujia Huang
 Date: 2019-06-05 10:59:21
@@ -24,12 +25,92 @@ cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
 
-cdef extern from "stdlib.h":
+cdef extern from "stdlib.h" nogil:
     void *calloc(size_t, size_t)
     void free(void *)
 
 
-@cython.final
+# A class to store batch information.
+cdef class BatchInfo:
+
+    def __cinit__(self, bytes chrid, int size):
+        self.size = size
+        self.chrid = chrid
+        self.position = 0
+        self.depth = 0
+        self.strands = <char*>(calloc(size, sizeof(char)))
+        self.sample_bases = <char**>(calloc(size, sizeof(char*)))
+        self.sample_base_quals = <int*>(calloc(size, sizeof(int)))
+        self.read_pos_rank = <int*>(calloc(size, sizeof(int)))
+        self.mapqs = <int*>(calloc(size, sizeof(int)))
+
+        # check initialization
+        assert self.strands != NULL, "Could not allocate memory for self.strands in BatchInfo."
+        assert self.sample_bases != NULL, "Could not allocate memory for self.sample_bases in BatchInfo."
+        assert self.sample_base_quals != NULL, "Could not allocate memory for self.sample_base_quals in BatchInfo."
+        assert self.read_pos_rank != NULL, "Could not allocate memory for self.read_pos_rank in BaseInfo."
+        assert self.mapqs != NULL, "Could not allocate memory for self.mapqs in BaseInfo."
+
+    def __str__(self):
+        """
+        __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
+        describing the BatchInfo.
+        """
+        cdef list sample_bases      = []
+        cdef list sample_base_quals = []
+        cdef list read_pos_rank     = []
+        cdef list mapqs             = []
+        cdef list strands           = []
+
+        cdef int i = 0
+        if self.depth > 0:
+            for i in range(self.size):
+                mapqs.append(str(self.mapqs[i]))
+                sample_bases.append(str.upper(self.sample_bases[i]))  # charater to upper()
+                sample_base_quals.append(str(self.sample_base_quals[i]))
+                read_pos_rank.append(str(self.read_pos_rank[i]))
+                strands.append(chr(self.strands[i]))
+
+            return "\t".join([
+                self.chrid,
+                str(self.position),
+                self.ref_base,
+                str(self.depth),
+                ",".join(mapqs),
+                ",".join(sample_bases),
+                ",".join(sample_base_quals),
+                ",".join(read_pos_rank),
+                ",".join(strands)
+            ])
+        else:
+            return "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
+
+    def __dealloc__(self):
+        self.destroy()
+
+    cdef void destroy(self):
+        """Free memory"""
+
+        self.depth = 0
+        if self.strands != NULL:
+            free(self.strands)
+
+        cdef int i = 0
+        if self.sample_bases != NULL:
+            free(self.sample_bases)
+
+        if self.sample_base_quals != NULL:
+            free(self.sample_base_quals)
+
+        if self.read_pos_rank != NULL:
+            free(self.read_pos_rank)
+
+        if self.mapqs != NULL:
+            free(self.mapqs)
+
+        return
+
+
 cdef class BatchElement(object):
     """
     Class to encapsulate information for all position. The basic idea is to tread all position as batch.
@@ -68,7 +149,6 @@ cdef class BatchElement(object):
         pass
 
 
-@cython.final
 cdef class BatchGenerator(object):
     """
     A class to generate batch informattion from a bunch of reads.
