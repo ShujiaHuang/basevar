@@ -1,5 +1,4 @@
 # cython: profile=True
-
 """
 This module contain functions of LRT and Base genotype.
 """
@@ -70,7 +69,9 @@ cdef class BaseType:
         pass
 
     cdef void cinit (self, bytes ref_base, char **bases, int *quals, int total_sample_size, float min_af):
-        """A class for calculate the base probability
+        """ Iinitial all the data here.
+        
+        A class for calculate the base probability
 
         Parameters
         ----------
