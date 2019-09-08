@@ -10,7 +10,7 @@ import time
 from basevar.log import logger
 from basevar.io.openfile import Open
 from basevar.io.fasta cimport FastaFile
-from basevar.caller.batch cimport BatchGenerator
+from basevar.caller.batch cimport BatchGenerator, BatchInfo
 from basevar.io.read cimport check_and_trim_read
 from basevar.io.htslibWrapper cimport Read_IsQCFail
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
@@ -153,7 +153,7 @@ cdef void generate_batchfile(bytes chrom_name,
 
         batch_buffers.append(be_generator)
 
-    # Todo: take care these codes, although they may not been called forever.
+    # Todo: take care here, although these may not been called forever.
     if longest_read_size > options.r_len:
         options.r_len = longest_read_size
 
@@ -265,13 +265,15 @@ cdef void generate_batchfile_2(bytes chrom_name,
     return
 
 
-cdef void output_batch_file(bytes chrom_name, FastaFile fa, list batch_buffers, bytes out_batch_file,
+cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_buffers, bytes out_batch_file,
                             list batch_sample_ids, list regions):
-    cdef int depth = 0
+
+    cdef int sample_size = len(sample_batch_buffers)
+    cdef BatchInfo batch_info = BatchInfo(chrom_name, sample_size)
+
     cdef BatchGenerator be_generator
-    cdef list sample_bases, sample_base_quals, strands, mapqs, read_pos_rank
-    cdef int position
-    cdef bytes ref_base
+    cdef bytes kk, tmp_bytes
+    cdef int position, i
     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
             open(out_batch_file, "w") as OUT:
 
@@ -281,60 +283,50 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list batch_buffers, 
 
         suff_header = ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
                        "ReadbasesQuality", "ReadPositionRank", "Strand"]
-
         OUT.write("%s\n" % "\t".join(suff_header))
+
         for reg_start, reg_end in regions:
             for position in range(reg_start, reg_end+1):
 
-                # clear data
-                depth = 0
-                sample_bases = []
-                sample_base_quals = []
-                strands = []
-                mapqs = []
-                read_pos_rank = []
+                # `batch_info` will be update each loop here.
+                # reset depth
+                batch_info.depth = 0
+                batch_info.position = position
+                batch_info.ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
 
                 # set to be 0-base: position - 1
-                kk = "%s:%s" % (chrom_name, position-1)
-                ref_base = fa.get_character(chrom_name, position-1)
-                for be_generator in batch_buffers:
-
+                kk = bytes("%s:%s" % (chrom_name, position-1))
+                i = 0
+                for i in range(sample_size):
+                    be_generator = sample_batch_buffers[i]
                     if kk in be_generator.batch_heap:
-                        depth += 1
+
+                        batch_info.depth += 1
                         if be_generator.batch_heap[kk].base_type == 0:
                             # Single base
-                            sample_bases.append(be_generator.batch_heap[kk].read_base)
+                            batch_info.sample_bases[i] = be_generator.batch_heap[kk].read_base
                         elif be_generator.batch_heap[kk].base_type == 1:
                             # insertion
-                            sample_bases.append("+"+be_generator.batch_heap[kk].read_base)
+                            tmp_bytes = "+"+be_generator.batch_heap[kk].read_base
+                            batch_info.sample_bases[i] = tmp_bytes
                         elif be_generator.batch_heap[kk].base_type == 2:
                             # deletion
-                            sample_bases.append("-"+be_generator.batch_heap[kk].ref_base)
+                            tmp_bytes = "-"+be_generator.batch_heap[kk].ref_base
+                            batch_info.sample_bases[i] = tmp_bytes
                         else:
                             raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
                                               "\n" % be_generator.batch_heap[kk].read_base)
 
-                        sample_base_quals.append(be_generator.batch_heap[kk].base_qual)
-                        strands.append(chr(be_generator.batch_heap[kk].map_strand))
-                        mapqs.append(be_generator.batch_heap[kk].mapq)
-                        read_pos_rank.append(be_generator.batch_heap[kk].read_pos_rank+1)
+                        batch_info.sample_base_quals[i] = be_generator.batch_heap[kk].base_qual
+                        batch_info.strands[i] = be_generator.batch_heap[kk].map_strand
+                        batch_info.mapqs[i] = be_generator.batch_heap[kk].mapq
+                        batch_info.read_pos_rank[i] = be_generator.batch_heap[kk].read_pos_rank+1
                     else:
-                        sample_bases.append("N")
-                        sample_base_quals.append(0)
-                        strands.append(".")
-                        mapqs.append(0)
-                        read_pos_rank.append(0)
+                        batch_info.sample_bases[i] = 'N'
+                        batch_info.sample_base_quals[i] = 0
+                        batch_info.strands[i] = '.'
+                        batch_info.mapqs[i] = 0
+                        batch_info.read_pos_rank[i] = 0
 
-                OUT.write("%s\n" % "\t".join([
-                    chrom_name,
-                    str(position),
-                    ref_base,
-                    str(depth),
-                    ",".join(map(str, mapqs)) if depth else ".",
-                    ",".join(sample_bases) if depth else ".",
-                    ",".join(map(str, sample_base_quals)) if depth else ".",
-                    ",".join(map(str, read_pos_rank)) if depth else ".",
-                    ",".join(strands) if depth else "."
-                ]))
-
+                OUT.write("%s\n" % batch_info)
     return
