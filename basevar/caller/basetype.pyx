@@ -65,8 +65,11 @@ cdef class BaseTuple:
 
 cdef class BaseType:
 
-    def __cinit__(self, bytes ref_base, list bases, list quals, float min_af):
+    def __cinit__(self):
+        # do nothings
+        pass
 
+    cdef void cinit (self, bytes ref_base, char **bases, int *quals, int total_sample_size, float min_af):
         """A class for calculate the base probability
 
         Parameters
@@ -91,18 +94,17 @@ cdef class BaseType:
         self.base_type_num = len(CommonParameter.BASE)
 
         # how many individual is in good base
-        cdef int total_base_size = len(bases)
         cdef int i = 0
         self.good_individual_num = 0
-        for i in range(total_base_size):
-            if bases[i] != 'N' and bases[i][0] not in ['-', '+']:
+        for i in range(total_sample_size):
+            if bases[i][0] not in ['N', '-', '+']:
                 self.good_individual_num += 1
 
         # qual_pvalue has to be for all, because we'll use this outside.
-        self.qual_pvalue = <double*>(calloc(total_base_size, sizeof(double)))
+        self.qual_pvalue = <double*>(calloc(total_sample_size, sizeof(double)))
         assert self.qual_pvalue != NULL, "Could not allocate memory for qual_pvalue in BaseType"
 
-        for i in range(total_base_size):
+        for i in range(total_sample_size):
             self.qual_pvalue[i] = 1.0 - exp(CommonParameter.MLN10TO10 * quals[i])
 
         # A big 1-D array
@@ -110,7 +112,7 @@ cdef class BaseType:
         assert self.ind_allele_likelihood != NULL, "Could not allocate memory for ind_allele_likelihood in BaseType"
 
         # set allele likelihood for each individual and get depth
-        self._set_init_ind_allele_likelihood(bases, CommonParameter.BASE)
+        self._set_init_ind_allele_likelihood(bases, CommonParameter.BASE, total_sample_size)
         self.total_depth = float(sum(self.depth.values()))
 
         # estimated allele frequency by EM and LRT
@@ -128,18 +130,18 @@ cdef class BaseType:
         if self.qual_pvalue != NULL:
             free(self.qual_pvalue)
 
-    cdef void _set_init_ind_allele_likelihood(self, list ind_bases, list base_element):
+    cdef void _set_init_ind_allele_likelihood(self, char **ind_bases, list base_element, int total_individual_num):
 
-        cdef int total_individual = len(ind_bases)
         cdef int i = 0
         cdef int j = 0
         cdef int k = 0
-        for i in range(total_individual):
+        for i in range(total_individual_num):
 
             # Individual likelihood for [A, C, G, T], one sample per row
             # ignore all the 'N' bases and indels.
-            if ind_bases[i] != 'N' and ind_bases[i][0] not in ['-', '+']:
+            if ind_bases[i][0] not in ['N', '-', '+']:
 
+                # Just set allele likelihood for good individual
                 for k in range(self.base_type_num):
                     if ind_bases[i] == base_element[k]:
                         self.ind_allele_likelihood[j * self.base_type_num + k] = self.qual_pvalue[i]
@@ -152,6 +154,7 @@ cdef class BaseType:
                 # record coverage for [ACGT]
                 if ind_bases[i] in self.depth:
                     self.depth[ind_bases[i]] += 1
+        return
 
     cdef double* _set_allele_frequence(self, tuple bases):
         """
