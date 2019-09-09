@@ -169,7 +169,7 @@ def cvg_header_define(group_info):
 
     return header
 
-cdef list generate_regions_by_process_num(list regions, int process_num):
+cdef list generate_regions_by_process_num(list regions, int process_num, bint convert_to_2d):
     """create regions for each process"""
 
     regions_for_each_process = [[] for _ in range(process_num)]
@@ -206,7 +206,15 @@ cdef list generate_regions_by_process_num(list regions, int process_num):
         else:
             regions_for_each_process[i].append([chrid, start, end])
 
-    return regions_for_each_process
+    cdef list region_array = []
+    if convert_to_2d:
+        for a1 in regions_for_each_process:
+            for a2 in a1:
+                region_array.append(a2)
+
+        return region_array
+    else:
+        return regions_for_each_process
 
 
 def fetch_next(iter_fh):
@@ -403,18 +411,47 @@ def get_minor_major(base):
     # minor and major
     return mi, mj, sorted_bc
 
+cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bint is_del_raw_file):
+    """Merge file which is already in order.
+    We don't have to sort anything, just cat them together!
+    """
+     # Final output file
+    if final_file_name == "-":
+        output_file = sys.stdout
+    else:
+        output_file = Open(final_file_name, 'wb', isbgz=True if final_file_name.endswith(".gz") else False)
 
-def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False):
+    cdef int index = 0
+    cdef basestring file_name
+    for index, file_name in enumerate(temp_file_names):
+
+        the_file = Open(file_name, 'rb')
+        for line in the_file:
+
+            # End of this file
+            if line[0] == "#":
+                if index == 0:
+                    output_file.write(line.strip()+"\n")
+            else:
+                output_file.write(line.strip()+"\n")
+
+        # If there are no calls in the temp file, we still want to
+        # remove it.
+        else:
+            the_file.close()
+            if is_del_raw_file:
+                os.remove(file_name)
+    return
+
+def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
     """
     Merging output VCF/CVG files into a final big one
-    log.info("Merging output VCF/CVG file(s) into final file %s" %(final_file_name))
     """
-
     # Final output file
     if final_file_name == "-":
         output_file = sys.stdout
     else:
-        output_file = Open(final_file_name, 'wb', isbgz=output_isbgz)
+        output_file = Open(final_file_name, 'wb', isbgz=True if final_file_name.endswith(".gz") else False)
 
     the_heap = []
 
@@ -427,9 +464,9 @@ def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw
             # End of this file
             if line[0] == "#":
                 if index == 0:
-                    output_file.write(line)
+                    output_file.write(line.strip()+"\n")
             else:
-                the_file_for_queueing = FileForQueueing(the_file, line, is_del_raw_file=is_del_raw_file)
+                the_file_for_queueing = FileForQueueing(the_file, line.strip()+"\n", is_del_raw_file=is_del_raw_file)
                 heapq.heappush(the_heap, the_file_for_queueing)
                 break
 
@@ -446,7 +483,7 @@ def merge_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw
 
         # Get file from heap in right order
         next_file = heapq.heappop(the_heap)
-        output_file.write(next_file.line)
+        output_file.write(next_file.line.strip()+"\n")
 
         # Put file back on heap
         try:
@@ -616,7 +653,7 @@ def output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
 
 def output_file(sub_files, out_file_name, del_raw_file=False):
     if out_file_name.endswith(".gz"):
-        merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
+        merge_files(sub_files, out_file_name, is_del_raw_file=del_raw_file)
 
         # Column indices are 0-based. Note: this is different from the tabix command line
         # utility where column indices start at 1.

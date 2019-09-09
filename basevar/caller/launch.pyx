@@ -15,71 +15,11 @@ import time
 
 from basevar.log import logger
 from basevar import utils
+from basevar.utils cimport generate_regions_by_process_num
 
 from basevar.io.bam cimport get_sample_names
-from basevar.io.BGZF.tabix import tabix_index
 from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
-
-def _generate_regions_for_each_process(regions, process_num=1):
-    """create regions for each process"""
-
-    regions_for_each_process = [[] for _ in range(process_num)]
-
-    # calculate region size for each processes
-    total_regions_size = sum([e - s + 1 for _, s, e in regions])
-    delta = int(total_regions_size / process_num) + 1 if total_regions_size % process_num else \
-        int(total_regions_size / process_num)
-
-    # reset
-    total_regions_size = 0
-    for chrid, start, end in regions:
-
-        sub_region_size = end - start + 1
-        # find index of regions_for_each_process by the total_regions_size
-        i = int(total_regions_size / delta)
-        total_regions_size += sub_region_size
-
-        pre_size = 0
-        if len(regions_for_each_process[i]):
-            pre_size = sum([e - s + 1 for _, s, e in regions_for_each_process[i]])
-
-        if sub_region_size + pre_size > delta:
-            d = delta - pre_size
-            regions_for_each_process[i].append([chrid, start, start + d - 1])
-
-            i += 1
-            for k, pos in enumerate(range(start + d - 1, end, delta)):
-                s = pos + 1 if pos + 1 < end else end
-                e = pos + delta if pos + delta < end else end
-
-                regions_for_each_process[i + k].append([chrid, s, e])
-
-        else:
-            regions_for_each_process[i].append([chrid, start, end])
-
-    return regions_for_each_process
-
-def _output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
-    """CVG file and VCF file could use the same tabix strategy."""
-    for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
-
-        if out_final_file:
-            _output_file(sub_file_list, out_final_file, del_raw_file=True)
-
-    return
-
-def _output_file(sub_files, out_file_name, del_raw_file=False):
-    if out_file_name.endswith(".gz"):
-        utils.merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
-
-        # Column indices are 0-based. Note: this is different from the tabix command line
-        # utility where column indices start at 1.
-        tabix_index(out_file_name, force=True, seq_col=0, start_col=1, end_col=1)
-    else:
-        utils.merge_files(sub_files, out_file_name, is_del_raw_file=del_raw_file)
-
-    return
 
 
 class BaseTypeRunner(object):
@@ -105,7 +45,8 @@ class BaseTypeRunner(object):
 
         # Loading positions if not been provided we'll load all the genome
         regions = utils.load_target_position(self.reference_file, args.positions, args.regions)
-        self.regions_for_each_process = _generate_regions_for_each_process(regions, process_num=self.nCPU)
+        self.regions_for_each_process = generate_regions_by_process_num(regions, process_num=self.nCPU,
+                                                                        convert_to_2d=False)
 
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
@@ -157,8 +98,7 @@ class BaseTypeRunner(object):
         process_runner(processes)
 
         # Final output
-        _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
-
+        utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
         return processes
 
     def basevar_caller_singleprocess(self):
@@ -206,8 +146,7 @@ class BaseTypeRunner(object):
             bp.run()
 
         # Final output
-        _output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
-
+        utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
         return processes
 
 
@@ -224,7 +163,7 @@ class MergeRunner(object):
         self.outputfile = args.outputfile
 
     def run(self):
-        _output_file(self.inputfiles, self.outputfile)
+        utils.output_file(self.inputfiles, self.outputfile)
         return
 
 
