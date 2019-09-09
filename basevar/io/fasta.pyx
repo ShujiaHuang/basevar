@@ -1,3 +1,4 @@
+# cython: profile=True
 """
 FastaFile is a utility class used for reading the Fasta file format,
 and facilitating access to reference sequences.

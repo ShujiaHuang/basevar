@@ -2220,7 +2220,7 @@ cdef class Samfile:
     cdef void clear_index(self)
 
     # A main function to open BAM/CRAM/SAM
-    cdef void open(self, mode, bint load_index)
+    cdef void open(self, basestring mode, bint load_index)
     cdef void _open_bamfile(self, mode)
     cdef void close(self)
     cdef bint _is_bam(self)

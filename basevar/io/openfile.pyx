@@ -1,3 +1,4 @@
+# cython: profile=True
 """Open general files
 
 Author: Shujia Huang

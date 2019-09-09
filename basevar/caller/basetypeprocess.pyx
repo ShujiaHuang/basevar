@@ -13,9 +13,10 @@ from basevar.io.fasta import FastaFile
 from basevar.log import logger
 from basevar import utils
 
-from basevar.caller.variantcaller import output_header
-from basevar.caller.variantcaller cimport variants_discovery, variant_discovery_in_regions
-from basevar.caller.batchcaller cimport create_batchfiles_in_regions
+from basevar.caller.variantcaller cimport variant_discovery_in_regions
+# from basevar.caller.variantcaller import output_header
+# from basevar.caller.variantcaller cimport variants_discovery
+# from basevar.caller.batchcaller cimport create_batchfiles_in_regions
 
 cdef bint REMOVE_BATCH_FILE = True
 

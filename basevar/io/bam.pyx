@@ -1,4 +1,6 @@
-"""BAMfile IO"""
+# cython: profile=True
+"""BAMfile IO
+"""
 import os
 import sys
 
