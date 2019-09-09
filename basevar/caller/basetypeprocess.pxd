@@ -10,7 +10,7 @@ cdef class BaseVarProcess:
     cdef list align_files
 
     cdef FastaFile fa_file_hd
-    cdef dict regions
+    cdef list regions
     cdef dict popgroup
 
     cdef bytes out_vcf_file

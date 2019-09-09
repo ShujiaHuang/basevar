@@ -4,11 +4,16 @@ Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
+
+# Now I don't need this function any more!!! It's too slow!!!
+
 import os
 import sys
 import time
 
 from basevar.log import logger
+from basevar.utils cimport generate_regions_by_process_num
+
 from basevar.io.openfile import Open
 from basevar.io.fasta cimport FastaFile
 from basevar.caller.batch cimport BatchGenerator, BatchInfo
@@ -161,107 +166,107 @@ cdef void generate_batchfile(bytes chrom_name,
 
 
 # This function take much more memery than the ``generate_batchfile``, but I don't know why.
-cdef void generate_batchfile_2(bytes chrom_name,
-                               long int bigstart,
-                               long int bigend,
-                               list regions,
-                               list batch_align_files,
-                               char* refseq,
-                               FastaFile fa,
-                               object options,
-                               bytes out_batch_file,
-                               list batch_sample_ids):
-    """Loading bamfile and create a batchfile in ``regions``.
-
-    Parameters:
-        ``bigstart``: It's already 0-base position
-        ``bigend``: It's already 0-base position
-        ``regions``: The coordinate in regions is 1-base system.
-    """
-    cdef Samfile reader
-    cdef ReadIterator reader_iter
-    cdef cAlignedRead* the_read
-
-    cdef BatchGenerator be_generator
-    cdef list batch_buffers = []
-    cdef int longest_read_size = 0
-    cdef long int reg_start, reg_end
-
-    cdef int mapq = options.mapq
-    cdef bint trim_overlapping = options.trim_overlapping
-    cdef bint trim_soft_clipped = options.trim_soft_clipped
-
-    cdef bint read_ok
-    cdef bint is_empty
-    cdef bint is_overlap
-    cdef int reg_size = len(regions)
-    cdef int reg_index = 0
-    cdef int i = 0
-
-    _py_region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
-    cdef char* region = _py_region
-
-    for sample, bamfile in zip(batch_sample_ids, batch_align_files):
-
-        reader = Samfile(bamfile)
-        reader.open("r", True)
-
-        # init the batch generator by the BIG region, but the big region may not be use
-        be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
-
-        reg_index = 0
-        is_empty  = False
-
-        try:
-            reader_iter = reader.fetch(region)
-        except Exception as e:
-            logger.warning(e.message)
-            logger.warning("No data could be retrieved for sample %s in file %s in "
-                           "region %s" % (sample, reader.filename, region))
-            is_empty = True
-
-        while (not is_empty) and reader_iter.cnext():
-
-            the_read = reader_iter.get(0, NULL)
-            if the_read == NULL:
-                continue
-
-            read_ok = check_and_trim_read(the_read, NULL, be_generator.filtered_read_counts_by_type,
-                                          mapq, trim_overlapping, trim_soft_clipped)
-            if Read_IsQCFail(the_read):
-                continue
-
-            is_overlap = False
-            for i in range(reg_index, reg_size):
-                reg_start, reg_end = regions[i][0] -1, regions[i][1] - 1  # 0-base
-
-                # still behind the region, do nothing but continue
-                if the_read.end < reg_start:
-                    continue
-
-                # Break the loop when mapping start position is outside the region.
-                if the_read.pos > reg_end:
-                    break
-
-                reg_index = i
-                is_overlap = True
-                break
-
-            if is_overlap:
-                reg_start, reg_end = regions[reg_index][0] -1, regions[reg_index][1] - 1  # 0-base
-                be_generator.get_batch_from_single_read_in_region(the_read, reg_start, reg_end)
-                if longest_read_size < the_read.end - the_read.pos:
-                    longest_read_size = the_read.end - the_read.pos
-
-        reader.close()
-        batch_buffers.append(be_generator)
-
-    # Todo: take care these codes, although they may not been called forever.
-    if longest_read_size > options.r_len:
-        options.r_len = longest_read_size
-
-    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
-    return
+# cdef void generate_batchfile_2(bytes chrom_name,
+#                                long int bigstart,
+#                                long int bigend,
+#                                list regions,
+#                                list batch_align_files,
+#                                char* refseq,
+#                                FastaFile fa,
+#                                object options,
+#                                bytes out_batch_file,
+#                                list batch_sample_ids):
+#     """Loading bamfile and create a batchfile in ``regions``.
+#
+#     Parameters:
+#         ``bigstart``: It's already 0-base position
+#         ``bigend``: It's already 0-base position
+#         ``regions``: The coordinate in regions is 1-base system.
+#     """
+#     cdef Samfile reader
+#     cdef ReadIterator reader_iter
+#     cdef cAlignedRead* the_read
+#
+#     cdef BatchGenerator be_generator
+#     cdef list batch_buffers = []
+#     cdef int longest_read_size = 0
+#     cdef long int reg_start, reg_end
+#
+#     cdef int mapq = options.mapq
+#     cdef bint trim_overlapping = options.trim_overlapping
+#     cdef bint trim_soft_clipped = options.trim_soft_clipped
+#
+#     cdef bint read_ok
+#     cdef bint is_empty
+#     cdef bint is_overlap
+#     cdef int reg_size = len(regions)
+#     cdef int reg_index = 0
+#     cdef int i = 0
+#
+#     _py_region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
+#     cdef char* region = _py_region
+#
+#     for sample, bamfile in zip(batch_sample_ids, batch_align_files):
+#
+#         reader = Samfile(bamfile)
+#         reader.open("r", True)
+#
+#         # init the batch generator by the BIG region, but the big region may not be use
+#         be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
+#
+#         reg_index = 0
+#         is_empty  = False
+#
+#         try:
+#             reader_iter = reader.fetch(region)
+#         except Exception as e:
+#             logger.warning(e.message)
+#             logger.warning("No data could be retrieved for sample %s in file %s in "
+#                            "region %s" % (sample, reader.filename, region))
+#             is_empty = True
+#
+#         while (not is_empty) and reader_iter.cnext():
+#
+#             the_read = reader_iter.get(0, NULL)
+#             if the_read == NULL:
+#                 continue
+#
+#             read_ok = check_and_trim_read(the_read, NULL, be_generator.filtered_read_counts_by_type,
+#                                           mapq, trim_overlapping, trim_soft_clipped)
+#             if Read_IsQCFail(the_read):
+#                 continue
+#
+#             is_overlap = False
+#             for i in range(reg_index, reg_size):
+#                 reg_start, reg_end = regions[i][0] -1, regions[i][1] - 1  # 0-base
+#
+#                 # still behind the region, do nothing but continue
+#                 if the_read.end < reg_start:
+#                     continue
+#
+#                 # Break the loop when mapping start position is outside the region.
+#                 if the_read.pos > reg_end:
+#                     break
+#
+#                 reg_index = i
+#                 is_overlap = True
+#                 break
+#
+#             if is_overlap:
+#                 reg_start, reg_end = regions[reg_index][0] -1, regions[reg_index][1] - 1  # 0-base
+#                 be_generator.get_batch_from_single_read_in_region(the_read, reg_start, reg_end)
+#                 if longest_read_size < the_read.end - the_read.pos:
+#                     longest_read_size = the_read.end - the_read.pos
+#
+#         reader.close()
+#         batch_buffers.append(be_generator)
+#
+#     # Todo: take care these codes, although they may not been called forever.
+#     if longest_read_size > options.r_len:
+#         options.r_len = longest_read_size
+#
+#     output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
+#     return
 
 
 # This function is slow

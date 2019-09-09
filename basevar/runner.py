@@ -138,7 +138,7 @@ def parser_commandline_args():
     return cmdparse.parse_args()
 
 
-# @do_cprofile("./basetype.prof", is_do_profiling=True, stdout=True)
+@do_cprofile("./basetype.prof", is_do_profiling=True, stdout=True)
 def basetype(args):
 
     if args.outcvg and not args.outvcf:
@@ -165,13 +165,13 @@ def basetype(args):
 
     # The main function
     bt = BaseTypeRunner(args)
-    # bt.basevar_caller_singleprocess()  # Just for cProfile and optimization testing
+    bt.basevar_caller_singleprocess()  # Just for cProfile and optimization testing
 
     is_success = True
-    processer = bt.basevar_caller()
-    for p in processer:
-        if p.exitcode != 0:
-            is_success = False
+    # processer = bt.basevar_caller()
+    # for p in processer:
+    #     if p.exitcode != 0:
+    #         is_success = False
 
     return is_success
 
