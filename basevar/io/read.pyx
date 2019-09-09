@@ -1,3 +1,4 @@
+# cython: profile=True
 """Fast cython implementation of some windowing functions.
 """
 from basevar.log import logger

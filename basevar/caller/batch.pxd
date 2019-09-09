@@ -21,7 +21,6 @@ cdef class BatchInfo:
     cdef int *sample_base_quals
     cdef int *read_pos_rank
 
-    cdef basestring get_str(self)
     cdef void destroy(self)
 
 

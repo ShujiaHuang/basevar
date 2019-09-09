@@ -80,8 +80,8 @@ class BaseTypeRunner(object):
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
             if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
-                # if `cache_dir` is not exist and `sub_cvg_file` is exists means
-                # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+                # if `cache_dir` is not exist while `sub_cvg_file` exists, that means
+                # `sub_cvg_file` and `sub_vcf_file` has been finish successfully.
                 continue
 
             cache_dir = utils.safe_makedir(cache_dir)

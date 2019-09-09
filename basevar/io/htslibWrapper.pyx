@@ -1,4 +1,6 @@
-"""Wrapper for htslib"""
+# cython: profile=True
+"""Wrapper for htslib
+"""
 import os
 from warnings import warn
 from libc.errno cimport errno
@@ -552,7 +554,7 @@ cdef class Samfile:
         """return true if samfile has an existing (and opened) index."""
         return self.index != NULL
 
-    cdef void open(self, mode, bint load_index):
+    cdef void open(self, basestring mode, bint load_index):
         """open a sam/bam/cram file.
 
         If _open is called on an existing bamfile, the current file will be
@@ -1049,9 +1051,6 @@ cdef void uncompress_qual(cAlignedRead* read):
     cdef int i = 0
     cdef int j = 0
     cdef int new_qual_index = 0
-
-    #logger.info("Length = %s or %s" %(lenQual, len([x for x in qual])))
-    #logger.info(",".join( [str(x) for x in qual] ) )
 
     for i in range(0, len_qual - 1, 2):
         for j in range(qual[i + 1]):
