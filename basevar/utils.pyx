@@ -6,6 +6,7 @@ import time
 import cProfile
 import pstats
 
+from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
 
@@ -167,6 +168,45 @@ def cvg_header_define(group_info):
     ]
 
     return header
+
+cdef list generate_regions_by_process_num(list regions, int process_num):
+    """create regions for each process"""
+
+    regions_for_each_process = [[] for _ in range(process_num)]
+
+    # calculate region size for each processes
+    total_regions_size = sum([e - s + 1 for _, s, e in regions])
+    delta = int(total_regions_size / process_num) + 1 if total_regions_size % process_num else \
+        int(total_regions_size / process_num)
+
+    # reset
+    total_regions_size = 0
+    for chrid, start, end in regions:
+
+        sub_region_size = end - start + 1
+        # find index of regions_for_each_process by the total_regions_size
+        i = int(total_regions_size / delta)
+        total_regions_size += sub_region_size
+
+        pre_size = 0
+        if len(regions_for_each_process[i]):
+            pre_size = sum([e - s + 1 for _, s, e in regions_for_each_process[i]])
+
+        if sub_region_size + pre_size > delta:
+            d = delta - pre_size
+            regions_for_each_process[i].append([chrid, start, start + d - 1])
+
+            i += 1
+            for k, pos in enumerate(range(start + d - 1, end, delta)):
+                s = pos + 1 if pos + 1 < end else end
+                e = pos + delta if pos + delta < end else end
+
+                regions_for_each_process[i + k].append([chrid, s, e])
+
+        else:
+            regions_for_each_process[i].append([chrid, start, end])
+
+    return regions_for_each_process
 
 
 def fetch_next(iter_fh):
@@ -563,3 +603,27 @@ def load_popgroup_info(samples, in_popgroup_file):
             popgroup[tmpdict[s]].append(i)
 
     return popgroup
+
+
+def output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
+    """CVG file and VCF file could use the same tabix strategy."""
+    for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
+
+        if out_final_file:
+            output_file(sub_file_list, out_final_file, del_raw_file=True)
+
+    return
+
+def output_file(sub_files, out_file_name, del_raw_file=False):
+    if out_file_name.endswith(".gz"):
+        merge_files(sub_files, out_file_name, output_isbgz=True, is_del_raw_file=del_raw_file)
+
+        # Column indices are 0-based. Note: this is different from the tabix command line
+        # utility where column indices start at 1.
+        tabix_index(out_file_name, force=True, seq_col=0, start_col=1, end_col=1)
+    else:
+        merge_files(sub_files, out_file_name, is_del_raw_file=del_raw_file)
+
+    return
+
+
