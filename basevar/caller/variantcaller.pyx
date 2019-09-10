@@ -103,6 +103,8 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     cdef bytes _ref_seq_bytes
     cdef char *ref_seq
 
+    cdef bytes chrom_name
+    cdef long int start, end
     for i, (chrom_name, start, end) in enumerate(batch_regions):
         start_time = time.time()
 
