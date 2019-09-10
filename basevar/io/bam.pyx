@@ -118,6 +118,9 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         sample_read_buffer = BamReadBuffer(chrom, start, end, options)
         sample_read_buffer.sample = samples[i]
 
+        if (i+1) % 1000 == 0:
+            logger.info("Loading %d bamfiles for region: %s" % (i+1, region))
+
         try:
             reader_iter = reader.fetch(region)
         except Exception as e:
