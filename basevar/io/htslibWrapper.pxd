@@ -2189,10 +2189,10 @@ cdef class HTSFile(object):
 
 
 ctypedef struct cAlignedRead:
-    char* seq
-    char* qual
-    short* cigar_ops
-    short* hash
+    char *seq
+    char *qual
+    short *cigar_ops
+    short *hash
     short chrom_id
     short mate_chrom_id
     short cigar_len

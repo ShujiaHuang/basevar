@@ -518,7 +518,6 @@ cdef list _base_depth_and_indel(char ** bases, int size):
     cdef dict indel_depth = {}
 
     cdef int i = 0
-    # for b in bases:
     for i in range(size):
 
         # The size of `base[i]` would be 1 except indel!
@@ -548,11 +547,10 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
 
     # base depth and indels for each subgroup
     cdef char ** group_sample_bases
-
+    cdef int group_sample_size
     cdef dict group_cvg = {}
     cdef bytes group
     cdef list index
-    cdef int group_sample_size
 
     cdef int i = 0
     cdef dict sub_bd

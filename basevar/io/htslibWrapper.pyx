@@ -590,13 +590,9 @@ cdef class Samfile:
     cdef void _open_bamfile(self, mode):
         """Open BamFile.
         """
-        if os.path.exists(self.filename):
-            self.samfile = sam_open(self.filename, mode)
-            self.the_header = bam_hdr_init()
-            self.the_header = sam_hdr_read(self.samfile)
-        else:
-            self.samfile = NULL
-            self.the_header = NULL
+        self.samfile = sam_open(self.filename, mode)
+        self.the_header = bam_hdr_init()
+        self.the_header = sam_hdr_read(self.samfile)
 
         return
 
