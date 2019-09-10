@@ -10,20 +10,20 @@ from basevar.io.openfile import Open
 
 
 cdef extern from "stdlib.h":
-    long long int atoll(char*)
+    long int atoll(char*)
 
 
 cdef class SequenceTuple:
     """Structure for storing data from line of fasta index file.
     """
     cdef public bytes seq_name
-    cdef public long long int seq_length
-    cdef public long long int start_position
-    cdef public long long int line_length
-    cdef public long long int full_line_length
+    cdef public long int seq_length
+    cdef public long int start_position
+    cdef public long int line_length
+    cdef public long int full_line_length
 
-    def __init__(self, bytes seq_name, long long int seq_length, long long int start_position,
-                 long long int line_length, long long int full_line_length):
+    def __init__(self, bytes seq_name, long int seq_length, long int start_position,
+                 long int line_length, long int full_line_length):
         """Constructor
         """
         self.seq_name = seq_name
@@ -120,7 +120,7 @@ cdef class FastaFile:
         """
         self.the_file.close()
 
-    cdef bytes get_character(self, bytes seq_name, long long int pos):
+    cdef bytes get_character(self, bytes seq_name, long int pos):
         """
         Returns the character at the specified (0-indexed means 0-base system) position
         of the specified sequence.
@@ -133,17 +133,17 @@ cdef class FastaFile:
                 return self.cache[pos - self.cache_start_pos]
 
         cdef SequenceTuple seq_tuple = self.references[seq_name]
-        cdef long long int seq_length = seq_tuple.seq_length
-        cdef long long int seq_start_position = seq_tuple.start_position
-        cdef long long int line_length = seq_tuple.line_length
-        cdef long long int full_line_length = seq_tuple.full_line_length
+        cdef long int seq_length = seq_tuple.seq_length
+        cdef long int seq_start_position = seq_tuple.start_position
+        cdef long int line_length = seq_tuple.line_length
+        cdef long int full_line_length = seq_tuple.full_line_length
 
         if pos >= seq_length or pos < 0:
             # it's empty
             return <char*> ""
 
         filepos = seq_start_position + pos + (full_line_length - line_length) * (
-            <long long int> ((<double> pos) / line_length))
+            <long int>((<double>pos)/line_length))
         self.the_file.seek(filepos)
 
         try:
@@ -152,7 +152,7 @@ cdef class FastaFile:
             # return nothing
             return <char*> ""
 
-    cdef void set_cache_sequence(self, bytes seq_name, long long int begin_pos, long long int end_pos):
+    cdef void set_cache_sequence(self, bytes seq_name, long int begin_pos, long int end_pos):
         """cache a sequence in memery make the program much faster
         """
         if seq_name not in self.references:
@@ -161,23 +161,23 @@ cdef class FastaFile:
             sys.exit(1)
 
         cdef SequenceTuple seq_tuple = self.references[seq_name]
-        cdef long long int seq_length = seq_tuple.seq_length
+        cdef long int seq_length = seq_tuple.seq_length
 
         # it's 0-base system
         begin_pos = max(0, begin_pos)
         end_pos = min(seq_length - 1, end_pos)
 
-        cdef long long int seq_start_pos = seq_tuple.start_position
-        cdef long long int line_length = seq_tuple.line_length
-        cdef long long int full_line_length = seq_tuple.full_line_length
-        cdef long long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
-                full_line_length - line_length) * <long long int> ((<double> begin_pos) / line_length)
-        cdef long long int desired_sequence_end_pos = seq_start_pos + end_pos + (
-                full_line_length - line_length) * <long long int> ((<double> end_pos) / line_length)
+        cdef long int seq_start_pos = seq_tuple.start_position
+        cdef long int line_length = seq_tuple.line_length
+        cdef long int full_line_length = seq_tuple.full_line_length
+        cdef long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
+                full_line_length - line_length) * <long int> ((<double> begin_pos) / line_length)
+        cdef long int desired_sequence_end_pos = seq_start_pos + end_pos + (
+                full_line_length - line_length) * <long int> ((<double> end_pos) / line_length)
 
         # 0-base
-        cdef long long int desired_seq_length = (end_pos - begin_pos)
-        cdef long long int desired_sequence_length_infile = (desired_sequence_end_pos - desired_sequence_start_pos)
+        cdef long int desired_seq_length = (end_pos - begin_pos)
+        cdef long int desired_sequence_length_infile = (desired_sequence_end_pos - desired_sequence_start_pos)
 
         if end_pos < begin_pos:
             raise IndexError, "Cannot have beginPos = %s, endPos = %s" % (begin_pos, end_pos)
@@ -192,7 +192,7 @@ cdef class FastaFile:
         self.cache_start_pos = begin_pos
         self.cache_end_pos = end_pos
 
-    cdef bytes get_sequence(self, bytes seq_name, long long int begin_pos, long long int end_pos):
+    cdef bytes get_sequence(self, bytes seq_name, long int begin_pos, long int end_pos):
         """
         Returns the character sequence between the the specified (0-indexed) start
         and end positions. This returns a half-open sequence interval, i.e. the returned
@@ -206,23 +206,23 @@ cdef class FastaFile:
                 return self.cache[begin_pos - self.cache_start_pos:end_pos - self.cache_start_pos]
 
         cdef SequenceTuple seq_tuple = self.references[seq_name]
-        cdef long long int seq_length = seq_tuple.seq_length
+        cdef long int seq_length = seq_tuple.seq_length
 
         # make 0-base system
         begin_pos = max(0, begin_pos)
         end_pos = min(seq_length - 1, end_pos)
 
-        cdef long long int seq_start_pos = seq_tuple.start_position
-        cdef long long int line_length = seq_tuple.line_length
-        cdef long long int full_line_length = seq_tuple.full_line_length
-        cdef long long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
-                full_line_length - line_length) * <long long int> ((<double> begin_pos) / line_length)
-        cdef long long int desired_sequence_end_pos = seq_start_pos + end_pos + (
-                full_line_length - line_length) * <long long int> ((<double> end_pos) / line_length)
+        cdef long int seq_start_pos = seq_tuple.start_position
+        cdef long int line_length = seq_tuple.line_length
+        cdef long int full_line_length = seq_tuple.full_line_length
+        cdef long int desired_sequence_start_pos = seq_start_pos + begin_pos + (
+                full_line_length - line_length) * <long int> ((<double> begin_pos) / line_length)
+        cdef long int desired_sequence_end_pos = seq_start_pos + end_pos + (
+                full_line_length - line_length) * <long int> ((<double> end_pos) / line_length)
 
         # 0-base
-        cdef long long int desired_seq_length = (end_pos - begin_pos)
-        cdef long long int desired_sequence_length_infile = (desired_sequence_end_pos - desired_sequence_start_pos)
+        cdef long int desired_seq_length = (end_pos - begin_pos)
+        cdef long int desired_sequence_length_infile = (desired_sequence_end_pos - desired_sequence_start_pos)
 
         if end_pos < begin_pos:
             raise IndexError, "Cannot have beginPos = %s, endPos = %s" % (begin_pos, end_pos)
