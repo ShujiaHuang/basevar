@@ -143,8 +143,8 @@ cdef class ReadArray:
         Return the number of reads which overlap this region, where 'end' is not
         included, and 'start' is.
         """
-        cdef cAlignedRead** r_start
-        cdef cAlignedRead** r_end
+        cdef cAlignedRead **r_start
+        cdef cAlignedRead **r_end
         cdef int first_overlap_start = -1
         cdef int start_pos_of_reads = -1
         cdef int end_pos_of_reads = -1

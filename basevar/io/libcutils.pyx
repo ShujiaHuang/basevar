@@ -37,7 +37,7 @@ cdef bytes force_bytes(object s, encoding="ascii"):
         raise TypeError("Argument must be string, bytes or unicode.")
 
 
-cdef charptr_to_str(const char* s, encoding="ascii"):
+cdef charptr_to_str(const char *s, encoding="ascii"):
     if s == NULL:
         return None
     if PY_MAJOR_VERSION < 3:
@@ -46,7 +46,7 @@ cdef charptr_to_str(const char* s, encoding="ascii"):
         return s.decode(encoding)
 
 
-cdef charptr_to_str_w_len(const char* s, size_t n, encoding="ascii"):
+cdef charptr_to_str_w_len(const char *s, size_t n, encoding="ascii"):
     if s == NULL:
         return None
     if PY_MAJOR_VERSION < 3:
@@ -55,7 +55,7 @@ cdef charptr_to_str_w_len(const char* s, size_t n, encoding="ascii"):
         return s[:n].decode(encoding)
 
 
-cdef bytes charptr_to_bytes(const char* s, encoding="ascii"):
+cdef bytes charptr_to_bytes(const char *s, encoding="ascii"):
     if s == NULL:
         return None
     else:
@@ -64,7 +64,8 @@ cdef bytes charptr_to_bytes(const char* s, encoding="ascii"):
 
 cdef force_str(object s, encoding="ascii"):
     """Return s converted to str type of current Python
-    (bytes in Py2, unicode in Py3)"""
+    (bytes in Py2, unicode in Py3)
+    """
     if s is None:
         return None
 
