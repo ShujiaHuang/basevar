@@ -104,7 +104,6 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     cdef char *ref_seq
 
     for i, (chrom_name, start, end) in enumerate(batch_regions):
-        print (chrom_name, start, end)
         start_time = time.time()
 
         # Join Path could fix different OS
