@@ -144,11 +144,11 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         ref_seq = _ref_seq_bytes
         flag = generate_batchfile(chrom_name,
                                   start,  # 1-base
-                                  end,  # 1-base
+                                  end,    # 1-base
                                   fa,
                                   ref_seq,
                                   bamfiles,  # All the BAM files
-                                  samples,
+                                  samples,   # All samples
                                   sample_size,
                                   popgroup,
                                   options,
@@ -170,8 +170,8 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     return is_empty
 
 cdef bint generate_batchfile(bytes chrom_name,
-                             long int start,
-                             long int end,
+                             long int start,  # 1-base system
+                             long int end,    # 1-base system
                              FastaFile fa,
                              char *ref_seq,
                              dict bamfiles,
@@ -190,66 +190,47 @@ cdef bint generate_batchfile(bytes chrom_name,
         ``start``: It's 1-base position
         ``end``: It's 1-base position
     """
-    cdef list read_buffers
+    cdef list sample_read_buffers
     try:
         # load the whole mapping reads in [chrom_name, start, end]
         # set `start-1` to be 0-base, ``end`` is still 1-base
-        read_buffers = load_bamdata(bamfiles, sample_ids, chrom_name, max(0, start - 1), end, ref_seq, options)
+        # ``sample_read_buffers`` will be the same size as ``sample_size``
+        sample_read_buffers = load_bamdata(bamfiles, sample_ids, chrom_name, max(0, start - 1), end, ref_seq, options)
 
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, start + 1, end, e))
         sys.exit(1)
 
-    if read_buffers is None or len(read_buffers) == 0:
+    if sample_read_buffers is None or len(sample_read_buffers) == 0:
         logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start + 1, end + 1))
         return True  # empty
 
-    # take all the batch information for all samples in ``regions``
-    cdef BamReadBuffer sample_read_buffer
-    cdef BatchGenerator be_generator
-    cdef list batch_buffers = []
-    cdef int longest_read_size = 0
-    for sample_read_buffer in read_buffers:
+    # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
+    cdef BatchGenerator be_generator = BatchGenerator(chrom_name, start, end, fa, sample_size, options)
 
+    cdef int longest_read_size = 0
+    cdef int index
+    cdef BamReadBuffer sample_read_buffer
+    for index in range(sample_size):
+        sample_read_buffer = sample_read_buffers[index]
         if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
             longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
-
-        # init the batch generator by the BIG region, but the big region may not be use
-        be_generator = BatchGenerator(chrom_name, start, end, fa, options)
 
         # get batch information for each sample in [start, end]
         be_generator.create_batch_in_region(
             (chrom_name, start, end),
             sample_read_buffer.reads.array,  # this start pointer will move automatically
-            sample_read_buffer.reads.array + sample_read_buffer.reads.get_size()
+            sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
+            index  # sample_index index ``BatchGenerator``
         )
-        batch_buffers.append(be_generator)
 
     # Todo: take care, although this code may not been called forever.
     if longest_read_size > options.r_len:
         options.r_len = longest_read_size
 
-    return _variants_discovery(chrom_name,
-                               start,
-                               end,
-                               fa,
-                               batch_buffers,
-                               sample_size,
-                               popgroup,
-                               options.min_af,
-                               part_cvg_file_name,
-                               part_vcf_file_name)
+    return _variants_discovery(be_generator, popgroup, options.min_af, part_cvg_file_name, part_vcf_file_name)
 
-cdef bint _variants_discovery(bytes chrom_name,
-                              int start,
-                              int end,
-                              FastaFile fa,
-                              list sample_batch_buffers,
-                              int sample_size,
-                              dict popgroup,
-                              float min_af,
-                              out_cvg_file,
-                              out_vcf_file):
+cdef bint _variants_discovery(BatchGenerator batch_generator, dict popgroup, float min_af, out_cvg_file, out_vcf_file):
     """Function for variants discovery.
     
     Parameter:
@@ -266,59 +247,17 @@ cdef bint _variants_discovery(bytes chrom_name,
     CVG = Open(out_cvg_file, "wb", isbgz=True) if out_cvg_file.endswith(".gz") else \
         open(out_cvg_file, "w")
 
+    cdef BatchInfo batch_info
     cdef bint is_empty = True
-
-    cdef BatchGenerator be_generator
-    cdef BatchInfo batch_info = BatchInfo(chrom_name, sample_size)
-
-    cdef basestring kk
-    cdef int position
+    cdef int how_many_pos = len(batch_generator.batch_heap)
     cdef int n = 0, i = 0
-    for position in range(start, end + 1):
-        # `batch_info` will be update each loop here.
-        batch_info.depth = 0
-        batch_info.position = position
-        batch_info.ref_base = fa.get_character(chrom_name, position - 1)  # 0-base system
-
+    for i in range(how_many_pos):
+        batch_info = batch_generator.batch_heap[i]
         if n % 10000 == 0:
-            logger.info("Have been loading %d lines when hit position %s:%d" %
-                        (n if n > 0 else 1, chrom_name, batch_info.position))
+            logger.info("Have been loading %d lines when hit position %s:%s" %
+                        (n if n > 0 else 1, batch_info.chrid, batch_info.position))
         n += 1
 
-        # set to be 0-base: position - 1
-        kk = "%s:%s" % (chrom_name, position - 1)
-        for i in range(sample_size):
-            be_generator = sample_batch_buffers[i]
-            if kk in be_generator.batch_heap:
-
-                batch_info.depth += 1
-                if be_generator.batch_heap[kk].base_type == 0:
-                    # Single base
-                    batch_info.sample_bases[i] = be_generator.batch_heap[kk].read_base
-                elif be_generator.batch_heap[kk].base_type == 1:
-                    # insertion
-                    tmp_bytes = "+" + be_generator.batch_heap[kk].read_base
-                    batch_info.sample_bases[i] = tmp_bytes
-                elif be_generator.batch_heap[kk].base_type == 2:
-                    # deletion
-                    tmp_bytes = "-" + be_generator.batch_heap[kk].ref_base
-                    batch_info.sample_bases[i] = tmp_bytes
-                else:
-                    raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
-                                      "\n" % be_generator.batch_heap[kk].read_base)
-
-                batch_info.sample_base_quals[i] = be_generator.batch_heap[kk].base_qual
-                batch_info.strands[i] = be_generator.batch_heap[kk].map_strand
-                batch_info.mapqs[i] = be_generator.batch_heap[kk].mapq
-                batch_info.read_pos_rank[i] = be_generator.batch_heap[kk].read_pos_rank + 1
-            else:
-                batch_info.sample_bases[i] = 'N'
-                batch_info.sample_base_quals[i] = 0
-                batch_info.strands[i] = '.'
-                batch_info.mapqs[i] = 0
-                batch_info.read_pos_rank[i] = 0
-
-        # ignore if coverage=0
         if batch_info.depth == 0:
             continue
 
@@ -472,7 +411,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
     cdef bint is_variant = True
 
     cdef BaseType bt, group_bt
-    cdef char ** group_sample_bases
+    cdef char **group_sample_bases
     cdef int *group_sample_base_quals
     cdef int group_sample_size
     cdef int i = 0
@@ -483,7 +422,6 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
                  batchinfo.size, min_af)
 
         is_variant = bt.lrt(None)  # do not need to set specific_base_combination
-
         if is_variant:
 
             popgroup_bt = {}
@@ -514,7 +452,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
             _out_vcf_line(batchinfo, bt, popgroup_bt, vcf_file_handle)
     return
 
-cdef list _base_depth_and_indel(char ** bases, int size):
+cdef list _base_depth_and_indel(char **bases, int size):
     # coverage info for each position
     cdef dict base_depth = {b: 0 for b in CommonParameter.BASE}
     cdef dict indel_depth = {}
@@ -541,7 +479,6 @@ cdef list _base_depth_and_indel(char ** bases, int size):
 
 cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     """output coverage information into `out_file_handle`"""
-
     # coverage info for each position
     cdef dict base_depth
     cdef bytes indels
