@@ -144,11 +144,11 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         ref_seq = _ref_seq_bytes
         flag = generate_batchfile(chrom_name,
                                   start,  # 1-base
-                                  end,    # 1-base
+                                  end,  # 1-base
                                   fa,
                                   ref_seq,
                                   bamfiles,  # All the BAM files
-                                  samples,   # All samples
+                                  samples,  # All samples
                                   sample_size,
                                   popgroup,
                                   options,
@@ -171,7 +171,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
 
 cdef bint generate_batchfile(bytes chrom_name,
                              long int start,  # 1-base system
-                             long int end,    # 1-base system
+                             long int end,  # 1-base system
                              FastaFile fa,
                              char *ref_seq,
                              dict bamfiles,
@@ -273,128 +273,6 @@ cdef bint _variants_discovery(BatchGenerator batch_generator, dict popgroup, flo
 
     return is_empty
 
-#################################################################################################################
-
-# cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
-#                              int batch_count, cvg_file_handle, vcf_file_handle):
-#     """Function for variants discovery.
-#     """
-#     cdef list sampleinfos = []
-#     cdef list batch_files_hd = [Open(f, 'rb') for f in batchfiles]
-#     cdef bint is_empty = True
-#     cdef bint eof = False
-#     cdef bint is_error = False
-#
-#     cdef int total_sample_num = batch_count * len(batchfiles)
-#     cdef BatchInfo batchinfo = BatchInfo(chrid, total_sample_num)
-#
-#     cdef int n = 0
-#     while True:
-#         # Loading ...
-#         # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
-#         sampleinfos = []
-#         for fh in batch_files_hd:
-#             line = fh.readline()
-#             if line:
-#                 if line.startswith("#"):
-#                     continue
-#
-#                 sampleinfos.append(line.strip().split())
-#             else:
-#                 sampleinfos.append(None)
-#                 eof = True
-#
-#         # hit the end of files
-#         if eof:
-#             is_error = True if any(sampleinfos) else False
-#             if is_error:
-#                 logger.warning(
-#                     "%s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
-#                     "positions in above files." % "\n".join(batchfiles))
-#             break
-#
-#         # Empty!! Just get header information.
-#         if not sampleinfos:
-#             continue
-#
-#         # reset position and ref_base
-#         batchinfo.position = int(sampleinfos[0][1])
-#         batchinfo.ref_base = sampleinfos[0][2]
-#
-#         if n % 10000 == 0:
-#             logger.info("Have been loading %d lines when hit position %s:%d" %
-#                         (n if n > 0 else 1, chrid, batchinfo.position))
-#         n += 1
-#
-#         # data in ``batchinfo`` will been updated automatically in this funcion
-#         _fetch_baseinfo_by_position_from_batchfiles(sampleinfos, batch_count, batchinfo)
-#
-#         # ignore if coverage=0
-#         if batchinfo.depth == 0:
-#             continue
-#
-#         # Not empty
-#         is_empty = False
-#
-#         # Calling varaints position one by one and output files.
-#         _basetypeprocess(batchinfo, popgroup, min_af, cvg_file_handle, vcf_file_handle)
-#
-#     for fh in batch_files_hd:
-#         fh.close()
-#
-#     return is_empty
-
-# cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int batch_count, BatchInfo batchinfo):
-#     # reset depth
-#     batchinfo.depth = 0
-#
-#     cdef char *c_t4
-#     cdef char *c_t5
-#     cdef char *c_t6
-#     cdef char *c_t7
-#     cdef char *c_t8
-#
-#     cdef int n = 0, index = 0
-#     for i, col in enumerate(infolines):
-#         # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
-#         if len(col) == 0:
-#             logger.error(" %d lines happen to be empty in batchfiles!" % (i + 1))
-#             sys.exit(1)
-#
-#         col[1], col[3] = map(int, [col[1], col[3]])
-#         if col[0] != batchinfo.chrid or col[1] != batchinfo.position or col[2] != batchinfo.ref_base:
-#             logger.error("%d lines, chromosome [%s and %s] or position [%d and %d] "
-#                          "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
-#                          (i + 1, col[0], batchinfo.chrid, col[1], batchinfo.position, col[2], batchinfo.ref_base))
-#             sys.exit(1)
-#
-#         batchinfo.depth += col[3]
-#         if col[3] > 0:
-#
-#             c_t4, c_t5, c_t6, c_t7, c_t8 = col[4:9]
-#             for n in range(batch_count):
-#                 # if catch segmentation fault then the problem would probably be here!
-#                 batchinfo.mapqs[index] = atoi(strsep(&c_t4, ","))
-#                 batchinfo.sample_bases[index] = strsep(&c_t5, ",")  # must all be all upper charater in batchfile!
-#                 batchinfo.sample_base_quals[index] = atoi(strsep(&c_t6, ","))
-#                 batchinfo.read_pos_rank[index] = atoi(strsep(&c_t7, ","))
-#                 batchinfo.strands[index] = strsep(&c_t8, ",")[0]  # It's char not string
-#
-#                 # move to the next
-#                 index += 1
-#         else:
-#             for n in range(batch_count):
-#                 batchinfo.mapqs[index] = 0
-#                 batchinfo.sample_bases[index] = "N"
-#                 batchinfo.sample_base_quals[index] = 0
-#                 batchinfo.read_pos_rank[index] = 0
-#                 batchinfo.strands[index] = "."
-#
-#                 # move to the next
-#                 index += 1
-#
-#     return
-
 cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg_file_handle, vcf_file_handle):
     """
     
@@ -411,7 +289,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
     cdef bint is_variant = True
 
     cdef BaseType bt, group_bt
-    cdef char **group_sample_bases
+    cdef char ** group_sample_bases
     cdef int *group_sample_base_quals
     cdef int group_sample_size
     cdef int i = 0
@@ -452,7 +330,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
             _out_vcf_line(batchinfo, bt, popgroup_bt, vcf_file_handle)
     return
 
-cdef list _base_depth_and_indel(char **bases, int size):
+cdef list _base_depth_and_indel(char ** bases, int size):
     # coverage info for each position
     cdef dict base_depth = {b: 0 for b in CommonParameter.BASE}
     cdef dict indel_depth = {}
