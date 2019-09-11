@@ -355,6 +355,7 @@ cdef list _base_depth_and_indel(char ** bases, int size):
 
     return [base_depth, indels]
 
+
 cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     """output coverage information into `out_file_handle`"""
     # coverage info for each position
@@ -369,6 +370,7 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     cdef bytes group
     cdef list index
 
+    # Here is one of the two parts which most time consuming!
     cdef int i = 0
     cdef dict sub_bd
     cdef bytes sub_inds
@@ -390,11 +392,15 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     cdef int ref_fwd, ref_rev, alt_fwd, alt_rev
     fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = 0, -1, 0, 0, 0, 0
 
+    # Here is the other part which most time consuming!
     cdef bytes ref_base = batchinfo.ref_base
     cdef bytes b1, b2
     if sum(base_depth.values()) > 0:
+        # could we stop sorting ?
         base_sorted = sorted(base_depth.items(), key=lambda x: x[1], reverse=True)
         b1, b2 = base_sorted[0][0], base_sorted[1][0]
+
+        # This is very efficient.
         fs, sor, ref_fwd, ref_rev, alt_fwd, alt_rev = strand_bias(
             ref_base.upper(),  # reference
             [b1 if b1 != ref_base.upper() else b2],  # alt-allele
