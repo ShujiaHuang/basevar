@@ -16,11 +16,10 @@ cdef extern from "math.h" nogil:
 cdef class BaseTuple:
     cdef int combination_num
     cdef int base_num
-    cdef char** base_comb_tuple  # => bc
-    cdef double* sum_marginal_likelihood  # => lr
-    cdef double** alleles_freq_list  # => bp
+    cdef char **base_comb_tuple  # => bc
+    cdef double *sum_marginal_likelihood  # => lr
+    cdef double **alleles_freq_list  # => bp
     cdef void destroy(self)
-
 
 cdef class BaseType:
     cdef int good_individual_num
@@ -35,11 +34,11 @@ cdef class BaseType:
     cdef dict af_by_lrt
     cdef dict depth
 
-    cdef void cinit (self, bytes ref_base, char **bases, int *quals, int total_sample_size, float min_af)
+    cdef void cinit(self, bytes ref_base, char **bases, int *quals, int total_sample_size, float min_af)
     cdef bint lrt(self, list specific_base_comb)
     cdef void _set_init_ind_allele_likelihood(self, char **ind_bases, list base_element, int total_individual_num)
     cdef double *_set_allele_frequence(self, tuple bases)
     cdef double sum_likelihood(self, double *data, int num, bint is_log)
     cdef BaseTuple _f(self, list bases, int n)
     cdef double *calculate_chivalue(self, double lr_alt, double *lr_null, int comb_num)
-    cdef int find_argmin(self, double* data, int comb_num)
+    cdef int find_argmin(self, double *data, int comb_num)

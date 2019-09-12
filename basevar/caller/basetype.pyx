@@ -6,8 +6,13 @@ import itertools  # Use the combinations function
 
 from scipy.stats.distributions import chi2
 
-from basevar.utils import CommonParameter
 from basevar.caller.algorithm cimport EM
+
+cdef int LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
+cdef int QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
+cdef double MLN10TO10 = -0.23025850929940458  # log(10)/10
+cdef list BASE = ['A', 'C', 'G', 'T']
+cdef dict BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
 
 
 cdef class BaseTuple:
@@ -91,8 +96,8 @@ cdef class BaseType:
         self._alt_bases = None
         self._var_qual = 0.0  # init the variant quality
         self.min_af = min_af
-        self.depth = {b: 0 for b in CommonParameter.BASE}
-        self.base_type_num = len(CommonParameter.BASE)
+        self.depth = {b: 0 for b in BASE}
+        self.base_type_num = len(BASE)
 
         # how many individual is in good base
         cdef int i = 0
@@ -106,14 +111,14 @@ cdef class BaseType:
         assert self.qual_pvalue != NULL, "Could not allocate memory for qual_pvalue in BaseType"
 
         for i in range(total_sample_size):
-            self.qual_pvalue[i] = 1.0 - exp(CommonParameter.MLN10TO10 * quals[i])
+            self.qual_pvalue[i] = 1.0 - exp(MLN10TO10 * quals[i])
 
         # A big 1-D array
         self.ind_allele_likelihood = <double*>(calloc(self.good_individual_num * self.base_type_num, sizeof(double)))
         assert self.ind_allele_likelihood != NULL, "Could not allocate memory for ind_allele_likelihood in BaseType"
 
         # set allele likelihood for each individual and get depth
-        self._set_init_ind_allele_likelihood(bases, CommonParameter.BASE, total_sample_size)
+        self._set_init_ind_allele_likelihood(bases, BASE, total_sample_size)
         self.total_depth = float(sum(self.depth.values()))
 
         # estimated allele frequency by EM and LRT
@@ -171,7 +176,7 @@ cdef class BaseType:
         cdef bytes b
         if self.total_depth > 0:
             for b in bases:
-                allele_frequence[CommonParameter.BASE2IDX[b]] = self.depth[b] / self.total_depth
+                allele_frequence[BASE2IDX[b]] = self.depth[b] / self.total_depth
 
         return allele_frequence
 
@@ -272,7 +277,7 @@ cdef class BaseType:
         if specific_base_comb:
             bases = [b for b in specific_base_comb if self.depth[b] / self.total_depth >= self.min_af]
         else:
-            bases = [b for b in CommonParameter.BASE if self.depth[b] / self.total_depth >= self.min_af]
+            bases = [b for b in BASE if self.depth[b] / self.total_depth >= self.min_af]
 
         cdef int bases_num = len(bases)
         if bases_num == 0 or (bases_num == 1 and bases[0] == self._ref_base): # no base or it's reference base.
@@ -303,7 +308,7 @@ cdef class BaseType:
             chi_sqrt_value = lrt_chi_value[i_min]
 
             # Take the null hypothesis and continue
-            if chi_sqrt_value < CommonParameter.LRT_THRESHOLD:
+            if chi_sqrt_value < LRT_THRESHOLD:
                 memcpy(base_frq, the_base_tuple.alleles_freq_list[i_min], self.base_type_num * sizeof(double))
                 bases = [chr(the_base_tuple.base_comb_tuple[i_min][j]) for j in range(the_base_tuple.base_num)]
 
@@ -318,7 +323,7 @@ cdef class BaseType:
             free(lrt_chi_value)
 
         self._alt_bases = [b for b in bases if b != self._ref_base]
-        self.af_by_lrt = {b:"%.6f" % base_frq[CommonParameter.BASE2IDX[b]] for b in self._alt_bases}
+        self.af_by_lrt = {b:"%.6f" % base_frq[BASE2IDX[b]] for b in self._alt_bases}
 
         cdef bint is_variant = False
         # Todo: improve the calculation method for var_qual

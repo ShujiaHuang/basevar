@@ -7,7 +7,7 @@ import time
 
 from basevar.log import logger
 from basevar.utils cimport generate_regions_by_process_num, fast_merge_files
-from basevar.utils import CommonParameter, vcf_header_define, cvg_header_define
+from basevar.utils import vcf_header_define, cvg_header_define
 
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open
@@ -19,6 +19,9 @@ from basevar.caller.algorithm cimport ref_vs_alt_ranksumtest
 
 from basevar.caller.basetype cimport BaseType
 from basevar.caller.batch cimport BatchGenerator, BatchInfo
+
+cdef int QUAL_THRESHOLD = 60
+cdef list BASE = ['A', 'C', 'G', 'T']
 
 def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handle, out_vcf_handle=None):
     info, group = [], []
@@ -332,7 +335,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
 
 cdef list _base_depth_and_indel(char ** bases, int size):
     # coverage info for each position
-    cdef dict base_depth = {b: 0 for b in CommonParameter.BASE}
+    cdef dict base_depth = {b: 0 for b in BASE}
     cdef dict indel_depth = {}
 
     cdef int i = 0
@@ -417,13 +420,13 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
             for k in group_cvg.keys():
                 depth, indel = group_cvg[k]
                 indel = [indel] if indel != "." else []
-                s = ':'.join(map(str, [depth[b] for b in CommonParameter.BASE]) + indel)
+                s = ':'.join(map(str, [depth[b] for b in BASE]) + indel)
                 group_info.append(s)
 
         out_file_handle.write(
             '\t'.join(
                 [batchinfo.chrid, str(batchinfo.position), ref_base, str(sum(base_depth.values()))] +
-                [str(base_depth[b]) for b in CommonParameter.BASE] +
+                [str(base_depth[b]) for b in BASE] +
                 [indels] +
                 [str("%.3f" % fs), str("%.3f" % sor), ','.join(map(str, [ref_fwd, ref_rev, alt_fwd, alt_rev]))] +
                 group_info
@@ -511,7 +514,7 @@ cdef void _out_vcf_line(BatchInfo batchinfo, BaseType bt, dict pop_group_bt, out
 
     out_file_handle.write('\t'.join([batchinfo.chrid, str(batchinfo.position), '.', batchinfo.ref_base,
                                      ','.join(bt.alt_bases), str(bt.var_qual),
-                                     '.' if bt.var_qual > CommonParameter.QUAL_THRESHOLD else 'LowQual',
+                                     '.' if bt.var_qual > QUAL_THRESHOLD else 'LowQual',
                                      ';'.join([kk + '=' + vv for kk, vv in sorted(
                                          info.items(), key=lambda x: x[0])]),
                                      'GT:AB:SO:BP'] + samples) + '\n')
