@@ -415,7 +415,7 @@ cdef class BatchGenerator(object):
         cdef int base_qual = 0
         cdef int base_index = 0
         cdef int pos_index = 0
-        cdef bytes base_bytes
+        cdef char base_char[2]
 
         cdef int index = 0
         cdef long int ref_pos = 0
@@ -432,7 +432,8 @@ cdef class BatchGenerator(object):
                 break
 
             base_index = read_offset + index
-            base_bytes = read_seq[base_index]
+            base_char[0] = read_seq[base_index]
+            base_char[1] = '\0'
             base_qual = read_qual[base_index]
 
             pos_index = ref_pos - self.start_pos_in_batch_heap
@@ -440,6 +441,6 @@ cdef class BatchGenerator(object):
             if batch_info.is_empty[sample_index]:
                 # Just record the information of first read, so do not update if it's not empty
                 batch_info.update_info_by_index(sample_index, self.ref_name, ref_pos, mapq, map_strand,
-                                                base_bytes, base_qual, base_index)
+                                                base_char, base_qual, base_index)
 
         return
