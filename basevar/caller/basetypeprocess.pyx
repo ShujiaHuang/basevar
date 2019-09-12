@@ -12,8 +12,10 @@ from basevar.io.fasta import FastaFile
 
 from basevar.log import logger
 from basevar import utils
+from basevar.utils cimport fast_merge_files
 
 from basevar.caller.variantcaller cimport variant_discovery_in_regions
+
 # from basevar.caller.variantcaller import output_header
 # from basevar.caller.variantcaller cimport variants_discovery
 # from basevar.caller.batchcaller cimport create_batchfiles_in_regions
@@ -55,30 +57,42 @@ cdef class BaseVarProcess:
             self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
     def run(self):
-        """Run the process of calling variant and output files.
+        self.run_variant_discovery_in_regions()
+
+    cdef void run_variant_discovery_in_regions(self):
+        """Run the process of calling variant without creating batch files.
+        This function will hit A BIG IO problem when we need to read huge number of BAM files.
         """
         start_time = time.time()
         if self.options.smartrerun:
             utils.safe_remove(utils.get_last_modification_file(self.cache_dir))
 
+        # store all the batch files
+        cdef list vcf_batch_files
+        cdef list cvg_batch_files
         cdef bint is_empty
         try:
-            is_empty = variant_discovery_in_regions(self.fa_file_hd,
-                                                    self.align_files,
-                                                    self.regions,
-                                                    self.samples,
-                                                    self.popgroup,
-                                                    self.cache_dir,
-                                                    self.options,
-                                                    out_cvg_file=self.out_cvg_file,
-                                                    out_vcf_file=self.out_vcf_file)
+            is_empty, vcf_batch_files, cvg_batch_files = variant_discovery_in_regions(
+                self.fa_file_hd,
+                self.align_files,
+                self.regions,
+                self.samples,
+                self.popgroup,
+                self.cache_dir,
+                True if self.out_vcf_file else False, # output VCF or not
+                self.options
+            )
+
+            # `cvg_batch_files` is already in order, so we don't have to sort them when merge.
+            fast_merge_files(cvg_batch_files, self.out_cvg_file, is_del_raw_file=False)
+            if self.out_vcf_file:
+                fast_merge_files(vcf_batch_files, self.out_vcf_file, is_del_raw_file=False)
+
         except Exception, e:
             logger.error("Variants discovery in BaseVarProcess.run Error: %s" % e)
             sys.exit(1)
 
         logger.info("Running variant_discovery_in_regions done, %d seconds elapsed.\n" % (time.time() - start_time))
-
-
         if is_empty:
             logger.warning("\n***************************************************************************\n"
                            "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
@@ -86,7 +100,16 @@ cdef class BaseVarProcess:
             if self.out_vcf_file:
                 logger.warning("and %s " % self.out_vcf_file)
 
+        cdef int i = 0
+        cdef int batch_file_num = len(cvg_batch_files)
         if REMOVE_BATCH_FILE:
+
+            for i in range(batch_file_num):
+                os.remove(cvg_batch_files[i])
+
+            if self.out_vcf_file:
+                for i in range(batch_file_num):
+                    os.remove(vcf_batch_files[i])
 
             try:
                 os.removedirs(self.cache_dir)

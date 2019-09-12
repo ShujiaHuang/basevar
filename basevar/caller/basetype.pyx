@@ -3,14 +3,13 @@
 This module contain functions of LRT and Base genotype.
 """
 import itertools  # Use the combinations function
-
 from scipy.stats.distributions import chi2
 
 from basevar.caller.algorithm cimport EM
 
-cdef int LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
-cdef int QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
-cdef double MLN10TO10 = -0.23025850929940458  # log(10)/10
+DEF LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
+DEF QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
+DEF MLN10TO10 = -0.23025850929940458  # log(10)/10
 cdef list BASE = ['A', 'C', 'G', 'T']
 cdef dict BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
 

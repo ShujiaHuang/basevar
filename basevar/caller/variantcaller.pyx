@@ -6,7 +6,7 @@ import sys
 import time
 
 from basevar.log import logger
-from basevar.utils cimport generate_regions_by_process_num, fast_merge_files
+from basevar.utils cimport generate_regions_by_process_num
 from basevar.utils import vcf_header_define, cvg_header_define
 
 from basevar.io.fasta cimport FastaFile
@@ -40,15 +40,14 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
 
     return
 
-cdef bint variant_discovery_in_regions(FastaFile fa,
-                                       list align_files,
-                                       list regions,
-                                       list samples,
-                                       dict popgroup,
-                                       bytes outdir,
-                                       object options,
-                                       out_cvg_file,
-                                       out_vcf_file):
+cdef tuple variant_discovery_in_regions(FastaFile fa,
+                                        list align_files,
+                                        list regions,
+                                        list samples,
+                                        dict popgroup,
+                                        bytes outdir,
+                                        bint out_vcf_file,
+                                        object options):
     """
     ``regions`` is a 2-D array, 1-base system
         [[start1,end1], [start2, end2], ...]
@@ -82,8 +81,8 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     cvg_header_file_handle.close()
     if vcf_header_file_handle:
         vcf_header_file_handle.close()
-    # Output header information done!
 
+    # Output header information done!
     # loading bamfiles dict: {sample_id: bamfile, ...}
     cdef int sample_size = len(samples)
     cdef dict bamfiles = {}
@@ -92,8 +91,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         bamfiles[samples[i]] = align_files[i]
 
     cdef int batch_count = options.batch_count  # the number of sub variant files
-    cdef list batch_regions = generate_regions_by_process_num(regions,
-                                                              process_num=batch_count,
+    cdef list batch_regions = generate_regions_by_process_num(regions, process_num=batch_count,
                                                               convert_to_2d=True)
     batch_count = len(batch_regions)  # reset if len(batch_regions) < batch_count
     if batch_count != options.batch_count:
@@ -145,18 +143,18 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         # set `start-1` to be 0-base, ``end`` is still 1-base
         _ref_seq_bytes = fa.get_sequence(chrom_name, max(0, start - 1), end)
         ref_seq = _ref_seq_bytes
-        flag = generate_batchfile(chrom_name,
-                                  start,  # 1-base
-                                  end,  # 1-base
-                                  fa,
-                                  ref_seq,
-                                  bamfiles,  # All the BAM files
-                                  samples,  # All samples
-                                  sample_size,
-                                  popgroup,
-                                  options,
-                                  part_cvg_file_name,
-                                  part_vcf_file_name)
+        flag = find_variants_in_region(chrom_name,
+                                       start,  # 1-base
+                                       end,  # 1-base
+                                       fa,
+                                       ref_seq,
+                                       bamfiles,  # All the BAM files
+                                       samples,  # All samples
+                                       sample_size,
+                                       popgroup,
+                                       options,
+                                       part_cvg_file_name,
+                                       part_vcf_file_name)
 
         if is_empty and not flag:
             is_empty = False
@@ -165,25 +163,20 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
             part_vcf_file_name if out_vcf_file else '[None VCF]',
             part_cvg_file_name, time.time() - start_time))
 
-    # `cvg_batch_files` is already in order, so we don't have to sort them when merge.
-    fast_merge_files(cvg_batch_files, out_cvg_file, is_del_raw_file=True)
-    if out_vcf_file:
-        fast_merge_files(vcf_batch_files, out_vcf_file, is_del_raw_file=True)
+    return is_empty, vcf_batch_files, cvg_batch_files
 
-    return is_empty
-
-cdef bint generate_batchfile(bytes chrom_name,
-                             long int start,  # 1-base system
-                             long int end,  # 1-base system
-                             FastaFile fa,
-                             char *ref_seq,
-                             dict bamfiles,
-                             list sample_ids,
-                             int sample_size,
-                             dict popgroup,
-                             object options,
-                             part_cvg_file_name,
-                             part_vcf_file_name):
+cdef bint find_variants_in_region(bytes chrom_name,
+                                  long int start,  # 1-base system
+                                  long int end,  # 1-base system
+                                  FastaFile fa,
+                                  char *ref_seq,
+                                  dict bamfiles,
+                                  list sample_ids,
+                                  int sample_size,
+                                  dict popgroup,
+                                  object options,
+                                  part_cvg_file_name,
+                                  part_vcf_file_name):
     """Loading bamfile and create a variants in [start, end].
 
     Parameters:
@@ -357,7 +350,6 @@ cdef list _base_depth_and_indel(char ** bases, int size):
     ) if indel_depth else ".")
 
     return [base_depth, indels]
-
 
 cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
     """output coverage information into `out_file_handle`"""
