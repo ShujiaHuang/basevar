@@ -11,8 +11,8 @@ cdef extern from "string.h" nogil:
 
 from basevar.io.fasta cimport FastaFile
 
-cdef bint variant_discovery_in_regions(FastaFile fa, list align_files, list regions, list samples, dict popgroup,
-                                       bytes outdir, object options, out_cvg_file, out_vcf_file)
+cdef tuple variant_discovery_in_regions(FastaFile fa, list align_files, list regions, list samples, dict popgroup,
+                                        bytes outdir, bint is_out_vcf_file, object options)
 
 # cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
 #                              int batch_count, cvg_file_handle, vcf_file_handle)

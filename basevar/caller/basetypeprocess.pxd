@@ -13,8 +13,10 @@ cdef class BaseVarProcess:
     cdef list regions
     cdef dict popgroup
 
-    cdef bytes out_vcf_file
-    cdef bytes out_cvg_file
+    cdef basestring out_vcf_file
+    cdef basestring out_cvg_file
     cdef bytes cache_dir
 
     cdef object options
+
+    cdef void run_variant_discovery_in_regions(self)
