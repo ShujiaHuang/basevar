@@ -10,7 +10,6 @@ from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
 
-
 def do_cprofile(filename, is_do_profiling=False, stdout=False):
     """
     Decorator for function profiling.
@@ -40,24 +39,9 @@ def do_cprofile(filename, is_do_profiling=False, stdout=False):
 
     return wrapper
 
-
-cdef class CommonParameter:
-    """
-    defined some globle common parameters
-    """
-    LRT_THRESHOLD = 24  # 24 corresponding to a chi-pvalue of 10^-6
-    QUAL_THRESHOLD = 60  # -10 * lg(10^-6)
-    MLN10TO10 = -0.23025850929940458  # -np.log(10)/10
-    BASE = ['A', 'C', 'G', 'T']
-    BASE2IDX = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
-    MINAF = 0.001  # The effective base freqence threshold
-
-
 cdef float set_minaf(int sample_size):
     """setting the resolution of MAF for basetype"""
-    cmm = CommonParameter()
-    return min(100.0/sample_size, 0.001, cmm.MINAF)
-
+    return min(100.0 / sample_size, 0.001)
 
 def safe_remove(bytes fname):
     """Remove a file if it exist"""
@@ -68,7 +52,6 @@ def safe_remove(bytes fname):
         os.remove(fname)
 
     return True
-
 
 def safe_makedir(bytes dname):
     """Make a directory if it doesn't exist, handling concurrent race conditions.
@@ -92,7 +75,6 @@ def safe_makedir(bytes dname):
 
     return dname
 
-
 def file_exists(fname):
     """Check if a file exists and is non-empty.
     """
@@ -100,7 +82,6 @@ def file_exists(fname):
         return fname and os.path.exists(fname) and os.path.getsize(fname) > 0
     except OSError:
         return False
-
 
 def get_last_modification_file(bytes dirname):
     """Find the last modification file in a directory and return it."""
@@ -116,14 +97,13 @@ def get_last_modification_file(bytes dirname):
         # dirname is empty
         return ""
 
-
 def vcf_header_define(ref_file_path, info=None, samples=None):
     """define header for VCF"""
 
     if not samples:
         samples = []
 
-    fa = FastaFile(ref_file_path, ref_file_path+".fai")
+    fa = FastaFile(ref_file_path, ref_file_path + ".fai")
     fa_name = os.path.basename(fa.filename)
     contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.refnames, fa.lengths)]
     header = [
@@ -155,10 +135,9 @@ def vcf_header_define(ref_file_path, info=None, samples=None):
 
     return header
 
-
 def cvg_header_define(group_info):
     """define header for coverage file"""
-    h = '\t'.join(['#CHROM', 'POS', 'REF', 'Depth'] + CommonParameter().BASE +
+    h = '\t'.join(['#CHROM', 'POS', 'REF', 'Depth', 'A', 'C', 'G', 'T'] +
                   ['Indels', 'FS', 'SOR', 'Strand_Coverage(REF_FWD,REF_REV,ALT_FWD,ALT_REV)'])
 
     header = [
@@ -216,7 +195,6 @@ cdef list generate_regions_by_process_num(list regions, int process_num, bint co
     else:
         return regions_for_each_process
 
-
 def fetch_next(iter_fh):
     """
     re-define the next funtion of fetching info from pysam
@@ -233,19 +211,17 @@ def fetch_next(iter_fh):
 
     return line
 
-
 def load_file_list(in_file):
     with Open(in_file, 'rb') as fh:
         files = [r.strip().split()[0] for r in fh if r[0] != '#']
 
     return files
 
-
 def load_target_position(bytes referencefile, bytes posfile, bytes region_info):
     # Loading positions
     _sites = get_position_list(posfile) if posfile else {}
 
-    fa = FastaFile(referencefile, referencefile+".fai")
+    fa = FastaFile(referencefile, referencefile + ".fai")
     if len(region_info):
 
         regions = []
@@ -288,7 +264,6 @@ def load_target_position(bytes referencefile, bytes posfile, bytes region_info):
 
     return regions
 
-
 def get_position_list(in_site_file):
     sites = {}
     with Open(in_site_file, 'rb') as f:
@@ -304,7 +279,6 @@ def get_position_list(in_site_file):
 
     return sites
 
-
 def get_region_fromfile(in_region_file):
     regions = []
     with Open(in_region_file, 'rb') as f:
@@ -314,7 +288,6 @@ def get_region_fromfile(in_region_file):
             regions.append([chr_id, start, end])
 
     return regions
-
 
 def regions2dict(regions):
     """
@@ -330,7 +303,6 @@ def regions2dict(regions):
         reg_dict[chrid].append([start, end])
 
     return reg_dict
-
 
 def merge_region(position_region, delta=1):
     """Merge a batch of sorted region
@@ -389,7 +361,6 @@ def merge_region(position_region, delta=1):
 
     return m_region
 
-
 def get_minor_major(base):
     """
     ``base`` is a [ATCG] string
@@ -415,7 +386,7 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
     """Merge file which is already in order.
     We don't have to sort anything, just cat them together!
     """
-     # Final output file
+    # Final output file
     if final_file_name == "-":
         output_file = sys.stdout
     else:
@@ -431,9 +402,9 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
             # End of this file
             if line[0] == "#":
                 if index == 0:
-                    output_file.write(line.strip()+"\n")
+                    output_file.write(line.strip() + "\n")
             else:
-                output_file.write(line.strip()+"\n")
+                output_file.write(line.strip() + "\n")
 
         # If there are no calls in the temp file, we still want to
         # remove it.
@@ -464,9 +435,9 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
             # End of this file
             if line[0] == "#":
                 if index == 0:
-                    output_file.write(line.strip()+"\n")
+                    output_file.write(line.strip() + "\n")
             else:
-                the_file_for_queueing = FileForQueueing(the_file, line.strip()+"\n", is_del_raw_file=is_del_raw_file)
+                the_file_for_queueing = FileForQueueing(the_file, line.strip() + "\n", is_del_raw_file=is_del_raw_file)
                 heapq.heappush(the_heap, the_file_for_queueing)
                 break
 
@@ -483,7 +454,7 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
 
         # Get file from heap in right order
         next_file = heapq.heappop(the_heap)
-        output_file.write(next_file.line.strip()+"\n")
+        output_file.write(next_file.line.strip() + "\n")
 
         # Put file back on heap
         try:
@@ -497,7 +468,6 @@ def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
         output_file.close()
 
     return
-
 
 def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_del_raw_file=False, justbase=False):
     """
@@ -605,7 +575,6 @@ def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_d
 
     return
 
-
 def load_popgroup_info(samples, in_popgroup_file):
     """loading population group"""
 
@@ -641,7 +610,6 @@ def load_popgroup_info(samples, in_popgroup_file):
 
     return popgroup
 
-
 def output_cvg_and_vcf(sub_cvg_files, sub_vcf_files, outcvg, outvcf=None):
     """CVG file and VCF file could use the same tabix strategy."""
     for out_final_file, sub_file_list in zip([outcvg, outvcf], [sub_cvg_files, sub_vcf_files]):
@@ -662,5 +630,3 @@ def output_file(sub_files, out_file_name, del_raw_file=False):
         merge_files(sub_files, out_file_name, is_del_raw_file=del_raw_file)
 
     return
-
-
