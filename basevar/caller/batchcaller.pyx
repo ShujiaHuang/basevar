@@ -4,38 +4,32 @@ Package for parsing bamfile
 Author: Shujia Huang
 Date : 2016-07-19 14:14:21
 """
-
-# Now I don't need this function any more!!! It's too slow!!!
-
 import os
 import sys
 import time
 
 from basevar.log import logger
-from basevar.utils cimport generate_regions_by_process_num
 
 from basevar.io.openfile import Open
 from basevar.io.fasta cimport FastaFile
-from basevar.caller.batch cimport BatchGenerator, BatchInfo
-from basevar.io.read cimport check_and_trim_read
-from basevar.io.htslibWrapper cimport Read_IsQCFail
-from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
-
 from basevar.io.bam cimport load_bamdata
 from basevar.io.read cimport BamReadBuffer
+from basevar.caller.batch cimport BatchGenerator
 
 
 cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        list regions,
-                                       long int region_boundary_start,
-                                       long int region_boundary_end,
+                                       long int region_boundary_start, # 1-base
+                                       long int region_boundary_end,   # 1-base
                                        list align_files,
                                        FastaFile fa,
                                        list samples,
                                        bytes outdir,
                                        object options):
     """
-    ``regions`` is a 2-D array : [[start1,end1], [start2, end2], ...]
+    ``regions`` is a 2-D array
+        They all are the some chromosome: [[start1,end1], [start2, end2], ...]
+        
     ``samples``: The sample id of align_files
     ``fa``:
         # get sequence of chrom_name from reference fasta
@@ -81,15 +75,15 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
             batch_sample_ids = samples[i:i+batchcount]
 
         generate_batchfile(chrom_name,
-                           region_boundary_start,
-                           region_boundary_end,
+                           region_boundary_start,  # 1-base
+                           region_boundary_end,    # 1-base
                            regions,
                            sub_align_files,
                            refseq,
                            fa,
-                           options,
                            part_file_name,
-                           batch_sample_ids)
+                           batch_sample_ids,
+                           options)
 
         logger.info("Done for batchfile %s , %d seconds elapsed." % (
             part_file_name, time.time() - start_time))
@@ -98,15 +92,15 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
 
 
 cdef void generate_batchfile(bytes chrom_name,
-                             long int bigstart,
-                             long int bigend,
+                             long int bigstart, # 1-base
+                             long int bigend,   # 1-base
                              list regions,
                              list batch_align_files,
-                             char* refseq,
+                             char *ref_seq,
                              FastaFile fa,
-                             object options,
                              bytes out_batch_file,
-                             list batch_sample_ids):
+                             list batch_sample_ids,
+                             object options):
 
     """Loading bamfile and create a batchfile in ``regions``.
 
@@ -115,242 +109,70 @@ cdef void generate_batchfile(bytes chrom_name,
         ``bigend``: It's already 0-base position
         ``regions``: The coordinate in regions is 1-base system.
     """
-    # Just loading baminfo without loading header!
-    cdef dict bamfiles = {s: f for s, f in zip(batch_sample_ids, batch_align_files)}
-    cdef list read_buffers
+    # Make bamfiles dict: {sample_id:bamfile,...,}
+    cdef int sample_size = len(batch_sample_ids)
+    cdef dict bam_files = {}
+    cdef int i = 0
+    for i in range(sample_size):
+        bam_files[batch_sample_ids[i]] = batch_align_files[i]
 
+    cdef list sample_read_buffers
     try:
         # load the whole mapping reads in [chrom_name, bigstart, bigend]
-        read_buffers = load_bamdata(bamfiles, batch_sample_ids, chrom_name, bigstart, bigend, refseq, options)
+        sample_read_buffers = load_bamdata(bam_files, batch_sample_ids, chrom_name,
+                                    bigstart-1, bigend-1, ref_seq, options)
 
     except Exception, e:
-        logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart+1, bigend+1, e))
+        logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart, bigend, e))
         sys.exit(1)
 
-    if read_buffers is None or len(read_buffers) == 0:
-        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart+1, bigend+1))
+    if sample_read_buffers is None or len(sample_read_buffers) == 0:
+        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, bigstart, bigend))
         return
 
-    # take all the batch information for all samples in ``regions``
-    cdef BamReadBuffer sample_read_buffer
-    cdef BatchGenerator be_generator
-    cdef list batch_buffers = []
+    cdef BatchGenerator batch_buffer
+    cdef list region_batch_buffers = []
+
+    cdef int sample_index
     cdef int longest_read_size = 0
+    cdef BamReadBuffer sample_read_buffer
     cdef long int reg_start, reg_end
-    for sample_read_buffer in read_buffers:
+    for reg_start, reg_end in regions:
+        # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
+        batch_buffer = BatchGenerator(chrom_name, reg_start, reg_end, fa, sample_size, options)
 
-        if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
-            longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
+        # loop all samples
+        for sample_index in range(sample_size):
+            sample_read_buffer = sample_read_buffers[sample_index]
+            if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
+                longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
 
-        # init the batch generator by the BIG region, but the big region may not be use
-        be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
-
-        # get batch information for each sample in regions
-        for reg_start, reg_end in regions:
-            reg_start -= 1  # set position to be 0-base
-            reg_end -= 1  # set position to be 0-base
-            be_generator.create_batch_in_region(
+            # get batch information for each sample in [start, end]
+            batch_buffer.create_batch_in_region(
                 (chrom_name, reg_start, reg_end),
                 sample_read_buffer.reads.array,  # this start pointer will move automatically
-                sample_read_buffer.reads.array + sample_read_buffer.reads.get_size()
+                sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
+                sample_index  # sample_index is the index in ``BatchGenerator``
             )
 
-        batch_buffers.append(be_generator)
+        # store information in each [reg_start, reg_end] of all samples
+        region_batch_buffers.append(batch_buffer)
 
-    # Todo: take care here, although these may not been called forever.
+    # Todo: take care, although this code may not been called forever.
     if longest_read_size > options.r_len:
         options.r_len = longest_read_size
 
-    output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
+    output_batch_file(chrom_name, fa, region_batch_buffers, out_batch_file, batch_sample_ids, regions)
     return
 
 
-# This function take much more memery than the ``generate_batchfile``, but I don't know why.
-# cdef void generate_batchfile_2(bytes chrom_name,
-#                                long int bigstart,
-#                                long int bigend,
-#                                list regions,
-#                                list batch_align_files,
-#                                char* refseq,
-#                                FastaFile fa,
-#                                object options,
-#                                bytes out_batch_file,
-#                                list batch_sample_ids):
-#     """Loading bamfile and create a batchfile in ``regions``.
-#
-#     Parameters:
-#         ``bigstart``: It's already 0-base position
-#         ``bigend``: It's already 0-base position
-#         ``regions``: The coordinate in regions is 1-base system.
-#     """
-#     cdef Samfile reader
-#     cdef ReadIterator reader_iter
-#     cdef cAlignedRead* the_read
-#
-#     cdef BatchGenerator be_generator
-#     cdef list batch_buffers = []
-#     cdef int longest_read_size = 0
-#     cdef long int reg_start, reg_end
-#
-#     cdef int mapq = options.mapq
-#     cdef bint trim_overlapping = options.trim_overlapping
-#     cdef bint trim_soft_clipped = options.trim_soft_clipped
-#
-#     cdef bint read_ok
-#     cdef bint is_empty
-#     cdef bint is_overlap
-#     cdef int reg_size = len(regions)
-#     cdef int reg_index = 0
-#     cdef int i = 0
-#
-#     _py_region = "%s:%s-%s" % (chrom_name, bigstart, bigend)
-#     cdef char* region = _py_region
-#
-#     for sample, bamfile in zip(batch_sample_ids, batch_align_files):
-#
-#         reader = Samfile(bamfile)
-#         reader.open("r", True)
-#
-#         # init the batch generator by the BIG region, but the big region may not be use
-#         be_generator = BatchGenerator(chrom_name, bigstart, bigend, fa, options)
-#
-#         reg_index = 0
-#         is_empty  = False
-#
-#         try:
-#             reader_iter = reader.fetch(region)
-#         except Exception as e:
-#             logger.warning(e.message)
-#             logger.warning("No data could be retrieved for sample %s in file %s in "
-#                            "region %s" % (sample, reader.filename, region))
-#             is_empty = True
-#
-#         while (not is_empty) and reader_iter.cnext():
-#
-#             the_read = reader_iter.get(0, NULL)
-#             if the_read == NULL:
-#                 continue
-#
-#             read_ok = check_and_trim_read(the_read, NULL, be_generator.filtered_read_counts_by_type,
-#                                           mapq, trim_overlapping, trim_soft_clipped)
-#             if Read_IsQCFail(the_read):
-#                 continue
-#
-#             is_overlap = False
-#             for i in range(reg_index, reg_size):
-#                 reg_start, reg_end = regions[i][0] -1, regions[i][1] - 1  # 0-base
-#
-#                 # still behind the region, do nothing but continue
-#                 if the_read.end < reg_start:
-#                     continue
-#
-#                 # Break the loop when mapping start position is outside the region.
-#                 if the_read.pos > reg_end:
-#                     break
-#
-#                 reg_index = i
-#                 is_overlap = True
-#                 break
-#
-#             if is_overlap:
-#                 reg_start, reg_end = regions[reg_index][0] -1, regions[reg_index][1] - 1  # 0-base
-#                 be_generator.get_batch_from_single_read_in_region(the_read, reg_start, reg_end)
-#                 if longest_read_size < the_read.end - the_read.pos:
-#                     longest_read_size = the_read.end - the_read.pos
-#
-#         reader.close()
-#         batch_buffers.append(be_generator)
-#
-#     # Todo: take care these codes, although they may not been called forever.
-#     if longest_read_size > options.r_len:
-#         options.r_len = longest_read_size
-#
-#     output_batch_file(chrom_name, fa, batch_buffers, out_batch_file, batch_sample_ids, regions)
-#     return
-
-
-# This function is slow
-# cdef void output_batch_file_1(bytes chrom_name, FastaFile fa, list sample_batch_buffers, bytes out_batch_file,
-#                             list batch_sample_ids, list regions):
-#
-#     cdef int sample_size = len(sample_batch_buffers)
-#     cdef BatchInfo batch_info = BatchInfo(chrom_name, sample_size)
-#
-#     cdef BatchGenerator be_generator
-#     cdef bytes kk, tmp_bytes
-#     cdef int position, i
-#     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
-#             open(out_batch_file, "w") as OUT:
-#
-#         OUT.write("##fileformat=BaseVarBatchFile_v1.0\n")
-#         if batch_sample_ids:
-#             OUT.write("##SampleIDs=%s\n" % ",".join(batch_sample_ids))
-#
-#         suff_header = ["#CHROM", "POS", "REF", "Depth(CoveredSample)", "MappingQuality", "Readbases",
-#                        "ReadbasesQuality", "ReadPositionRank", "Strand"]
-#         OUT.write("%s\n" % "\t".join(suff_header))
-#
-#         for reg_start, reg_end in regions:
-#             for position in range(reg_start, reg_end+1):
-#
-#                 # `batch_info` will be update each loop here.
-#                 # reset depth
-#                 batch_info.depth = 0
-#                 batch_info.position = position
-#                 batch_info.ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
-#
-#                 # set to be 0-base: position - 1
-#                 kk = bytes("%s:%s" % (chrom_name, position-1))
-#                 i = 0
-#                 for i in range(sample_size):
-#                     be_generator = sample_batch_buffers[i]
-#                     if kk in be_generator.batch_heap:
-#
-#                         batch_info.depth += 1
-#                         if be_generator.batch_heap[kk].base_type == 0:
-#                             # Single base
-#                             batch_info.sample_bases[i] = be_generator.batch_heap[kk].read_base
-#                         elif be_generator.batch_heap[kk].base_type == 1:
-#                             # insertion
-#                             tmp_bytes = "+"+be_generator.batch_heap[kk].read_base
-#                             batch_info.sample_bases[i] = tmp_bytes
-#                         elif be_generator.batch_heap[kk].base_type == 2:
-#                             # deletion
-#                             tmp_bytes = "-"+be_generator.batch_heap[kk].ref_base
-#                             batch_info.sample_bases[i] = tmp_bytes
-#                         else:
-#                             raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
-#                                               "\n" % be_generator.batch_heap[kk].read_base)
-#
-#                         batch_info.sample_base_quals[i] = be_generator.batch_heap[kk].base_qual
-#                         batch_info.strands[i] = be_generator.batch_heap[kk].map_strand
-#                         batch_info.mapqs[i] = be_generator.batch_heap[kk].mapq
-#                         batch_info.read_pos_rank[i] = be_generator.batch_heap[kk].read_pos_rank+1
-#                     else:
-#                         batch_info.sample_bases[i] = 'N'
-#                         batch_info.sample_base_quals[i] = 0
-#                         batch_info.strands[i] = '.'
-#                         batch_info.mapqs[i] = 0
-#                         batch_info.read_pos_rank[i] = 0
-#
-#                 OUT.write("%s\n" % batch_info)
-#     return
-
-
-cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_buffers, bytes out_batch_file,
+cdef void output_batch_file(bytes chrom_name, FastaFile fa, list region_batch_buffers, bytes out_batch_file,
                             list batch_sample_ids, list regions):
 
-    cdef int sample_size = len(sample_batch_buffers)
-    cdef char *sample_bases
-    cdef char *sample_base_quals
-    cdef char *mapqs
-    cdef char *strands
-    cdef char *read_pos_rank
-
-    cdef BatchGenerator be_generator
-    cdef bytes kk, tmp_bytes, ref_base
-    cdef int position, depth, i
-
+    cdef int region_number = len(region_batch_buffers)
+    cdef int position_number = 0
+    cdef int i = 0, j = 0
+    cdef BatchGenerator batch_buffer
     with Open(out_batch_file, "wb", isbgz=True) if out_batch_file.endswith(".gz") else \
             open(out_batch_file, "w") as OUT:
 
@@ -362,75 +184,12 @@ cdef void output_batch_file(bytes chrom_name, FastaFile fa, list sample_batch_bu
                        "ReadbasesQuality", "ReadPositionRank", "Strand"]
         OUT.write("%s\n" % "\t".join(suff_header))
 
-        for reg_start, reg_end in regions:
-            for position in range(reg_start, reg_end+1):
+        for i in range(region_number):
 
-                depth = 0
-                sample_bases = <char*>(calloc(10 * sample_size, sizeof(char)))
-                sample_base_quals = <char*>(calloc(10 * sample_size, sizeof(char)))
-                mapqs = <char*>(calloc(10 * sample_size, sizeof(char)))
-                read_pos_rank = <char*>(calloc(10 * sample_size, sizeof(char)))
-                strands = <char*>(calloc(10 * sample_size, sizeof(char)))
-
-                ref_base = fa.get_character(chrom_name, position-1)  # 0-base system
-
-                # set to be 0-base: position - 1
-                kk = bytes("%s:%s" % (chrom_name, position-1))
-                i = 0
-                for i in range(sample_size):
-                    be_generator = sample_batch_buffers[i]
-                    if kk in be_generator.batch_heap:
-
-                        depth += 1
-                        if be_generator.batch_heap[kk].base_type == 0:
-                            # Single base
-                            strcat(sample_bases, be_generator.batch_heap[kk].read_base)
-                        elif be_generator.batch_heap[kk].base_type == 1:
-                            # insertion
-                            tmp_bytes = "+"+be_generator.batch_heap[kk].read_base
-                            strcat(sample_bases, tmp_bytes)
-                        elif be_generator.batch_heap[kk].base_type == 2:
-                            # deletion
-                            tmp_bytes = "-"+str.upper(be_generator.batch_heap[kk].ref_base)
-                            strcat(sample_bases, tmp_bytes)
-                        else:
-                            raise TypeError, ("Unknown base-type %s in 'output_batch_file'."
-                                              "\n" % be_generator.batch_heap[kk].read_base)
-
-                        strcat(sample_base_quals, b"%d" % be_generator.batch_heap[kk].base_qual)
-                        strcat(mapqs, b"%d" % be_generator.batch_heap[kk].mapq)
-                        strcat(strands, chr(be_generator.batch_heap[kk].map_strand))
-                        strcat(read_pos_rank, b"%d" % (be_generator.batch_heap[kk].read_pos_rank+1))
-
-                    else:
-                        strcat(sample_bases, "N")
-                        strcat(sample_base_quals, "0")
-                        strcat(mapqs, "0")
-                        strcat(strands, ".")
-                        strcat(read_pos_rank, "0")
-
-                    if i + 1 < sample_size:
-                        strcat(sample_bases, ",")
-                        strcat(sample_base_quals, ",")
-                        strcat(mapqs, ",")
-                        strcat(strands, ",")
-                        strcat(read_pos_rank, ",")
-
-                OUT.write("%s\n" % "\t".join([
-                    chrom_name,
-                    str(position),
-                    ref_base,
-                    str(depth),
-                    mapqs if depth > 0 else '.',
-                    sample_bases if depth > 0 else '.',
-                    sample_base_quals if depth > 0 else '.',
-                    read_pos_rank if depth > 0 else '.',
-                    strands if depth > 0 else '.'
-                ]))
-
-                free(sample_bases)
-                free(sample_base_quals)
-                free(mapqs)
-                free(read_pos_rank)
-                free(strands)
+            batch_buffer = region_batch_buffers[i]
+            position_number = len(batch_buffer.batch_heap)
+            for j in range(position_number):
+                OUT.write("%s\n" % batch_buffer.batch_heap[j])
     return
+
+

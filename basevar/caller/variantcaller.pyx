@@ -40,6 +40,135 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
 
     return
 
+
+cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af, int total_sample_num,
+                             cvg_file_handle, vcf_file_handle):
+    """Function for variants discovery.
+    """
+    cdef list sampleinfos = []
+    cdef list batch_files_hd = [Open(f, 'rb') for f in batchfiles]
+    cdef bint is_empty = True
+    cdef bint eof = False
+    cdef bint is_error = False
+
+    cdef int batch_file_num = len(batchfiles)
+    cdef int *sample_num_each_batch = <int*> (calloc(batch_file_num, sizeof(int)))  # sample number may different in batchfiles
+    cdef BatchInfo batch_info = BatchInfo(chrid, 0, 'N', total_sample_num) # initial position = 0 and ref_base = N
+    cdef int n = 0, i
+    cdef basestring line
+    while True:
+        # Loading ...
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        sampleinfos = []
+        for i, fh in enumerate(batch_files_hd):
+            line = fh.readline()
+            if line:
+                if line.startswith("#"):
+                    if line.startswith("##SampleIDs="):
+                        sample_num_each_batch[i] = int(len(line.split("=")[1].split(",")))
+                    continue
+
+                sampleinfos.append(line.strip().split())
+            else:
+                sampleinfos.append(None)
+                eof = True
+
+        # hit the end of files
+        if eof:
+            is_error = True if any(sampleinfos) else False
+            if is_error:
+                logger.warning(
+                    "%s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
+                    "positions in above files." % "\n".join(batchfiles))
+            break
+
+        # Empty!! Just get header information.
+        if not sampleinfos:
+            continue
+
+        # reset position and ref_base
+        batch_info.position = int(sampleinfos[0][1])
+        batch_info.ref_base = sampleinfos[0][2]
+
+        if n % 10000 == 0:
+            logger.info("Have been loading %d lines when hit position %s:%d" %
+                        (n if n > 0 else 1, chrid, batch_info.position))
+        n += 1
+
+        # data in ``batchinfo`` will been updated automatically in this funcion
+        _fetch_baseinfo_by_position_from_batchfiles(sampleinfos, sample_num_each_batch, batch_info)
+
+        # ignore if coverage=0
+        if batch_info.depth == 0:
+            continue
+
+        # Not empty
+        is_empty = False
+
+        # Calling varaints position one by one and output files.
+        _basetypeprocess(batch_info, popgroup, min_af, cvg_file_handle, vcf_file_handle)
+
+    for fh in batch_files_hd:
+        fh.close()
+
+    return is_empty
+
+
+cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int *sample_num_each_batch, BatchInfo batch_info):
+
+    # reset depth
+    batch_info.depth = 0
+
+    cdef char *c_t4
+    cdef char *c_t5
+    cdef char *c_t6
+    cdef char *c_t7
+    cdef char *c_t8
+
+    cdef int n = 0, index = 0, i
+    for i, col in enumerate(infolines):
+        # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+        if len(col) == 0:
+            logger.error(" %d lines happen to be empty in batchfiles!" % (i + 1))
+            sys.exit(1)
+
+        col[1], col[3] = map(int, [col[1], col[3]])
+        if col[0] != batch_info.chrid or col[1] != batch_info.position or col[2] != batch_info.ref_base:
+            logger.error("%d lines, chromosome [%s and %s] or position [%s and %s] "
+                         "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
+                         (i + 1, col[0], batch_info.chrid, col[1], batch_info.position, col[2], batch_info.ref_base))
+            sys.exit(1)
+
+        batch_info.depth += col[3]
+        if col[3] > 0:
+
+            c_t4, c_t5, c_t6, c_t7, c_t8 = col[4:9]
+            for n in range(sample_num_each_batch[i]):
+
+                # if catch segmentation fault then the problem would probably be here!
+                batch_info.mapqs[index] = atoi(strsep(&c_t4, ","))
+                batch_info.sample_bases[index] = strsep(&c_t5, ",")  # must all be all upper charater in batchfile!
+                batch_info.sample_base_quals[index] = atoi(strsep(&c_t6, ","))
+                batch_info.read_pos_rank[index] = atoi(strsep(&c_t7, ","))
+                batch_info.strands[index] = strsep(&c_t8, ",")[0] # It's char not string
+
+                # move to the next
+                index += 1
+        else:
+            for n in range(sample_num_each_batch[i]):
+
+                batch_info.mapqs[index] = 0
+                batch_info.sample_bases[index] = "N"
+                batch_info.sample_base_quals[index] = 0
+                batch_info.read_pos_rank[index] = 0
+                batch_info.strands[index] = "."
+
+                # move to the next
+                index += 1
+
+    return
+
+
 cdef tuple variant_discovery_in_regions(FastaFile fa,
                                         list align_files,
                                         list regions,
@@ -194,11 +323,11 @@ cdef bint find_variants_in_region(bytes chrom_name,
         sample_read_buffers = load_bamdata(bamfiles, sample_ids, chrom_name, max(0, start - 1), end, ref_seq, options)
 
     except Exception, e:
-        logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, start + 1, end, e))
+        logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, start, end, e))
         sys.exit(1)
 
     if sample_read_buffers is None or len(sample_read_buffers) == 0:
-        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start + 1, end + 1))
+        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start, end + 1))
         return True  # empty
 
     # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
