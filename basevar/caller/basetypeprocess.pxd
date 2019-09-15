@@ -11,6 +11,7 @@ cdef class BaseVarProcess:
 
     cdef FastaFile fa_file_hd
     cdef list regions
+    cdef dict dict_regions
     cdef dict popgroup
 
     cdef basestring out_vcf_file
@@ -19,4 +20,5 @@ cdef class BaseVarProcess:
 
     cdef object options
 
+    cdef void run_variant_discovery_by_batch(self)
     cdef void run_variant_discovery_in_regions(self)

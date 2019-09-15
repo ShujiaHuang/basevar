@@ -25,13 +25,14 @@ cdef class BatchInfo:
     cdef int depth
     cdef int *mapqs
     cdef char *strands
-    cdef char ** sample_bases  # could be indel sequence
+    cdef char **sample_bases  # could be indel sequence
     cdef int *sample_base_quals
     cdef int *read_pos_rank
     cdef int *is_empty
 
     cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
                                    char map_strand, char *read_base, int base_qual, int read_pos_rank)
+    cdef basestring get_str(self)
     cdef void fill_empty(self)
 
 cdef class BatchGenerator:

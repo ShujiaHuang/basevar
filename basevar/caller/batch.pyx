@@ -63,6 +63,10 @@ cdef class BatchInfo:
         __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
         describing the BatchInfo.
         """
+        return self.get_str()
+
+    cdef basestring get_str(self):
+
         cdef list sample_bases = []
         cdef list sample_base_quals = []
         cdef list read_pos_rank = []
@@ -72,11 +76,9 @@ cdef class BatchInfo:
         cdef int i = 0
         if self.depth > 0:
             for i in range(self.size):
-                if self.is_empty[i]:
-                    continue
 
                 mapqs.append(str(self.mapqs[i]))
-                sample_bases.append(str.upper(self.sample_bases[i]))  # charater to upper()
+                sample_bases.append(self.sample_bases[i])  # Note: sample_bases must all be upper
                 sample_base_quals.append(str(self.sample_base_quals[i]))
                 read_pos_rank.append(str(self.read_pos_rank[i]))
                 strands.append(chr(self.strands[i]))
@@ -212,8 +214,8 @@ cdef class BatchGenerator(object):
             free(self.filtered_read_counts_by_type)
 
     cdef void create_batch_in_region(self, tuple region,
-                                     cAlignedRead ** read_start,
-                                     cAlignedRead ** read_end,
+                                     cAlignedRead **read_start,
+                                     cAlignedRead **read_end,
                                      int sample_index):  # The column index for the array in `batch_heap` represent a sample
         """Fetch batch information in a specific region."""
         cdef bytes chrom = region[0]
@@ -222,8 +224,7 @@ cdef class BatchGenerator(object):
 
         assert chrom == self.ref_name, "Error match chromosome (%s != %s)" % (chrom, self.ref_name)
         assert start <= self.start_pos_in_batch_heap <= end, "Error! %s is not in %s:%s-%s" % (
-            self.start_pos_in_batch_heap, chrom, start, end
-        )
+            self.start_pos_in_batch_heap, chrom, start, end)
 
         if start < self.ref_seq_start:
             logger.error("Start position (%s) is outside the reference region (%s)" % (
