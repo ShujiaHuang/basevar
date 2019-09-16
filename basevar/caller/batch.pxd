@@ -13,6 +13,7 @@ cdef extern from "stdlib.h" nogil:
 cdef extern from "string.h":
     ctypedef int size_t
     char *strcpy(char *dest, char *src)
+    char *strcat(char *dest, char *src)
     size_t strlen(char *s)
 
 cdef class BatchInfo:
@@ -33,6 +34,7 @@ cdef class BatchInfo:
     cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
                                    char map_strand, char *read_base, int base_qual, int read_pos_rank)
     cdef basestring get_str(self)
+    cdef basestring c_get_str(self)
     cdef void fill_empty(self)
 
 cdef class BatchGenerator:

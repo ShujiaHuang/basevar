@@ -59,8 +59,8 @@ cdef class BaseVarProcess:
             self.popgroup = utils.load_popgroup_info(self.samples, options.pop_group_file)
 
     def run(self):
-        # self.run_variant_discovery_in_regions()
-        self.run_variant_discovery_by_batch()
+        self.run_variant_discovery_in_regions()  # do not create batch files
+        # self.run_variant_discovery_by_batch()
         return
 
     cdef void run_variant_discovery_by_batch(self):
