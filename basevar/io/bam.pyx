@@ -140,12 +140,12 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
             sample_read_buffer.add_read_to_buffer(the_read)
 
             total_reads += 1
-            if total_reads > max_read_thd:
-                logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
-                             "increase --max_reads." % (total_reads, region))
-
-                reader.close()
-                sys.exit(1)
+            # if total_reads > max_read_thd:
+            #     logger.error("Too many reads (%s) in region %s. Quitting now. Either reduce --buffer-size or "
+            #                  "increase --max_reads." % (total_reads, region))
+            #
+            #     reader.close()
+            #     sys.exit(1)
 
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 

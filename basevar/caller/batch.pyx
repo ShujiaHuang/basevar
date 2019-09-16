@@ -67,6 +67,7 @@ cdef class BatchInfo:
         return self.get_str()
 
     cdef basestring c_get_str(self):
+        # The performance of this function is terrible
         cdef char *sample_bases
         cdef char *sample_base_quals
         cdef char *mapqs

@@ -26,7 +26,7 @@ def parser_commandline_args():
                               help='BAM/SAM/CRAM file containing reads. This argument could be specified at '
                                    'least once.')
     basetype_cmd.add_argument('-L', '--align-file-list', dest='infilelist', metavar='BamfilesList',
-                              help='BAM/CRAM files list, one file per row.')
+                              help='list of input BAM/CRAM filenames, one per line')
     basetype_cmd.add_argument('-R', '--reference', dest='referencefile', metavar='Reference_fasta', required=True,
                               help='Input reference fasta file.')
 
@@ -53,8 +53,8 @@ def parser_commandline_args():
                                    'simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=200,
-                              help='INT simples per batchfile. [200]')
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=1,
+                              help='INT simples per batchfile. [1]')
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
     basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=0.001,
