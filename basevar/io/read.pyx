@@ -384,6 +384,9 @@ cdef class BamReadBuffer:
     def __cinit__(self, char* chrom, long int start, long int end, options):
         """
         Constructor.
+
+        ``start``: 0-base
+        ``end``: 0-base
         """
         cdef int initial_size = max(100, ((end - start)/options.r_len))
         self.is_sorted = True
@@ -445,7 +448,7 @@ cdef class BamReadBuffer:
 
             logger.debug("Overhanging bits of reads were not clipped")
 
-    cdef void add_read_to_buffer(self, cAlignedRead* the_read):
+    cdef void add_read_to_buffer(self, cAlignedRead *the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.
         """
         cdef int read_ok = 0
