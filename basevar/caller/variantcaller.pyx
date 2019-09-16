@@ -262,9 +262,9 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
                 continue
 
             else:
-                logger.info("Creating %s and %s\n" % (part_vcf_file_name, part_cvg_file_name))
+                logger.info("Creating %s and %s" % (part_vcf_file_name, part_cvg_file_name))
         else:
-            logger.info("Creating %s and %s\n" % (part_vcf_file_name if out_vcf_file else "[None VCF]",
+            logger.info("Creating %s and %s" % (part_vcf_file_name if out_vcf_file else "[None VCF]",
                                                   part_cvg_file_name))
 
         fa.set_cache_sequence(
@@ -287,7 +287,7 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
         if is_empty and not flag:
             is_empty = False
 
-        logger.info("Done for %s and %s, %d seconds elapsed." % (
+        logger.info("Done for %s and %s, %d seconds elapsed.\n" % (
             part_vcf_file_name if out_vcf_file else '[None VCF]',
             part_cvg_file_name, time.time() - start_time))
 
