@@ -120,7 +120,7 @@ cdef void generate_batchfile(bytes chrom_name,
     try:
         # load the whole mapping reads in [chrom_name, bigstart, bigend]
         sample_read_buffers = load_bamdata(bam_files, batch_sample_ids, chrom_name,
-                                    bigstart-1, bigend-1, ref_seq, options)
+                                           bigstart-1, bigend-1, ref_seq, options)
 
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, bigstart, bigend, e))

@@ -63,7 +63,67 @@ cdef class BatchInfo:
         __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
         describing the BatchInfo.
         """
+        # return self.c_get_str()
         return self.get_str()
+
+    cdef basestring c_get_str(self):
+        cdef char *sample_bases
+        cdef char *sample_base_quals
+        cdef char *mapqs
+        cdef char *strands
+        cdef char *read_pos_rank
+
+        cdef basestring result
+
+        cdef int i = 0, bases_size = 0
+        if self.depth > 0:
+
+            for i in range(self.size):
+                bases_size += strlen(self.sample_bases[i])
+
+            sample_bases = <char*>(calloc(2*bases_size+1, sizeof(char)))  # +1 for the zero-terminator
+
+            sample_base_quals = <char*>(calloc(5 * self.size, sizeof(char)))
+            mapqs = <char*>(calloc(5 * self.size, sizeof(char)))
+            read_pos_rank = <char*>(calloc(5 * self.size, sizeof(char)))
+            strands = <char*>(calloc(5 * self.size, sizeof(char)))
+
+            strcpy(sample_bases, self.sample_bases[0])
+            strcpy(sample_base_quals, b"%d" % self.sample_base_quals[0])
+            strcpy(mapqs, b"%d" % self.mapqs[0])
+            strcpy(read_pos_rank, b"%d" % self.read_pos_rank[0])
+            strcpy(strands, chr(self.strands[0]))
+
+            for i in range(1, self.size):
+                strcat(sample_bases, ",")
+                strcat(sample_bases, self.sample_bases[i])
+
+                strcat(sample_base_quals, b",%d" % self.sample_base_quals[i])
+                strcat(mapqs, b",%d" % self.mapqs[i])
+                strcat(read_pos_rank, b",%d" % self.read_pos_rank[i])
+                strcat(strands, b",%s" % chr(self.strands[i]))
+
+            result = "\t".join([
+                self.chrid,
+                str(self.position),
+                self.ref_base,
+                str(self.depth),
+                mapqs,
+                sample_bases,
+                sample_base_quals,
+                read_pos_rank,
+                strands])
+
+            free(sample_bases)
+            free(sample_base_quals)
+            free(mapqs)
+            free(read_pos_rank)
+            free(strands)
+
+        else:
+            result = "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
+
+        return result
 
     cdef basestring get_str(self):
 

@@ -52,7 +52,7 @@ cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float 
     cdef bint is_error = False
 
     cdef int batch_file_num = len(batchfiles)
-    cdef int *sample_num_each_batch = <int*> (calloc(batch_file_num, sizeof(int)))  # sample number may different in batchfiles
+    cdef int *sample_num_each_batch = <int*>(calloc(batch_file_num, sizeof(int)))  # sample number may different in batchfiles
     cdef BatchInfo batch_info = BatchInfo(chrid, 0, 'N', total_sample_num) # initial position = 0 and ref_base = N
     cdef int n = 0, i
     cdef basestring line
