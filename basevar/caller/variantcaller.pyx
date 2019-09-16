@@ -11,7 +11,7 @@ from basevar.utils import vcf_header_define, cvg_header_define
 
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open
-from basevar.io.bam cimport load_bamdata
+from basevar.io.bam cimport load_bamdata, load_data_from_bamfile
 from basevar.io.read cimport BamReadBuffer
 
 from basevar.caller.algorithm cimport strand_bias
@@ -41,6 +41,7 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
     return
 
 
+###################################################################################################################
 cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af, int total_sample_num,
                              cvg_file_handle, vcf_file_handle):
     """Function for variants discovery.
@@ -167,7 +168,7 @@ cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int *sampl
                 index += 1
 
     return
-
+###################################################################################################################
 
 cdef tuple variant_discovery_in_regions(FastaFile fa,
                                         list align_files,
@@ -186,7 +187,6 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
         # get sequence of chrom_name from reference fasta
         fa = self.ref_file_hd.fetch(chrid)
     """
-
     # store all the batch files
     cdef list vcf_batch_files = []
     cdef list cvg_batch_files = []
@@ -219,19 +219,17 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
     for i in range(sample_size):
         bamfiles[samples[i]] = align_files[i]
 
-    cdef int batch_count = options.batch_count  # the number of sub variant files
-    cdef list batch_regions = generate_regions_by_process_num(regions, process_num=batch_count,
+    cdef list batch_regions = generate_regions_by_process_num(regions, process_num=options.batch_count,
                                                               convert_to_2d=True)
-    batch_count = len(batch_regions)  # reset if len(batch_regions) < batch_count
+
+    cdef int batch_count = len(batch_regions)  # reset if len(batch_regions) != batch_count
     if batch_count != options.batch_count:
-        logger.info("batch_count (%d) may be too big, resetted to be %d" %
+        logger.info("batch_count (%d) is not suitable, resetted to be %d" %
                     (options.batch_count, batch_count))
 
     # Now for records
     cdef bint is_empty = True, flag
     cdef basestring part_vcf_file_name, part_cvg_file_name
-    cdef bytes _ref_seq_bytes
-    cdef char *ref_seq
 
     cdef bytes chrom_name
     cdef long int start, end
@@ -269,16 +267,17 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
             logger.info("Creating %s and %s\n" % (part_vcf_file_name if out_vcf_file else "[None VCF]",
                                                   part_cvg_file_name))
 
-        # set `start-1` to be 0-base, ``end`` is still 1-base
-        _ref_seq_bytes = fa.get_sequence(chrom_name, max(0, start - 1), end)
-        ref_seq = _ref_seq_bytes
+        fa.set_cache_sequence(
+            chrom_name,
+            max(0, start - 5 * options.r_len),  # 0-base
+            min(end + 5 * options.r_len, fa.get_reference_length(chrom_name)-1) # 0-base
+        )
         flag = find_variants_in_region(chrom_name,
                                        start,  # 1-base
                                        end,  # 1-base
                                        fa,
-                                       ref_seq,
                                        bamfiles,  # All the BAM files
-                                       samples,  # All samples
+                                       samples,   # All samples
                                        sample_size,
                                        popgroup,
                                        options,
@@ -294,11 +293,65 @@ cdef tuple variant_discovery_in_regions(FastaFile fa,
 
     return is_empty, vcf_batch_files, cvg_batch_files
 
+
+# cdef bint find_variants_in_region_old(bytes chrom_name,
+#                                   long int start,  # 1-base system
+#                                   long int end,  # 1-base system
+#                                   FastaFile fa,
+#                                   char *ref_seq,
+#                                   dict bamfiles,
+#                                   list sample_ids,
+#                                   int sample_size,
+#                                   dict popgroup,
+#                                   object options,
+#                                   part_cvg_file_name,
+#                                   part_vcf_file_name):
+#     """Loading bamfile and create a variants in [start, end].
+#
+#     Parameters:
+#         ``bamfiles``: A dict
+#             {sample_id => alignment_files}
+#
+#         ``start``: It's 1-base position
+#         ``end``: It's 1-base position
+#     """
+#     # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
+#     cdef BatchGenerator be_generator = BatchGenerator(chrom_name, start, end, fa, sample_size, options)
+#
+#     cdef list sample_read_buffers
+#     try:
+#         # load the whole mapping reads in [chrom_name, start, end]
+#         # set `start-1` to be 0-base, ``end`` is still 1-base
+#         # ``sample_read_buffers`` will be the same size as ``sample_size``
+#         sample_read_buffers = load_bamdata(bamfiles, sample_ids, chrom_name, max(0, start - 1), end, ref_seq, options)
+#
+#     except Exception, e:
+#         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, start, end, e))
+#         sys.exit(1)
+#
+#     if sample_read_buffers is None or len(sample_read_buffers) == 0:
+#         logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start, end + 1))
+#         return True  # empty
+#
+#     cdef int index
+#     cdef BamReadBuffer sample_read_buffer
+#     for index in range(sample_size):
+#         sample_read_buffer = sample_read_buffers[index]
+#
+#         # get batch information for each sample in [start, end]
+#         be_generator.create_batch_in_region(
+#             (chrom_name, start, end),
+#             sample_read_buffer.reads.array,  # this start pointer will move automatically
+#             sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
+#             index  # sample_index index ``BatchGenerator``
+#         )
+#
+#     return _variants_discovery(be_generator, popgroup, options.min_af, part_cvg_file_name, part_vcf_file_name)
+
 cdef bint find_variants_in_region(bytes chrom_name,
                                   long int start,  # 1-base system
-                                  long int end,  # 1-base system
+                                  long int end,    # 1-base system
                                   FastaFile fa,
-                                  char *ref_seq,
                                   dict bamfiles,
                                   list sample_ids,
                                   int sample_size,
@@ -315,45 +368,23 @@ cdef bint find_variants_in_region(bytes chrom_name,
         ``start``: It's 1-base position
         ``end``: It's 1-base position
     """
-    cdef list sample_read_buffers
+    # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
+    cdef BatchGenerator be_generator = BatchGenerator(chrom_name, start, end, fa, sample_size, options)
+    cdef bint is_empty
     try:
-        # load the whole mapping reads in [chrom_name, start, end]
-        # set `start-1` to be 0-base, ``end`` is still 1-base
-        # ``sample_read_buffers`` will be the same size as ``sample_size``
-        sample_read_buffers = load_bamdata(bamfiles, sample_ids, chrom_name, max(0, start - 1), end, ref_seq, options)
+        # load the whole mapping reads to ``be_generator`` in [chrom_name, start, end]
+        is_empty = load_data_from_bamfile(bamfiles, sample_ids, chrom_name, start, end, be_generator, options)
 
     except Exception, e:
         logger.error("Exception in region %s:%s-%s. Error: %s" % (chrom_name, start, end, e))
         sys.exit(1)
 
-    if sample_read_buffers is None or len(sample_read_buffers) == 0:
-        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start, end + 1))
-        return True  # empty
-
-    # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
-    cdef BatchGenerator be_generator = BatchGenerator(chrom_name, start, end, fa, sample_size, options)
-
-    cdef int longest_read_size = 0
-    cdef int index
-    cdef BamReadBuffer sample_read_buffer
-    for index in range(sample_size):
-        sample_read_buffer = sample_read_buffers[index]
-        if longest_read_size < sample_read_buffer.reads.get_length_of_longest_read():
-            longest_read_size = sample_read_buffer.reads.get_length_of_longest_read()
-
-        # get batch information for each sample in [start, end]
-        be_generator.create_batch_in_region(
-            (chrom_name, start, end),
-            sample_read_buffer.reads.array,  # this start pointer will move automatically
-            sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
-            index  # sample_index index ``BatchGenerator``
-        )
-
-    # Todo: take care, although this code may not been called forever.
-    if longest_read_size > options.r_len:
-        options.r_len = longest_read_size
+    if is_empty:
+        logger.info("Skipping region %s:%s-%s as it's empty." % (chrom_name, start, end))
+        return is_empty  # empty
 
     return _variants_discovery(be_generator, popgroup, options.min_af, part_cvg_file_name, part_vcf_file_name)
+
 
 cdef bint _variants_discovery(BatchGenerator batch_generator, dict popgroup, float min_af, out_cvg_file, out_vcf_file):
     """Function for variants discovery.
