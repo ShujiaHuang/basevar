@@ -16,6 +16,9 @@ cdef extern from "string.h":
     char *strcat(char *dest, char *src)
     size_t strlen(char *s)
 
+ctypedef struct cBatchHeap:
+    pass
+
 cdef class BatchInfo:
     # record the size of array: `*mapqs`==`*strands`==`**sample_bases` == `*sample_base_quals` == `*read_pos_rank`
     cdef int size

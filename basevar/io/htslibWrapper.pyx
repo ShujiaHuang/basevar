@@ -1,7 +1,6 @@
 # cython: profile=True
 """Wrapper for htslib
 """
-import os
 from warnings import warn
 from libc.errno cimport errno
 from posix.unistd cimport dup

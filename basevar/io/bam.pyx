@@ -7,8 +7,8 @@ import sys
 from basevar.log import logger
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
-from basevar.io.htslibWrapper cimport compress_read
 from basevar.caller.batch cimport BatchGenerator
+# from basevar.io.htslibWrapper cimport compress_read
 
 
 cdef bint is_indexable(filename):
@@ -134,9 +134,8 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
         while reader_iter.cnext():
 
             the_read = reader_iter.get(0, NULL)
-            if is_compress_read:
-                compress_read(the_read, refseq, start, end, qual_bin_size)
-
+            # if is_compress_read:
+            #     compress_read(the_read, refseq, start, end, qual_bin_size)
             sample_read_buffer.add_read_to_buffer(the_read)
             # Todo: we skip all the broken mate reads here, it's that necessary or we should keep them for assembler?
 

@@ -32,19 +32,19 @@ cdef class BatchInfo:
         self.ref_base = ref_base
 
         self.depth = 0
-        self.mapqs = <int*> (calloc(size, sizeof(int)))
-        self.strands = <char*> (calloc(size, sizeof(char)))
         self.sample_bases = <char**> (calloc(size, sizeof(char*)))
         self.sample_base_quals = <int*> (calloc(size, sizeof(int)))
+        self.mapqs = <int*> (calloc(size, sizeof(int)))
+        self.strands = <char*> (calloc(size, sizeof(char)))
         self.read_pos_rank = <int*> (calloc(size, sizeof(int)))
         self.is_empty = <int*> (calloc(size, sizeof(int)))
 
         # check initialization
-        assert self.strands != NULL, "Could not allocate memory for self.strands in BatchInfo."
         assert self.sample_bases != NULL, "Could not allocate memory for self.sample_bases in BatchInfo."
         assert self.sample_base_quals != NULL, "Could not allocate memory for self.sample_base_quals in BatchInfo."
         assert self.read_pos_rank != NULL, "Could not allocate memory for self.read_pos_rank in BaseInfo."
         assert self.mapqs != NULL, "Could not allocate memory for self.mapqs in BaseInfo."
+        assert self.strands != NULL, "Could not allocate memory for self.strands in BatchInfo."
         assert self.is_empty != NULL, "Could not allocate memory for self.is_empty in BaseInfo."
 
         # initialization and set empty mark for all the element, 1=>empty, 0=> not empty
@@ -66,65 +66,65 @@ cdef class BatchInfo:
         # return self.c_get_str()
         return self.get_str()
 
-    cdef basestring c_get_str(self):
-        # The performance of this function is terrible
-        cdef char *sample_bases
-        cdef char *sample_base_quals
-        cdef char *mapqs
-        cdef char *strands
-        cdef char *read_pos_rank
-
-        cdef basestring result
-
-        cdef int i = 0, bases_size = 0
-        if self.depth > 0:
-
-            for i in range(self.size):
-                bases_size += strlen(self.sample_bases[i])
-
-            sample_bases = <char*>(calloc(2*bases_size+1, sizeof(char)))  # +1 for the zero-terminator
-
-            sample_base_quals = <char*>(calloc(5 * self.size, sizeof(char)))
-            mapqs = <char*>(calloc(5 * self.size, sizeof(char)))
-            read_pos_rank = <char*>(calloc(5 * self.size, sizeof(char)))
-            strands = <char*>(calloc(5 * self.size, sizeof(char)))
-
-            strcpy(sample_bases, self.sample_bases[0])
-            strcpy(sample_base_quals, b"%d" % self.sample_base_quals[0])
-            strcpy(mapqs, b"%d" % self.mapqs[0])
-            strcpy(read_pos_rank, b"%d" % self.read_pos_rank[0])
-            strcpy(strands, chr(self.strands[0]))
-
-            for i in range(1, self.size):
-                strcat(sample_bases, ",")
-                strcat(sample_bases, self.sample_bases[i])
-
-                strcat(sample_base_quals, b",%d" % self.sample_base_quals[i])
-                strcat(mapqs, b",%d" % self.mapqs[i])
-                strcat(read_pos_rank, b",%d" % self.read_pos_rank[i])
-                strcat(strands, b",%s" % chr(self.strands[i]))
-
-            result = "\t".join([
-                self.chrid,
-                str(self.position),
-                self.ref_base,
-                str(self.depth),
-                mapqs,
-                sample_bases,
-                sample_base_quals,
-                read_pos_rank,
-                strands])
-
-            free(sample_bases)
-            free(sample_base_quals)
-            free(mapqs)
-            free(read_pos_rank)
-            free(strands)
-
-        else:
-            result = "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
-
-        return result
+    # cdef basestring c_get_str(self):
+    #     # The performance of this function is terrible
+    #     cdef char *sample_bases
+    #     cdef char *sample_base_quals
+    #     cdef char *mapqs
+    #     cdef char *strands
+    #     cdef char *read_pos_rank
+    #
+    #     cdef basestring result
+    #
+    #     cdef int i = 0, bases_size = 0
+    #     if self.depth > 0:
+    #
+    #         for i in range(self.size):
+    #             bases_size += strlen(self.sample_bases[i])
+    #
+    #         sample_bases = <char*>(calloc(2*bases_size+1, sizeof(char)))  # +1 for the zero-terminator
+    #
+    #         sample_base_quals = <char*>(calloc(5 * self.size, sizeof(char)))
+    #         mapqs = <char*>(calloc(5 * self.size, sizeof(char)))
+    #         read_pos_rank = <char*>(calloc(5 * self.size, sizeof(char)))
+    #         strands = <char*>(calloc(5 * self.size, sizeof(char)))
+    #
+    #         strcpy(sample_bases, self.sample_bases[0])
+    #         strcpy(sample_base_quals, b"%d" % self.sample_base_quals[0])
+    #         strcpy(mapqs, b"%d" % self.mapqs[0])
+    #         strcpy(read_pos_rank, b"%d" % self.read_pos_rank[0])
+    #         strcpy(strands, chr(self.strands[0]))
+    #
+    #         for i in range(1, self.size):
+    #             strcat(sample_bases, ",")
+    #             strcat(sample_bases, self.sample_bases[i])
+    #
+    #             strcat(sample_base_quals, b",%d" % self.sample_base_quals[i])
+    #             strcat(mapqs, b",%d" % self.mapqs[i])
+    #             strcat(read_pos_rank, b",%d" % self.read_pos_rank[i])
+    #             strcat(strands, b",%s" % chr(self.strands[i]))
+    #
+    #         result = "\t".join([
+    #             self.chrid,
+    #             str(self.position),
+    #             self.ref_base,
+    #             str(self.depth),
+    #             mapqs,
+    #             sample_bases,
+    #             sample_base_quals,
+    #             read_pos_rank,
+    #             strands])
+    #
+    #         free(sample_bases)
+    #         free(sample_base_quals)
+    #         free(mapqs)
+    #         free(read_pos_rank)
+    #         free(strands)
+    #
+    #     else:
+    #         result = "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
+    #
+    #     return result
 
     cdef basestring get_str(self):
 
@@ -248,8 +248,10 @@ cdef class BatchGenerator(object):
 
         # initialization the BatchInfo for each position in `ref_name:reg_start-reg_end`
         cdef long int _pos  # `_pos` is 1-base system in the follow code.
+
         self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos - 1), sample_size)
                            for _pos in range(reg_start, reg_end + 1)]
+
         self.start_pos_in_batch_heap = reg_start  # 1-base, represent the first element in `batch_heap`
 
         self.options = options
