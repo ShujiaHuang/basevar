@@ -40,15 +40,14 @@ cdef class BatchInfo:
     cdef basestring get_str(self)
     cdef void fill_empty(self)
 
-cdef class StaticBatchElement:
-    cdef Element sample_bases
-    cdef Element sample_base_quals
-    cdef Element read_pos_ranks
-    cdef Element strands
-    cdef Element mapqs
+cdef class ElementArray:
+    cdef Element **array
 
     cdef int __size
     cdef int __capacity
+
+    cdef void append(self, Element* value)
+    cdef int size(self)
 
 cdef class BatchGenerator:
     cdef int CIGAR_M
