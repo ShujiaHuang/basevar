@@ -23,6 +23,8 @@ cdef int SMALL_INSERT = 4
 cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
+cdef int STATIC_COUNT = 1000
+
 # A class to store batch information.
 cdef class BatchInfo:
     def __cinit__(self, bytes chrid, long int position, bytes ref_base, int size):
@@ -51,7 +53,6 @@ cdef class BatchInfo:
         cdef int i
         for i in range(size):
             self.is_empty[i] = 1
-
             self.mapqs[i] = 0
             self.strands[i] = '.'
             self.sample_bases[i] = 'N'
@@ -65,66 +66,6 @@ cdef class BatchInfo:
         """
         # return self.c_get_str()
         return self.get_str()
-
-    # cdef basestring c_get_str(self):
-    #     # The performance of this function is terrible
-    #     cdef char *sample_bases
-    #     cdef char *sample_base_quals
-    #     cdef char *mapqs
-    #     cdef char *strands
-    #     cdef char *read_pos_rank
-    #
-    #     cdef basestring result
-    #
-    #     cdef int i = 0, bases_size = 0
-    #     if self.depth > 0:
-    #
-    #         for i in range(self.size):
-    #             bases_size += strlen(self.sample_bases[i])
-    #
-    #         sample_bases = <char*>(calloc(2*bases_size+1, sizeof(char)))  # +1 for the zero-terminator
-    #
-    #         sample_base_quals = <char*>(calloc(5 * self.size, sizeof(char)))
-    #         mapqs = <char*>(calloc(5 * self.size, sizeof(char)))
-    #         read_pos_rank = <char*>(calloc(5 * self.size, sizeof(char)))
-    #         strands = <char*>(calloc(5 * self.size, sizeof(char)))
-    #
-    #         strcpy(sample_bases, self.sample_bases[0])
-    #         strcpy(sample_base_quals, b"%d" % self.sample_base_quals[0])
-    #         strcpy(mapqs, b"%d" % self.mapqs[0])
-    #         strcpy(read_pos_rank, b"%d" % self.read_pos_rank[0])
-    #         strcpy(strands, chr(self.strands[0]))
-    #
-    #         for i in range(1, self.size):
-    #             strcat(sample_bases, ",")
-    #             strcat(sample_bases, self.sample_bases[i])
-    #
-    #             strcat(sample_base_quals, b",%d" % self.sample_base_quals[i])
-    #             strcat(mapqs, b",%d" % self.mapqs[i])
-    #             strcat(read_pos_rank, b",%d" % self.read_pos_rank[i])
-    #             strcat(strands, b",%s" % chr(self.strands[i]))
-    #
-    #         result = "\t".join([
-    #             self.chrid,
-    #             str(self.position),
-    #             self.ref_base,
-    #             str(self.depth),
-    #             mapqs,
-    #             sample_bases,
-    #             sample_base_quals,
-    #             read_pos_rank,
-    #             strands])
-    #
-    #         free(sample_bases)
-    #         free(sample_base_quals)
-    #         free(mapqs)
-    #         free(read_pos_rank)
-    #         free(strands)
-    #
-    #     else:
-    #         result = "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
-    #
-    #     return result
 
     cdef basestring get_str(self):
 
@@ -181,8 +122,8 @@ cdef class BatchInfo:
 
         return
 
+    # This function may never be called
     cdef void fill_empty(self):
-        # may never call
         cdef int i
         for i in range(self.size):
             if self.is_empty[i]:
@@ -215,6 +156,16 @@ cdef class BatchInfo:
 
         return
 
+cdef class StaticBatchInfoArray:
+    """A class set static size of BatchInfo."""
+    def __cinit__(self, bytes chrid, long int position, bytes ref_base, int size):
+        self.__size = 0  # We don't put anything in here yet
+        self.__capacity = size
+        self.batch_info = BatchInfo(chrid, position, ref_base, size)
+
+    cdef int size(self):
+        return self.__size
+
 cdef class BatchGenerator(object):
     """
     A class to generate batch informattion from a bunch of reads.
@@ -243,21 +194,20 @@ cdef class BatchGenerator(object):
 
         self.ref_seq_start = max(0, self.reg_start - 200)
         self.ref_seq_end = min(self.reg_end + 200, self.ref_fa.references[self.ref_name].seq_length - 1)
+
         cdef bytes _py_refseq = self.ref_fa.get_sequence(self.ref_name, self.ref_seq_start, self.ref_seq_end)
         self.refseq = _py_refseq  # Cache reference
 
         # initialization the BatchInfo for each position in `ref_name:reg_start-reg_end`
         cdef long int _pos  # `_pos` is 1-base system in the follow code.
-
         self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos - 1), sample_size)
                            for _pos in range(reg_start, reg_end + 1)]
 
         self.start_pos_in_batch_heap = reg_start  # 1-base, represent the first element in `batch_heap`
-
         self.options = options
 
         # the same definition with class ``BamReadBuffer`` in read.pyx
-        self.filtered_read_counts_by_type = <int*> (calloc(7, sizeof(int)))
+        self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
         if options.filter_duplicates == 0:
             self.filtered_read_counts_by_type[DUPLICATE] = -1
 
@@ -276,9 +226,31 @@ cdef class BatchGenerator(object):
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
-    cdef void create_batch_in_region(self, tuple region,
-                                     cAlignedRead **read_start,
-                                     cAlignedRead **read_end,
+    cdef append_info_from_reads(self, tuple region, cAlignedRead **read_start, cAlignedRead **read_end):
+        cdef bytes chrom = region[0]
+        cdef long int start = region[1]  # 1-base coordinate system
+        cdef long int end = region[2]    # 1-base coordinate system
+
+        assert chrom == self.ref_name, "Error match chromosome (%s != %s)" % (chrom, self.ref_name)
+        assert start <= self.start_pos_in_batch_heap <= end, "Error! %s is not in %s:%s-%s" % (
+            self.start_pos_in_batch_heap, chrom, start, end)
+
+        if start < self.ref_seq_start:
+            logger.error("Start position (%s) is outside the reference region (%s)" % (
+                start, "%s:%s-%s" % (self.ref_name, self.ref_seq_start, self.ref_seq_end))
+            )
+            sys.exit(1)
+
+        if end > self.ref_seq_end:
+            logger.error("End position (%s) is outside the reference region (%s)" % (
+                end, "%s:%s-%s" % (self.ref_name, self.ref_seq_start, self.ref_seq_end))
+            )
+            sys.exit(1)
+
+
+
+
+    cdef void create_batch_in_region(self, tuple region, cAlignedRead **read_start, cAlignedRead **read_end,
                                      int sample_index):  # The column index for the array in `batch_heap` represent a sample
         """Fetch batch information in a specific region."""
         cdef bytes chrom = region[0]
