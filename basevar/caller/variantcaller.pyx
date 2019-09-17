@@ -370,6 +370,8 @@ cdef bint find_variants_in_region(bytes chrom_name,
     """
     # initialization the BatchGenerator in `ref_name:reg_start-reg_end`
     cdef BatchGenerator be_generator = BatchGenerator(chrom_name, start, end, fa, sample_size, options)
+    logger.info("Initial memory for %d samples in %s:%s-%s" % (sample_size, chrom_name, start, end))
+
     cdef bint is_empty
     try:
         # load the whole mapping reads to ``be_generator`` in [chrom_name, start, end]
