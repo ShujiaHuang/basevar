@@ -16,8 +16,9 @@ cdef extern from "string.h":
     char *strcat(char *dest, char *src)
     size_t strlen(char *s)
 
-ctypedef struct cBatchHeap:
-    pass
+ctypedef struct Element:
+    int n    # number
+    char *b   # charater or string
 
 cdef class BatchInfo:
     # record the size of array: `*mapqs`==`*strands`==`**sample_bases` == `*sample_base_quals` == `*read_pos_rank`
@@ -37,8 +38,17 @@ cdef class BatchInfo:
     cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
                                    char map_strand, char *read_base, int base_qual, int read_pos_rank)
     cdef basestring get_str(self)
-    cdef basestring c_get_str(self)
     cdef void fill_empty(self)
+
+cdef class StaticBatchElement:
+    cdef Element sample_bases
+    cdef Element sample_base_quals
+    cdef Element read_pos_ranks
+    cdef Element strands
+    cdef Element mapqs
+
+    cdef int __size
+    cdef int __capacity
 
 cdef class BatchGenerator:
     cdef int CIGAR_M

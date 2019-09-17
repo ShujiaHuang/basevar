@@ -36,20 +36,7 @@ cdef extern from "stdlib.h":
 
 
 cdef extern from "math.h":
-    double exp(double)
-    double log(double)
-    double log10(double)
-    double fabs(double)
     int abs(int)
-
-
-cdef extern from "string.h":
-    ctypedef int size_t
-    void *memcpy(void *dst, void *src, size_t len)
-    int strncmp(char *s1, char *s2, size_t len)
-    char *strncpy(char *dest, char *src, size_t len)
-    size_t strlen(char *s)
-    int memcmp(void *s1, void *s2, size_t len)
 
 
 # @cython.profile(False)
