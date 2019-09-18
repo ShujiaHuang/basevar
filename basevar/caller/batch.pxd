@@ -88,13 +88,13 @@ cdef class PositionBatchCigarArray:
     cdef bytes chrid
     cdef long int position
     cdef bytes ref_base
-    cdef int depth
 
-    # These element arrays are all in the same size
     cdef BatchCigar *array
 
     cdef int __size
     cdef int __capacity
+    cdef int __sample_number
+    cdef int __depth
 
     cdef void append(self, BatchInfo value)
     cdef int size(self)

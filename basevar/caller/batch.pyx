@@ -174,7 +174,7 @@ cdef class PositionBatchCigarArray:
 
         self.__size = 0  # We don't put anything in here yet
         self.__capacity = array_size
-        self.__sample_number = 0  # how many samples' data have been store in this array
+        self.__sample_number = 0  # The number of samples which have been store in this array
         self.__depth = 0
 
     def __dealloc__(self):
