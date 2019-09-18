@@ -156,15 +156,58 @@ cdef class BatchInfo:
 
         return
 
-cdef class StaticBatchInfoArray:
-    """A class set static size of BatchInfo."""
-    def __cinit__(self, bytes chrid, long int position, bytes ref_base, int size):
+cdef class PositionBatchCigarArray:
+    """A class for Element record of each position."""
+    def __cinit__(self, bytes chrid, long int position, bytes ref_base, int array_size):
+        """Allocate an array of size 'size', with initial values 'init'.
+        """
+        # base information at specific position!
+        self.chrid = chrid
+        self.position = position
+        self.ref_base = ref_base
+        self.depth = 0
+
+        self.array = <BatchCigar*>(malloc(array_size * sizeof(BatchCigar)))
+        if self.array != NULL:
+            raise StandardError, "Could not allocate memory for ElementArray"
+
         self.__size = 0  # We don't put anything in here yet
-        self.__capacity = size
-        self.batch_info = BatchInfo(chrid, position, ref_base, size)
+        self.__capacity = array_size
+
+    def __dealloc__(self):
+        """
+        Free memory
+        """
+        if self.array != NULL:
+            free(self.array)
+
+    cdef void append(self, BatchInfo value):
+
+        assert value.chrid == self.chrid and value.position == self.position, \
+            "Error! Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
+                self.chrid, value.chrid, self.position, value.position)
+
+        cdef BatchCigar *temp = NULL
+        if self.__size == self.__capacity:
+            temp = <BatchCigar*>(realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
+
+            if temp == NULL:
+                raise StandardError, "Could not re-allocate ElementArray"
+            else:
+                self.array = temp
+                self.__capacity *= 2
+
+        self.array[self.__size] = self._BatchInfo2BatchCigar(value)
+        self.__size += 1
 
     cdef int size(self):
         return self.__size
+
+    cdef BatchCigar _BatchInfo2BatchCigar(self, BatchInfo value):
+        pass
+
+    cdef BatchInfo
+
 
 cdef class BatchGenerator(object):
     """
@@ -246,8 +289,6 @@ cdef class BatchGenerator(object):
                 end, "%s:%s-%s" % (self.ref_name, self.ref_seq_start, self.ref_seq_end))
             )
             sys.exit(1)
-
-
 
 
     cdef void create_batch_in_region(self, tuple region, cAlignedRead **read_start, cAlignedRead **read_end,
