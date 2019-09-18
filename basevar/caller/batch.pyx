@@ -34,10 +34,10 @@ cdef class BatchInfo:
         self.ref_base = ref_base
 
         self.depth = 0
+        self.strands = <char*> (calloc(size, sizeof(char)))
         self.sample_bases = <char**> (calloc(size, sizeof(char*)))
         self.sample_base_quals = <int*> (calloc(size, sizeof(int)))
         self.mapqs = <int*> (calloc(size, sizeof(int)))
-        self.strands = <char*> (calloc(size, sizeof(char)))
         self.read_pos_rank = <int*> (calloc(size, sizeof(int)))
         self.is_empty = <int*> (calloc(size, sizeof(int)))
 
@@ -156,6 +156,8 @@ cdef class BatchInfo:
 
         return
 
+
+# compress the ``BatchInfo`` in ``BatchGenerator``
 cdef class PositionBatchCigarArray:
     """A class for Element record of each position."""
     def __cinit__(self, bytes chrid, long int position, bytes ref_base, int array_size):
@@ -165,7 +167,6 @@ cdef class PositionBatchCigarArray:
         self.chrid = chrid
         self.position = position
         self.ref_base = ref_base
-        self.depth = 0
 
         self.array = <BatchCigar*>(malloc(array_size * sizeof(BatchCigar)))
         if self.array != NULL:
@@ -173,40 +174,203 @@ cdef class PositionBatchCigarArray:
 
         self.__size = 0  # We don't put anything in here yet
         self.__capacity = array_size
+        self.__sample_number = 0  # how many samples' data have been store in this array
+        self.__depth = 0
 
     def __dealloc__(self):
         """
         Free memory
         """
+        cdef BatchCigar batch_cigar
+        cdef int i = 0
         if self.array != NULL:
+            for i in range(self.__size):
+                batch_cigar = self.array[i]
+                free(batch_cigar.sample_bases_cigar.data)
+                free(batch_cigar.sample_base_quals_cigar.data)
+                free(batch_cigar.read_pos_rank_cigar.data)
+                free(batch_cigar.mapqs_cigar.data)
+                free(batch_cigar.strands_cigar.data)
             free(self.array)
+
+    cdef int size(self):
+        return self.__size
 
     cdef void append(self, BatchInfo value):
 
-        assert value.chrid == self.chrid and value.position == self.position, \
-            "Error! Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
+        if value.chrid == self.chrid and value.position == self.position:
+            raise StandardError, (
+                "Error in ``PositionBatchCigarArray`` when call append()! "
+                "Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
                 self.chrid, value.chrid, self.position, value.position)
+            )
 
         cdef BatchCigar *temp = NULL
         if self.__size == self.__capacity:
             temp = <BatchCigar*>(realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
 
             if temp == NULL:
-                raise StandardError, "Could not re-allocate ElementArray"
+                raise StandardError, "Could not re-allocate PositionBatchCigarArray!!"
             else:
                 self.array = temp
                 self.__capacity *= 2
 
+        self.__depth += value.depth  # store coverage
+        self.__sample_number += value.size
         self.array[self.__size] = self._BatchInfo2BatchCigar(value)
-        self.__size += 1
-
-    cdef int size(self):
-        return self.__size
+        self.__size += 1  # increase size
 
     cdef BatchCigar _BatchInfo2BatchCigar(self, BatchInfo value):
-        pass
+        # set BatchCigar to compress BatchInfo and save memory.
+        cdef BatchCigar batch_cigar
+        batch_cigar.sample_bases_cigar = self._compress_string(value.sample_bases, value.size)
+        batch_cigar.strands_cigar = self._compress_char(value.sample_base_quals, value.size)
+        batch_cigar.sample_base_quals_cigar = self._compress_int(value.mapqs, value.size)
+        batch_cigar.sample_base_quals_cigar = self._compress_int(value.sample_base_quals, value.size)
+        batch_cigar.read_pos_rank_cigar = self._compress_int(value.read_pos_rank, value.size)
 
-    cdef BatchInfo
+        return batch_cigar
+
+    cdef BatchInfo convert_position_batch_cigar_array_to_batchinfo(self):
+        cdef BatchInfo batch_info = BatchInfo(self.chrid, self.position, self.ref_base, self.__sample_number)
+        batch_info.depth = self.__depth
+
+        cdef BatchCigar batch_cigar
+        cdef _CigarString cs
+        cdef int i = 0, j = 0, k = 0
+        cdef int m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0 # index in batch_info
+        cdef int base_size = 0 # just for sample_bases
+        for i in range(self.__size):
+            batch_cigar = self.array[i]
+
+            # set ``sample_bases``
+            for j in range(batch_cigar.sample_bases_cigar.size):
+                # cs = batch_cigar.sample_bases_cigar.data[j]
+                for k in range(batch_cigar.sample_bases_cigar.data[j].n):
+                    # this is char* type, could just use strcpy!
+                    base_size = strlen(batch_cigar.sample_bases_cigar.data[j].b)
+                    batch_info.sample_bases[m1] = <char*>(calloc(base_size, sizeof(char)))
+                    strcpy(batch_info.sample_bases[m1], batch_cigar.sample_bases_cigar.data[j].b)
+                    m1 += 1
+
+            # set ``sample_base_quals``
+            for j in range(batch_cigar.sample_base_quals_cigar.size):
+                for k in range(batch_cigar.sample_base_quals_cigar.data[j].n):
+                    batch_info.sample_base_quals[m2] = batch_cigar.sample_base_quals_cigar.data[j].b
+                    m2 += 1
+
+            # set ``mapqs_cigar``
+            for j in range(batch_cigar.mapqs_cigar.size):
+                for k in range(batch_cigar.mapqs_cigar.data[j].n):
+                    batch_info.mapqs[m3] = batch_cigar.mapqs_cigar.data[j].b
+                    m3 += 1
+
+            # set ``read_pos_rank_cigar``
+            for j in range(batch_cigar.read_pos_rank_cigar.size):
+                for k in range(batch_cigar.read_pos_rank_cigar.data[j].n):
+                    batch_info.read_pos_rank[m4] = batch_cigar.read_pos_rank_cigar.data[j].b
+                    m4 += 1
+
+            # set ``strands``
+            for j in range(batch_cigar.strands_cigar.size):
+                for k in range(batch_cigar.strands_cigar.data[j].n):
+                    batch_info.strands[m5] = batch_cigar.strands_cigar.data[j].b
+
+        return batch_info
+
+    cdef _CigarStringArray _compress_string(self, char **data, int size):
+        cdef _CigarString *cigar = <_CigarString*>(calloc(size, sizeof(_CigarString)))
+
+        cdef int last_index = 0
+        cdef int i = 0
+        for i in range(size):
+
+            if i == 0:
+                last_index = 0
+
+                cigar[last_index].b = data[i]
+                cigar[last_index].n = 1
+            else:
+
+                if strcmp(data[i], cigar[last_index].b) == 0:
+                    # the two string is equal
+                    cigar[last_index].n += 1
+                else:
+                    last_index += 1
+                    cigar[last_index].b = data[i]
+                    cigar[last_index].n = 1
+
+        cdef _CigarStringArray cigar_string_array
+        cigar_string_array.size = last_index + 1
+        cigar_string_array.data = <_CigarString*>(calloc(cigar_string_array.size, sizeof(_CigarString)))
+        for i in range(cigar_string_array.size):
+            cigar_string_array.data[i] = cigar[i]
+
+        free(cigar)
+        return cigar_string_array
+
+    cdef _CigarCharArray _compress_char(self, char *data, int size):
+        cdef _CigarChar *cigar = <_CigarChar*>(calloc(size, sizeof(_CigarChar)))
+
+        cdef int last_index = 0
+        cdef int i = 0
+        for i in range(size):
+
+            if i == 0:
+                last_index = 0
+
+                cigar[last_index].b = data[i]
+                cigar[last_index].n = 1
+            else:
+
+                if data[i] == cigar[last_index].b:
+                    cigar[last_index].n += 1
+                else:
+                    last_index += 1
+                    cigar[last_index].b = data[i]
+                    cigar[last_index].n = 1
+
+        cdef _CigarCharArray cigar_char_array
+        cigar_char_array.size = last_index + 1
+        cigar_char_array.data = <_CigarChar*>(calloc(cigar_char_array.size, sizeof(_CigarChar)))
+        for i in range(cigar_char_array.size):
+            cigar_char_array.data[i] = cigar[i]
+
+        free(cigar)
+        return cigar_char_array
+
+    cdef _CigarIntArray _compress_int(self, int *data, int size):
+
+        cdef _CigarInt *cigar = <_CigarInt*>(calloc(size, sizeof(_CigarInt)))
+
+        cdef int last_index = 0
+        cdef int i = 0
+        for i in range(size):
+
+            if i == 0:
+                last_index = 0
+
+                cigar[last_index].b = data[i]
+                cigar[last_index].n = 1
+            else:
+
+                if data[i] == cigar[last_index].b:
+                    cigar[last_index].n += 1
+                else:
+                    last_index += 1
+                    cigar[last_index].b = data[i]
+                    cigar[last_index].n = 1
+
+        cdef _CigarIntArray cigar_int_array
+
+        cigar_int_array.size = last_index + 1
+        cigar_int_array.data = <_CigarInt*>(calloc(cigar_int_array.size, sizeof(_CigarInt)))
+        for i in range(cigar_int_array.size):
+            cigar_int_array.data[i] = cigar[i]
+
+        free(cigar)
+        return cigar_int_array
+
 
 
 cdef class BatchGenerator(object):

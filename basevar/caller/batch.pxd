@@ -16,6 +16,7 @@ cdef extern from "string.h":
     ctypedef int size_t
     char *strcpy(char *dest, char *src)
     char *strcat(char *dest, char *src)
+    int strcmp(const char *s1, const char *s2)
     size_t strlen(char *s)
 
 
@@ -41,16 +42,44 @@ cdef class BatchInfo:
     cdef void fill_empty(self)
 
 
-ctypedef struct Element:
-    pass
+# ``_Cigar_string``, ``_Cigar_char`` and ``_Cigar_int`` are all for matching the type
+# in ``BatchInfo``
+ctypedef struct _CigarString:
+    int n
+    char *b
 
+ctypedef struct _CigarChar:
+    int n
+    char b
+
+ctypedef struct _CigarInt:
+    int n
+    int b
+
+ctypedef struct _CigarStringArray:
+    int size
+    _CigarString *data
+
+ctypedef struct _CigarCharArray:
+    int size
+    _CigarChar *data
+
+ctypedef struct _CigarIntArray:
+    int size
+    _CigarInt *data
 
 ctypedef struct BatchCigar:
-    char *sample_bases_cigar
-    char *sample_base_quals_cigar
-    char *read_pos_rank_cigar
-    char *mapqs_cigar
-    char *strands_cigar
+
+    # single char type
+    _CigarCharArray strands_cigar
+
+    # string(or char**) type
+    _CigarStringArray sample_bases_cigar
+
+    # int type
+    _CigarIntArray sample_base_quals_cigar
+    _CigarIntArray read_pos_rank_cigar
+    _CigarIntArray mapqs_cigar
 
 
 cdef class PositionBatchCigarArray:
@@ -69,7 +98,7 @@ cdef class PositionBatchCigarArray:
 
     cdef void append(self, BatchInfo value)
     cdef int size(self)
-    cdef BatchInfo batchcigar2batchinfo(self)
+    cdef BatchInfo convert_position_batch_cigar_array_to_batchinfo(self) # convert the whole array into one BatchInfo
 
 
 cdef class BatchGenerator:
