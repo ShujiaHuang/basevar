@@ -48,6 +48,12 @@ class BaseTypeRunner(object):
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
 
+        cdef int sample_num = len(self.sample_id)
+        if self.options.batch_count > sample_num:
+            logger.warning("--batch-count (%d) is bigger than the number of alignment files (%d). Reset "
+                           "batch count to be %d" % (self.options.batch_count, sample_num, sample_num))
+            self.options.batch_count = sample_num
+
     def basevar_caller(self):
         """
         Run variant caller
