@@ -8,11 +8,14 @@ cdef extern from "stdlib.h" nogil:
 cdef extern from "string.h" nogil:
     char *strsep(char ** string_ptr, const char *delimiter)
 
-
 from basevar.io.fasta cimport FastaFile
 
-cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af, int sample_num,
-                             cvg_file_handle, vcf_file_handle)
-cdef tuple variant_discovery_in_regions(FastaFile fa, list align_files, list regions, list samples, dict popgroup,
-                                        bytes outdir, bint is_out_vcf_file, object options)
+cdef bint variant_discovery_in_regions(FastaFile fa,
+                                       list align_files,
+                                       list regions,
+                                       list samples,
+                                       dict popgroup,
+                                       basestring out_cvg_file_name,
+                                       basestring out_vcf_file_name,
+                                       object options)
 

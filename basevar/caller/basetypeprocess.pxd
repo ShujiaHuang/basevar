@@ -16,9 +16,9 @@ cdef class BaseVarProcess:
 
     cdef basestring out_vcf_file
     cdef basestring out_cvg_file
-    cdef bytes cache_dir
+    # cdef bytes cache_dir
 
     cdef object options
 
-    cdef void run_variant_discovery_by_batch(self)
+    # cdef void run_variant_discovery_by_batch(self)
     cdef void run_variant_discovery_in_regions(self)

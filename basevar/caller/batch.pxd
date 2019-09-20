@@ -23,6 +23,7 @@ cdef extern from "string.h":
 cdef class BatchInfo:
     # record the size of array: `*mapqs`==`*strands`==`**sample_bases` == `*sample_base_quals` == `*read_pos_rank`
     cdef int size
+    cdef int __capacity
 
     cdef bytes chrid
     cdef long int position
@@ -36,10 +37,12 @@ cdef class BatchInfo:
     cdef char *strands
     cdef int *is_empty
 
+    cdef int get_capacity(self)
+    cdef void set_size(self, int size)
+    cdef void clear(self)
     cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
                                    char map_strand, char *read_base, int base_qual, int read_pos_rank)
     cdef basestring get_str(self)
-    cdef void fill_empty(self)
 
 
 # ``_Cigar_string``, ``_Cigar_char`` and ``_Cigar_int`` are all for matching the type
@@ -80,7 +83,7 @@ ctypedef struct BatchCigar:
     _CigarIntArray sample_base_quals_cigar
     _CigarIntArray read_pos_rank_cigar
     _CigarIntArray mapqs_cigar
-
+###############################################################################################
 
 cdef class PositionBatchCigarArray:
     """A class just convert BatchInfo value into Element as a compress value to save memory!"""
@@ -96,9 +99,14 @@ cdef class PositionBatchCigarArray:
     cdef int __sample_number
     cdef int __depth
 
-    cdef void append(self, BatchInfo value)
     cdef int size(self)
+    cdef void append(self, BatchInfo value)
     cdef BatchInfo convert_position_batch_cigar_array_to_batchinfo(self) # convert the whole array into one BatchInfo
+
+    cdef _CigarStringArray _compress_string(self, char **data, int size)
+    cdef _CigarCharArray _compress_char(self, char *data, int size)
+    cdef _CigarIntArray _compress_int(self, int *data, int size)
+    cdef BatchCigar _BatchInfo2BatchCigar(self, BatchInfo value)
 
 
 cdef class BatchGenerator:
@@ -115,12 +123,11 @@ cdef class BatchGenerator:
     cdef int min_base_qual
 
     cdef int sample_size
-    cdef list batch_heap  # A list of BatchInfo and data will all be here
+    cdef list batch_heap
     cdef long int start_pos_in_batch_heap
 
     cdef FastaFile ref_fa
     cdef bytes ref_name
-    cdef char *refseq
     cdef long int ref_seq_start
     cdef long int ref_seq_end
     cdef long int reg_start
