@@ -67,9 +67,6 @@ cdef class BatchInfo:
         """
         return self.get_str()
 
-    cdef int get_capacity(self):
-        return self.__capacity
-
     cdef void set_size(self, int size):
         """call this function to adjust the self.size, if the real size is not equal to capacity"""
         if size > self.__capacity:
@@ -78,6 +75,20 @@ cdef class BatchInfo:
             sys.exit(1)
 
         self.size = size
+        return
+
+    cdef void set_empty(self):
+        self.depth = 0
+
+        cdef int i
+        for i in range(self.__capacity):
+            self.is_empty[i] = 1
+            self.mapqs[i] = 0
+            self.strands[i] = '.'
+            self.sample_bases[i] = 'N'
+            self.sample_base_quals[i] = 0
+            self.read_pos_rank[i] = 0
+
         return
 
     cdef basestring get_str(self):
@@ -253,13 +264,16 @@ cdef class PositionBatchCigarArray:
         return batch_cigar
 
     cdef BatchInfo convert_position_batch_cigar_array_to_batchinfo(self):
+
         cdef BatchInfo batch_info = BatchInfo(self.chrid, self.position, self.ref_base, self.__sample_number)
         batch_info.depth = self.__depth
 
         cdef BatchCigar batch_cigar
         cdef _CigarString cs
-        cdef int i = 0, j = 0, k = 0
-        cdef int m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0 # index in batch_info
+        cdef int i = 0, j = 0, _ = 0
+
+        # index in batch_info
+        cdef int m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0
         cdef int base_size = 0 # just for sample_bases
 
         for i in range(self.__size):
@@ -267,38 +281,39 @@ cdef class PositionBatchCigarArray:
 
             # set ``sample_bases``
             for j in range(batch_cigar.sample_bases_cigar.size):
-                for k in range(batch_cigar.sample_bases_cigar.data[j].n):
-                    # this is char* type, could just use strcpy!
+                for _ in range(batch_cigar.sample_bases_cigar.data[j].n):
+
+                    # this is char* type, must use strcpy().
                     base_size = strlen(batch_cigar.sample_bases_cigar.data[j].b)
                     batch_info.sample_bases[m1] = <char*>(calloc(base_size, sizeof(char)))
                     strcpy(batch_info.sample_bases[m1], batch_cigar.sample_bases_cigar.data[j].b)
+
                     m1 += 1
 
             # set ``sample_base_quals``
             for j in range(batch_cigar.sample_base_quals_cigar.size):
-                for k in range(batch_cigar.sample_base_quals_cigar.data[j].n):
+                for _ in range(batch_cigar.sample_base_quals_cigar.data[j].n):
                     batch_info.sample_base_quals[m2] = batch_cigar.sample_base_quals_cigar.data[j].b
                     m2 += 1
 
             # set ``mapqs_cigar``
             for j in range(batch_cigar.mapqs_cigar.size):
-                for k in range(batch_cigar.mapqs_cigar.data[j].n):
+                for _ in range(batch_cigar.mapqs_cigar.data[j].n):
                     batch_info.mapqs[m3] = batch_cigar.mapqs_cigar.data[j].b
                     m3 += 1
 
             # set ``read_pos_rank_cigar``
             for j in range(batch_cigar.read_pos_rank_cigar.size):
-                for k in range(batch_cigar.read_pos_rank_cigar.data[j].n):
+                for _ in range(batch_cigar.read_pos_rank_cigar.data[j].n):
                     batch_info.read_pos_rank[m4] = batch_cigar.read_pos_rank_cigar.data[j].b
                     m4 += 1
 
             # set ``strands``
             for j in range(batch_cigar.strands_cigar.size):
-                for k in range(batch_cigar.strands_cigar.data[j].n):
+                for _ in range(batch_cigar.strands_cigar.data[j].n):
                     batch_info.strands[m5] = batch_cigar.strands_cigar.data[j].b
                     m5 += 1
 
-        print batch_info; sys.exit(1)
         return batch_info
 
     cdef _CigarStringArray _compress_string(self, char **data, int size):
@@ -689,6 +704,7 @@ cdef class BatchGenerator(object):
 
             pos_index = ref_pos - self.start_pos_in_batch_heap
             batch_info = self.batch_heap[pos_index]
+
             if batch_info.is_empty[sample_index]:
                 # Just record the information of first read, so do not update if it's not empty
                 batch_info.update_info_by_index(sample_index, self.ref_name, ref_pos, mapq, map_strand,

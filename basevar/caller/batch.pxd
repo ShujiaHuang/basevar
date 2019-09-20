@@ -37,7 +37,7 @@ cdef class BatchInfo:
     cdef char *strands
     cdef int *is_empty
 
-    cdef int get_capacity(self)
+    cdef void set_empty(self)
     cdef void set_size(self, int size)
     cdef void clear(self)
     cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
