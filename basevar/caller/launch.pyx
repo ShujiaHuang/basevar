@@ -7,9 +7,6 @@ the lord to rule them all, in a word, it's "The Ring".
 
 ``runner.py`` is "Sauron", and 'launch.pyx' module could just be called by it.
 """
-from __future__ import division
-
-import os
 import sys
 import time
 
@@ -45,8 +42,8 @@ class BaseTypeRunner(object):
 
         # Loading positions if not been provided we'll load all the genome
         regions = utils.load_target_position(self.reference_file, args.positions, args.regions)
-        self.regions_for_each_process = generate_regions_by_process_num(regions, process_num=self.nCPU,
-                                                                        convert_to_2d=False)
+        self.regions_for_each_process = generate_regions_by_process_num(
+            regions, process_num=self.nCPU, convert_to_2d=False)
 
         # ``samples_id`` has the same size and order as ``aligne_files``
         self.sample_id = get_sample_names(self.alignfiles, True if args.filename_has_samplename else False)
@@ -64,27 +61,18 @@ class BaseTypeRunner(object):
         # Always create process manager even if nCPU==1, so that we can
         # listen signals from main thread
         for i in range(self.nCPU):
-            sub_cvg_file = self.outcvg + '_temp_%s' % i
+            sub_cvg_file =  'temp_%s' % i + self.outcvg
             out_cvg_names.append(sub_cvg_file)
 
             if self.outvcf:
-                sub_vcf_file = self.outvcf + '_temp_%s' % i
+                sub_vcf_file = 'temp_%s' % i + self.outvcf
                 out_vcf_names.append(sub_vcf_file)
             else:
                 sub_vcf_file = None
 
-            tmpd, name = os.path.split(os.path.realpath(sub_cvg_file))
-            cache_dir = tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
-
             sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
                              '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
-            if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
-                # if `cache_dir` is not exist while `sub_cvg_file` exists, that means
-                # `sub_cvg_file` and `sub_vcf_file` has been finish successfully.
-                continue
-
-            cache_dir = utils.safe_makedir(cache_dir)
             processes.append(CallerProcess(BaseVarProcess,
                                            self.sample_id,
                                            self.alignfiles,
@@ -92,7 +80,6 @@ class BaseTypeRunner(object):
                                            self.regions_for_each_process[i],
                                            out_cvg_file=sub_cvg_file,
                                            out_vcf_file=sub_vcf_file,
-                                           cache_dir=cache_dir,
                                            options=self.options))
 
         process_runner(processes)
@@ -110,31 +97,21 @@ class BaseTypeRunner(object):
         out_vcf_names = []
         out_cvg_names = []
 
-        sub_cvg_file = self.outcvg + '_temp_'
+        sub_cvg_file = 'temp_' + self.outcvg
         out_cvg_names.append(sub_cvg_file)
 
         if self.outvcf:
-            sub_vcf_file = self.outvcf + '_temp_'
+            sub_vcf_file = 'temp_' + self.outvcf
             out_vcf_names.append(sub_vcf_file)
         else:
             sub_vcf_file = None
 
-        tmpd, name = os.path.split(os.path.realpath(sub_cvg_file))
-        cache_dir = tmpd + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
-
-        if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
-            # if `cache_dir` is not exist and `sub_cvg_file` is exists means
-            # `sub_cvg_file and sub_vcf_file` has been finish successfully.
-            return
-
-        cache_dir = utils.safe_makedir(cache_dir)
         bp = BaseVarProcess(self.sample_id,
                             self.alignfiles,
                             self.reference_file,
                             self.regions_for_each_process[0],
                             out_cvg_file=sub_cvg_file,
                             out_vcf_file=sub_vcf_file,
-                            cache_dir=cache_dir,
                             options=self.options)
         bp.run()
 

@@ -21,7 +21,7 @@ cdef class ReadArray:
     cdef void set_window_pointers_based_on_mate_pos(self, int start, int end)
 
 cdef class BamReadBuffer:
-    cdef char*sample
+    cdef char* sample
 
     cdef char* chrom
     cdef int chrom_id

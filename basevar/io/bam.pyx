@@ -8,7 +8,6 @@ from basevar.log import logger
 from basevar.io.read cimport BamReadBuffer
 from basevar.io.htslibWrapper cimport Samfile, ReadIterator, cAlignedRead
 from basevar.caller.batch cimport BatchGenerator
-# from basevar.io.htslibWrapper cimport compress_read
 
 
 cdef bint is_indexable(filename):
@@ -149,83 +148,150 @@ cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start,
     return population_read_buffers
 
 
-cdef bint load_data_from_bamfile(dict bamfiles,
-                                 list samples,
+# cdef bint load_data_from_bamfile(FastaFile fa,
+#                                  dict bamfiles,
+#                                  list samples,
+#                                  bytes chrom,
+#                                  long int start, # 1-base
+#                                  long int end,   # 1-base
+#                                  # BatchGenerator sample_batch_buffers,
+#                                  list position_array,  # A list of ``PositionBatchCigarArray``
+#                                  options):
+#     """
+#     Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
+#     reads for each BAM file in that region.
+#
+#     ``bamfiles`` is a dict of the object of bamfile path for ``samples``(one for each)
+#
+#     Format in ``bamfiles``: {sample: filename}, it could be create by one line code:
+#     bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
+#
+#     ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
+#
+#     This function could just work for unique sample with only one BAM file. You should merge your
+#     bamfiles first if there are multiple BAM files for one sample.
+#     """
+#     cdef Samfile reader
+#     cdef ReadIterator reader_iter
+#     cdef cAlignedRead *the_read
+#
+#
+#     cdef int total_reads = 0
+#     cdef int sample_num = len(samples)
+#     cdef BamReadBuffer sample_read_buffer
+#
+#     cdef long int r_start = max(0, start-1)  # make 0-base
+#     cdef long int r_end = max(0, end-1)      # make 0-base
+#
+#     cdef basestring region = "%s:%s-%s" % (chrom, r_start, r_end)
+#     cdef bint is_empty = True
+#     cdef int i
+#     for i in range(sample_num):
+#         # assuming the sample is already unique in ``samples``
+#
+#         reader = Samfile(bamfiles[samples[i]])
+#         reader.open("r", True)
+#
+#         # set initial size for BamReadBuffer
+#         sample_read_buffer = BamReadBuffer(chrom, r_start, r_end, options)
+#         sample_read_buffer.sample = samples[i]
+#
+#         if (i+1) % 1000 == 0:
+#             logger.info("Loading %d bamfiles for region: %s" % (i+1, region))
+#
+#         try:
+#             reader_iter = bam_readers[samples[i]].fetch(region)
+#         except Exception as e:
+#             logger.warning(e.message)
+#             logger.warning("No data could be retrieved for sample %s in file %s in "
+#                            "region %s" % (samples[i], bam_readers[samples[i]].filename, region))
+#             continue
+#
+#         while reader_iter.cnext():
+#             # loading data for one sample
+#             the_read = reader_iter.get(0, NULL)
+#             sample_read_buffer.add_read_to_buffer(the_read)
+#             total_reads += 1
+#
+#         # reader.close()
+#         # get batch information for each sample in [start, end]
+#         sample_batch_buffers.create_batch_in_region(
+#             (chrom, start, end),
+#             sample_read_buffer.reads.array,  # this start pointer will move automatically
+#             sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
+#             i  # ``i`` is sample_index of ``BatchGenerator``
+#         )
+#
+#         if options.verbosity > 1:
+#             logger.info("We get %d good reads for %s from %s" % (total_reads, region, bamfiles[samples[i]]))
+#
+#         if is_empty:
+#             is_empty = False
+#
+#     return is_empty
+#
+
+
+cdef bint load_data_from_bamfile(Samfile bam_reader,
+                                 bytes sample_id,
                                  bytes chrom,
                                  long int start, # 1-base
                                  long int end,   # 1-base
                                  BatchGenerator sample_batch_buffers,
+                                 int sample_index,
                                  options):
     """
-    Take a list of BAM files, and a genomic region, and reuturn a list of buffers, containing the
-    reads for each BAM file in that region.
-    
-    ``bamfiles`` is a dict of the object of bamfile path for ``samples``(one for each)
-    
-    Format in ``bamfiles``: {sample: filename}, it could be create by one line code: 
-    bam_objs = {s: f for s, f in zip(samples, input_bamfiles)}
-    
-    ``samples`` must be the same size as ``bam_objs`` and ``samples`` is the order of input bamfiles
-    
     This function could just work for unique sample with only one BAM file. You should merge your 
     bamfiles first if there are multiple BAM files for one sample.
     """
+    # sample_index is a index label
+    if sample_index >= sample_batch_buffers.sample_size:
+        logger.error("Index overflow! Index (%d) is lager or equal to sample_size(%d)" % (
+            sample_index, sample_batch_buffers.sample_size))
+        sys.exit(1)
+
     cdef Samfile reader
     cdef ReadIterator reader_iter
     cdef cAlignedRead *the_read
 
     cdef int total_reads = 0
-    cdef int sample_num = len(samples)
     cdef BamReadBuffer sample_read_buffer
 
     cdef long int r_start = max(0, start-1)  # make 0-base
     cdef long int r_end = max(0, end-1)      # make 0-base
 
     cdef basestring region = "%s:%s-%s" % (chrom, r_start, r_end)
+
+    # set initial size for BamReadBuffer
+    sample_read_buffer = BamReadBuffer(chrom, r_start, r_end, options)
+    sample_read_buffer.sample = sample_id
+
     cdef bint is_empty = True
-    cdef int i
-    for i in range(sample_num):
-        # assuming the sample is already unique in ``samples``
+    try:
+        reader_iter = bam_reader.fetch(region)
+    except Exception as e:
+        logger.warning(e.message)
+        logger.warning("No data could be retrieved for sample %s in file %s in "
+                       "region %s" % (sample_id, bam_reader.filename, region))
+        return is_empty
 
-        reader = Samfile(bamfiles[samples[i]])
-        reader.open("r", True)
+    while reader_iter.cnext():
+        # loading data for one sample
+        the_read = reader_iter.get(0, NULL)
+        sample_read_buffer.add_read_to_buffer(the_read)
+        total_reads += 1
 
-        # set initial size for BamReadBuffer
-        sample_read_buffer = BamReadBuffer(chrom, r_start, r_end, options)
-        sample_read_buffer.sample = samples[i]
+    is_empty = False
+    # get batch information for each sample in [start, end]
+    sample_batch_buffers.create_batch_in_region(
+        (chrom, start, end),
+        sample_read_buffer.reads.array,  # this start pointer will move automatically
+        sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
+        sample_index  # ``sample_index`` is sample_index of ``BatchGenerator``
+    )
 
-        if (i+1) % 1000 == 0:
-            logger.info("Loading %d bamfiles for region: %s" % (i+1, region))
-
-        try:
-            reader_iter = reader.fetch(region)
-        except Exception as e:
-            logger.warning(e.message)
-            logger.warning("No data could be retrieved for sample %s in file %s in "
-                           "region %s" % (samples[i], reader.filename, region))
-            continue
-
-        while reader_iter.cnext():
-            # loading data for one sample
-            the_read = reader_iter.get(0, NULL)
-            sample_read_buffer.add_read_to_buffer(the_read)
-            total_reads += 1
-
-        reader.close()
-
-        # get batch information for each sample in [start, end]
-        sample_batch_buffers.create_batch_in_region(
-            (chrom, start, end),
-            sample_read_buffer.reads.array,  # this start pointer will move automatically
-            sample_read_buffer.reads.array + sample_read_buffer.reads.get_size(),
-            i  # ``i`` is sample_index of ``BatchGenerator``
-        )
-
-        if options.verbosity > 1:
-            logger.info("We get %d good reads for %s from %s" % (total_reads, region, bamfiles[samples[i]]))
-
-        if is_empty:
-            is_empty = False
+    if options.verbosity > 1:
+        logger.info("We get %d good reads for %s from %s" % (total_reads, region, bam_reader.filename))
 
     return is_empty
 
