@@ -3,15 +3,10 @@
 Author: Shujia Huang
 Date: 2019-06-03 00:28:50
 """
-from basevar.io.fasta cimport FastaFile
 from basevar.io.htslibWrapper cimport Samfile
-
 from basevar.caller.batch cimport BatchGenerator
 
 cdef list get_sample_names(list bamfiles, bint filename_has_samplename)
-cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start, long int end,
-                       char* refseq, options)
-
 cdef bint load_data_from_bamfile(Samfile bam_reader,
                                  bytes sample_id,
                                  bytes chrom,

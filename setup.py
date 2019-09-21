@@ -66,7 +66,7 @@ MOD_NAMES = [
     CALLER_PRE + '.io.read',
     CALLER_PRE + '.caller.basetype',
     CALLER_PRE + '.caller.batch',
-    CALLER_PRE + '.caller.batchcaller',
+    # CALLER_PRE + '.caller.batchcaller',
     CALLER_PRE + '.caller.variantcaller',
     CALLER_PRE + '.caller.basetypeprocess',
     CALLER_PRE + '.caller.launch',

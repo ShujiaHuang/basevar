@@ -74,7 +74,8 @@ cdef class BaseVarProcess:
             logger.error("Error happen in run_variant_discovery_in_regions(): %s" % e)
             sys.exit(1)
 
-        logger.info("Running variant_discovery_in_regions done, %d seconds elapsed.\n" % (time.time() - start_time))
+        logger.info("Running variant_discovery_in_regions for %s done, %d seconds elapsed." % (
+                self.out_cvg_file.split(".cvg")[0]+"[.cvg/.vcf]", time.time() - start_time))
         if is_empty:
             logger.warning("\n***************************************************************************\n"
                            "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
