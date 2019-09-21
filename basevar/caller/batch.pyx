@@ -23,7 +23,6 @@ cdef int SMALL_INSERT = 4
 cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
-cdef int STATIC_COUNT = 1000
 
 # A class to store batch information.
 cdef class BatchInfo:
@@ -452,11 +451,10 @@ cdef class BatchGenerator(object):
         self.ref_seq_start = max(0, self.reg_start - 200)
         self.ref_seq_end = min(self.reg_end + 200, self.ref_fa.references[self.ref_name].seq_length - 1)
 
-        cdef long int _pos  # `_pos` is 1-base system in the follow code.
         # initialization the BatchInfo for each position in `ref_name:reg_start-reg_end`
+        cdef long int _pos  # `_pos` is 1-base system in the follow code.
         self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos - 1), sample_size)
                            for _pos in range(reg_start, reg_end + 1)]
-
         self.start_pos_in_batch_heap = reg_start  # 1-base, represent the first element in `batch_heap`
         self.options = options
 
@@ -487,9 +485,14 @@ cdef class BatchGenerator(object):
         cdef long int start = region[1]  # 1-base coordinate system
         cdef long int end = region[2]  # 1-base coordinate system
 
-        assert chrom == self.ref_name, "Error match chromosome (%s != %s)" % (chrom, self.ref_name)
-        assert start <= self.start_pos_in_batch_heap <= end, "Error! %s is not in %s:%s-%s" % (
-            self.start_pos_in_batch_heap, chrom, start, end)
+        if chrom != self.ref_name:
+            logger.error("Error match chromosome (%s != %s)" %(chrom, self.ref_name))
+            sys.exit(1)
+
+        if self.start_pos_in_batch_heap < start or self.start_pos_in_batch_heap > end:
+            logger.error("%s is not in region %s:%s-%s" % (
+                self.start_pos_in_batch_heap, chrom, start, end))
+            sys.exit(1)
 
         if start < self.ref_seq_start:
             logger.error("Start position (%s) is outside the reference region (%s)" % (

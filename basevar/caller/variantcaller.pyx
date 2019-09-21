@@ -59,7 +59,7 @@ cdef void push_data_into_position_cigar_array(list regions_batch_cigar, list bat
 
     cdef int region_size = len(batch_generator_array)
     cdef int position_number
-    cdef int i, j, k
+    cdef int i, j
 
     for i in range(region_size):
         batch_generator = batch_generator_array[i]
@@ -111,8 +111,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         positions_batch_cigar = []
 
         for _pos in range(start, end+1):
-            # Position in positions_batch_cigar must be the same as which
-            # in `BatchGenerator.batch_heap`
+            # Position in positions_batch_cigar must be the same as which in `BatchGenerator.batch_heap`
             positions_batch_cigar.append(PositionBatchCigarArray(
                 chrom, _pos, fa.get_character(chrom, _pos-1), INITIAL_CIGAR_ARRAY_SIZE)
             )
@@ -121,7 +120,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         regions_batch_cigar.append(positions_batch_cigar)
     ### initial done ###
 
-    logger.info("Done for initialing the ``PositionBatchCigarArray`` and ``BatchGenerator`` array")
+    logger.info("Done for allocating memory to ``PositionBatchCigarArray`` and ``BatchGenerator`` array.")
 
     cdef Samfile reader
 
@@ -130,10 +129,10 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
 
     cdef int i = 0, k = 0, n = 0
     cdef int buffer_sample_index = 0
-
     cdef int size_of_batch_heap
+
+    start_time = time.time()
     for i in range(sample_size):
-        start_time = time.time()
 
         reader = Samfile(align_files[i])  # Match samples[i]
         reader.open("r", True)
@@ -151,8 +150,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         reader.close()
 
         if buffer_sample_index + 1 == options.batch_count:
-            # Compress a batch data into ``PositionBatchCigarArray``
-            # will rest depth to be 0
+            # Compress a batch data into ``PositionBatchCigarArray`` will rest depth to be 0
             push_data_into_position_cigar_array(regions_batch_cigar, batch_generators, -1)
             buffer_sample_index = 0
         else:
@@ -161,8 +159,11 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         # output some logger
         n += 1
         if n % 1000 == 0:
-            logger.info("Finish Loading %d bamfiles in all the regions, %d seconds elapsed." % (
-                n, time.time() - start_time))
+            logger.info("Finish Loading %d bamfiles in all the regions, %d seconds "
+                        "elapsed in total." % (n, time.time() - start_time))
+
+    logger.info("Finish Loading all %d bamfiles in all the regions, %d seconds "
+                "elapsed in total." % (n, time.time() - start_time))
 
     if buffer_sample_index > 0:
         push_data_into_position_cigar_array(regions_batch_cigar, batch_generators, buffer_sample_index)
@@ -256,10 +257,14 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
 
                 group_sample_size = len(index)
                 group_sample_bases = <char**> (calloc(group_sample_size, sizeof(char*)))
-                assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _basetypeprocess."
+                if group_sample_bases == NULL:
+                    logger.error("Fail allocate memory for ``group_sample_bases`` in _basetypeprocess.")
+                    sys.exit(1)
 
                 group_sample_base_quals = <int *> (calloc(group_sample_size, sizeof(int)))
-                assert group_sample_base_quals != NULL, "Could not allocate memory for ``group_sample_base_quals`` in _basetypeprocess."
+                if group_sample_base_quals == NULL:
+                    logger.error("Fail allocate memory for ``group_sample_base_quals`` in _basetypeprocess.")
+                    sys.exit(1)
 
                 # for i in index:
                 for i in range(group_sample_size):
@@ -326,7 +331,9 @@ cdef void _out_cvg_file(BatchInfo batchinfo, dict popgroup, out_file_handle):
 
         group_sample_size = len(index)
         group_sample_bases = <char**> (calloc(group_sample_size, sizeof(char*)))
-        assert group_sample_bases != NULL, "Could not allocate memory for ``group_sample_bases`` in _out_cvg_file."
+        if group_sample_bases == NULL:
+            logger.error("Fail allocate memory for ``group_sample_bases`` in _out_cvg_file.")
+            sys.exit(1)
 
         for i in range(group_sample_size):
             group_sample_bases[i] = batchinfo.sample_bases[index[i]]
