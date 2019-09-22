@@ -60,8 +60,7 @@ def parser_commandline_args():
     basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=0.001,
                               help='Setting prior precision of MAF and skip uneffective caller positions. Usually '
                                    'you can set it to be min(0.001, 100/x), x is the number of your input BAM files.'
-                                   '[min(0.001, 100/x, cmm.MINAF)]. Probably you don\'t hava to take care about '
-                                   'this parameter.')
+                                   'Probably you don\'t hava to take care about this parameter.')
 
     basetype_cmd.add_argument('--pop-group', dest='pop_group_file', metavar='GroupListFile', type=str,
                               help='Calculating the allele frequency for specific population.')
@@ -75,20 +74,19 @@ def parser_commandline_args():
     basetype_cmd.add_argument("--max-read-length", dest="r_len", action='store', type=int, default=150,
                               help="Maximum read length. [150]")
 
-    basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
-                              help="Maximium coverage in window. [5000000]")
-    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
-                              help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
-                                   "This will slow things down, but reduce memory usage. [0]")
-    basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
-                              help="This sets the granularity used when compressing quality scores. "
-                                   "If > 1 then quality compression is lossy. [1]")
+    # basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
+    #                           help="Maximium coverage in window. [5000000]")
+    # basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
+    #                           help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
+    #                                "This will slow things down, but reduce memory usage. [0]")
+    # basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
+    #                           help="This sets the granularity used when compressing quality scores. "
+    #                                "If > 1 then quality compression is lossy. [1]")
 
     basetype_cmd.add_argument("--trim-overlapping", dest="trim_overlapping", action='store_true',
                               help="If setted, overlapping paired reads have overlap set to qual 0.")
     basetype_cmd.add_argument("--trim-soft-clipped", dest="trim_soft_clipped", action='store_true',
                               help="If setted, then sets to qual 0 any soft clipped parts of the read.")
-
     basetype_cmd.add_argument("--filter-duplicates", dest="filter_duplicates", action='store', type=int, default=1,
                               help="If set to 1, duplicate reads will be removed based on the read-pair start and "
                                    "end. [1]", required=False)
