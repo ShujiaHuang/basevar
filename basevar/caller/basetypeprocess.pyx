@@ -75,12 +75,16 @@ cdef class BaseVarProcess:
             sys.exit(1)
 
         logger.info("Running variant_discovery_in_regions for %s done, %d seconds elapsed." % (
-                self.out_cvg_file.split(".cvg")[0]+"[.cvg/.vcf]", time.time() - start_time))
+                self.out_cvg_file+".[and.vcf]", time.time() - start_time))
         if is_empty:
             logger.warning("\n***************************************************************************\n"
                            "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
                            "input files. We get nothing in %s \n\n" % (self.options.mapq, self.out_cvg_file))
             if self.out_vcf_file:
                 logger.warning("and %s " % self.out_vcf_file)
+
+        name = self.out_cvg_file + ".PROCESS.AND_VCF_DONE_SUCCESSFULLY"
+        with open(name, "w") as OUT:
+            OUT.write("The process done.\n")
 
         return

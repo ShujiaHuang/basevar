@@ -7,6 +7,7 @@ the lord to rule them all, in a word, it's "The Ring".
 
 ``runner.py`` is "Sauron", and 'launch.pyx' module could just be called by it.
 """
+import os
 import sys
 import time
 
@@ -60,18 +61,20 @@ class BaseTypeRunner(object):
         """
         sys.stderr.write('[INFO] Start call variants by BaseType ... %s\n' % time.asctime())
 
-        out_vcf_names = []
-        out_cvg_names = []
+        cdef list out_vcf_names = []
+        cdef list out_cvg_names = []
+        cdef list successful_marker_files = []
 
-        processes = []
+        cdef list processes = []
         # Always create process manager even if nCPU==1, so that we can
         # listen signals from main thread
         for i in range(self.nCPU):
-            sub_cvg_file =  'temp_%s.' % i + self.outcvg
+            sub_cvg_file = self.outcvg + '.temp_%d_%d' % (i+1, self.nCPU)
             out_cvg_names.append(sub_cvg_file)
+            successful_marker_files.append(sub_cvg_file + ".PROCESS.AND_VCF_DONE_SUCCESSFULLY")
 
             if self.outvcf:
-                sub_vcf_file = 'temp_%s.' % i + self.outvcf
+                sub_vcf_file = self.outvcf + '.temp_%d_%d' % (i+1, self.nCPU)
                 out_vcf_names.append(sub_vcf_file)
             else:
                 sub_vcf_file = None
@@ -89,10 +92,29 @@ class BaseTypeRunner(object):
                                            options=self.options))
 
         process_runner(processes)
+        cdef bint all_process_success = True
+        for p in processes:
+            if p.exitcode != 0:
+                all_process_success = False
 
-        # Final output
-        utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
-        return processes
+        # double check!
+        fail_process_num = []
+        for i, m in enumerate(successful_marker_files):
+            if not os.path.exists(m):
+                all_process_success = False
+                fail_process_num.append(i)
+
+            os.remove(m) # remove any way
+
+        # Final output if all the processes are ending successful!
+        if all_process_success:
+            utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
+            logger.info("Processes are all done successfully.")
+        else:
+            logger.error("The program is fail in [%s] processes. Abort!" % ",".join(map(str, fail_process_num)))
+            sys.exit(1)
+
+        return all_process_success
 
     def basevar_caller_singleprocess(self):
         """
@@ -103,11 +125,11 @@ class BaseTypeRunner(object):
         out_vcf_names = []
         out_cvg_names = []
 
-        sub_cvg_file = 'temp_' + self.outcvg
+        sub_cvg_file = self.outcvg + '_temp'
         out_cvg_names.append(sub_cvg_file)
 
         if self.outvcf:
-            sub_vcf_file = 'temp_' + self.outvcf
+            sub_vcf_file = self.outvcf + '_temp'
             out_vcf_names.append(sub_vcf_file)
         else:
             sub_vcf_file = None
@@ -123,7 +145,7 @@ class BaseTypeRunner(object):
 
         # Final output
         utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
-        return
+        return True
 
 
 class MergeRunner(object):
