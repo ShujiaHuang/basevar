@@ -386,7 +386,7 @@ cdef class BamReadBuffer:
         self.start = start
         self.end = end
 
-        self.max_reads = options.max_reads
+        # self.max_reads = options.max_reads
         self.min_map_qual = options.mapq
         self.trim_overlapping = options.trim_overlapping
         self.trim_soft_clipped = options.trim_soft_clipped

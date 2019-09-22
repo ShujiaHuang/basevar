@@ -51,13 +51,13 @@ ctypedef struct _CigarString:
     int n
     char *b
 
-ctypedef struct _CigarChar:
-    int n
-    char b
-
 ctypedef struct _CigarInt:
     int n
     int b
+
+ctypedef struct _CigarChar:
+    int n
+    char b
 
 ctypedef struct _CigarStringArray:
     int size
@@ -72,10 +72,6 @@ ctypedef struct _CigarIntArray:
     _CigarInt *data
 
 ctypedef struct BatchCigar:
-
-    # single char type
-    _CigarCharArray strands_cigar
-
     # string(or char**) type
     _CigarStringArray sample_bases_cigar
 
@@ -83,7 +79,9 @@ ctypedef struct BatchCigar:
     _CigarIntArray sample_base_quals_cigar
     _CigarIntArray read_pos_rank_cigar
     _CigarIntArray mapqs_cigar
-###############################################################################################
+
+    # single char type
+    _CigarCharArray strands_cigar
 
 cdef class PositionBatchCigarArray:
     """A class just convert BatchInfo value into Element as a compress value to save memory!"""

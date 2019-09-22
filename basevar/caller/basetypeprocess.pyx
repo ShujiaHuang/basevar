@@ -76,6 +76,7 @@ cdef class BaseVarProcess:
 
         logger.info("Running variant_discovery_in_regions for %s done, %d seconds elapsed." % (
                 self.out_cvg_file+".[and.vcf]", time.time() - start_time))
+
         if is_empty:
             logger.warning("\n***************************************************************************\n"
                            "[WARNING] No reads are satisfy with the mapping quality (>=%d) in all of your\n"
