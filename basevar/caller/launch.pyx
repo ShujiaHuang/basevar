@@ -79,8 +79,8 @@ class BaseTypeRunner(object):
             else:
                 sub_vcf_file = None
 
-            sys.stderr.write('[INFO] Process %d/%d output to temporary files:'
-                             '[%s, %s]\n' % (i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
+            logger.info("Process %d/%d output to temporary files:[%s, %s]." % (
+                i+1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
             processes.append(CallerProcess(BaseVarProcess,
                                            self.sample_id,
@@ -97,7 +97,7 @@ class BaseTypeRunner(object):
             if p.exitcode != 0:
                 all_process_success = False
 
-        # double check!
+        # double check for processes!
         fail_process_num = []
         for i, m in enumerate(successful_marker_files):
             if not os.path.exists(m):
@@ -109,7 +109,7 @@ class BaseTypeRunner(object):
         # Final output if all the processes are ending successful!
         if all_process_success:
             utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
-            logger.info("Processes are all done successfully.")
+            logger.info("All the processes are done successful.")
         else:
             logger.error("The program is fail in [%s] processes. Abort!" % ",".join(map(str, fail_process_num)))
             sys.exit(1)
