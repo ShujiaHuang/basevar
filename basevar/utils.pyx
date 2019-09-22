@@ -39,6 +39,18 @@ def do_cprofile(filename, is_do_profiling=False, stdout=False):
 
     return wrapper
 
+cdef long int c_min(long int x, long int y):
+    if x < y:
+        return x
+    else:
+        return y
+
+cdef long int c_max(long int x, long int y):
+    if x < y:
+        return y
+    else:
+        return x
+
 cdef float set_minaf(int sample_size):
     """setting the resolution of MAF for basetype"""
     return min(100.0 / sample_size, 0.001)
