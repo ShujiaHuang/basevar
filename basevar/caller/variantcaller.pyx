@@ -39,18 +39,6 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
 
     return
 
-cdef long int c_min(long int x, long int y):
-    if x < y:
-        return x
-    else:
-        return y
-
-cdef long int c_max(long int x, long int y):
-    if x < y:
-        return y
-    else:
-        return x
-
 cdef void push_data_into_position_cigar_array(list regions_batch_cigar, list batch_generator_array, int sample_size):
 
     cdef PositionBatchCigarArray position_batch_cigar_array
@@ -96,13 +84,13 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     cdef bytes chrom
     cdef long int start, end
 
-    cdef PositionBatchCigarArray position_batch_cigar_array
-    cdef BatchGenerator tmp_batch_generator
+    cdef int region_size = len(regions)
+    cdef int sample_size = len(samples)
 
     ### initial ###
     cdef list regions_batch_cigar = []
-    cdef list batch_generators = []
     cdef list positions_batch_cigar = []
+    cdef list batch_generators = []
 
     cdef long int _pos
     for chrom, start, end in regions:
@@ -113,7 +101,7 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
         for _pos in range(start, end+1):
             # Position in positions_batch_cigar must be the same as which in `BatchGenerator.batch_heap`
             positions_batch_cigar.append(PositionBatchCigarArray(
-                chrom, _pos, fa.get_character(chrom, _pos-1), INITIAL_CIGAR_ARRAY_SIZE)
+                chrom, _pos, fa.get_character(chrom, _pos-1), min(sample_size, INITIAL_CIGAR_ARRAY_SIZE))
             )
 
         # The size of ``regions_batch_cigar`` will be the same as ``batch_generators``
@@ -123,9 +111,6 @@ cdef bint variant_discovery_in_regions(FastaFile fa,
     logger.info("Done for allocating memory to ``PositionBatchCigarArray`` and ``BatchGenerator`` array.")
 
     cdef Samfile reader
-
-    cdef int region_size = len(regions)
-    cdef int sample_size = len(samples)
 
     cdef int i = 0, k = 0, n = 0
     cdef int buffer_sample_index = 0
@@ -261,7 +246,7 @@ cdef void _basetypeprocess(BatchInfo batchinfo, dict popgroup, float min_af, cvg
                     logger.error("Fail allocate memory for ``group_sample_bases`` in _basetypeprocess.")
                     sys.exit(1)
 
-                group_sample_base_quals = <int *> (calloc(group_sample_size, sizeof(int)))
+                group_sample_base_quals = <int*> (calloc(group_sample_size, sizeof(int)))
                 if group_sample_base_quals == NULL:
                     logger.error("Fail allocate memory for ``group_sample_base_quals`` in _basetypeprocess.")
                     sys.exit(1)

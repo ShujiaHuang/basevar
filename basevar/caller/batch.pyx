@@ -23,7 +23,6 @@ cdef int SMALL_INSERT = 4
 cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
-
 # A class to store batch information.
 cdef class BatchInfo:
     def __cinit__(self, bytes chrid, long int position, bytes ref_base, int size):
@@ -101,23 +100,21 @@ cdef class BatchInfo:
         cdef int i = 0
         if self.depth > 0:
             for i in range(self.size):
-
-                mapqs.append(str(self.mapqs[i]))
                 sample_bases.append(self.sample_bases[i])  # Note: sample_bases must all be upper
                 sample_base_quals.append(str(self.sample_base_quals[i]))
                 read_pos_rank.append(str(self.read_pos_rank[i]))
                 strands.append(chr(self.strands[i]))
+                mapqs.append(str(self.mapqs[i]))
 
-            return "\t".join([
-                self.chrid,
-                str(self.position),
-                self.ref_base,
-                str(self.depth),
-                ",".join(mapqs),
-                ",".join(sample_bases),
-                ",".join(sample_base_quals),
-                ",".join(read_pos_rank),
-                ",".join(strands)])
+            return "\t".join([self.chrid,
+                              str(self.position),
+                              self.ref_base,
+                              str(self.depth),
+                              ",".join(mapqs),
+                              ",".join(sample_bases),
+                              ",".join(sample_base_quals),
+                              ",".join(read_pos_rank),
+                              ",".join(strands)])
         else:
             return "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
 
@@ -214,14 +211,14 @@ cdef class PositionBatchCigarArray:
 
         if value.chrid != self.chrid or value.position != self.position:
             raise StandardError, (
-                "Error in ``PositionBatchCigarArray`` when call append()! "
-                "Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
-                self.chrid, value.chrid, self.position, value.position)
+                    "Error in ``PositionBatchCigarArray`` when call append()! "
+                    "Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
+                        self.chrid, value.chrid, self.position, value.position)
             )
 
         cdef BatchCigar *temp = NULL
         if self.__size == self.__capacity:
-            temp = <BatchCigar*>(realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
+            temp = <BatchCigar*> (realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
 
             if temp == NULL:
                 raise StandardError, "Could not re-allocate PositionBatchCigarArray!!"
@@ -236,7 +233,7 @@ cdef class PositionBatchCigarArray:
         self.__size += 1  # increase size
 
     cdef BatchCigar _BatchInfo2BatchCigar(self, BatchInfo value):
-        # set BatchCigar to compress BatchInfo and save memory.
+        # Set BatchCigar to compress BatchInfo and save memory.
         cdef BatchCigar batch_cigar
 
         batch_cigar.mapqs_cigar = self._compress_int(value.mapqs, value.size)
@@ -259,7 +256,7 @@ cdef class PositionBatchCigarArray:
 
         # index in batch_info
         cdef int m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0
-        cdef int base_size = 0 # just for sample_bases
+        cdef int base_size = 0  # just for sample_bases
 
         cdef int total_base_array_size = 0
         cdef int total_qual_array_size = 0
@@ -270,6 +267,7 @@ cdef class PositionBatchCigarArray:
         for i in range(self.__size):
             batch_cigar = self.array[i]
 
+            # These total_* are just for debug
             total_base_array_size += batch_cigar.sample_bases_cigar.size
             total_qual_array_size += batch_cigar.sample_base_quals_cigar.size
             total_mapqs_array_size += batch_cigar.mapqs_cigar.size
@@ -278,49 +276,69 @@ cdef class PositionBatchCigarArray:
 
             # set ``sample_bases``
             for j in range(batch_cigar.sample_bases_cigar.size):
-                for _ in range(batch_cigar.sample_bases_cigar.data[j].n):
+                # print ">> ", self.chrid, self.position, self.ref_base, batch_cigar.sample_bases_cigar.data[j].n, batch_cigar.sample_bases_cigar.data[j].b
+                if strcmp(batch_cigar.sample_bases_cigar.data[j].b, "N") != 0:
 
-                    # this is char* type, must use strcpy().
-                    base_size = strlen(batch_cigar.sample_bases_cigar.data[j].b)
-                    batch_info.sample_bases[m1] = <char*>(calloc(base_size, sizeof(char)))
-                    strcpy(batch_info.sample_bases[m1], batch_cigar.sample_bases_cigar.data[j].b)
+                    for _ in range(batch_cigar.sample_bases_cigar.data[j].n):
+                        # copy char* type, must use strcpy().
+                        base_size = strlen(batch_cigar.sample_bases_cigar.data[j].b)
+                        batch_info.sample_bases[m1] = <char*>(calloc(base_size, sizeof(char)))
+                        strcpy(batch_info.sample_bases[m1], batch_cigar.sample_bases_cigar.data[j].b)
 
-                    m1 += 1
+                        m1 += 1
+                else:
+                    m1 += batch_cigar.sample_bases_cigar.data[j].n
 
             # set ``sample_base_quals``
             for j in range(batch_cigar.sample_base_quals_cigar.size):
-                for _ in range(batch_cigar.sample_base_quals_cigar.data[j].n):
-                    batch_info.sample_base_quals[m2] = batch_cigar.sample_base_quals_cigar.data[j].b
-                    m2 += 1
+
+                if batch_cigar.sample_base_quals_cigar.data[j].b != 0:
+                    for _ in range(batch_cigar.sample_base_quals_cigar.data[j].n):
+                        batch_info.sample_base_quals[m2] = batch_cigar.sample_base_quals_cigar.data[j].b
+                        m2 += 1
+                else:
+                    m2 += batch_cigar.sample_base_quals_cigar.data[j].n
 
             # set ``mapqs_cigar``
             for j in range(batch_cigar.mapqs_cigar.size):
-                for _ in range(batch_cigar.mapqs_cigar.data[j].n):
-                    batch_info.mapqs[m3] = batch_cigar.mapqs_cigar.data[j].b
-                    m3 += 1
+
+                if batch_cigar.mapqs_cigar.data[j].b != 0:
+                    for _ in range(batch_cigar.mapqs_cigar.data[j].n):
+                        batch_info.mapqs[m3] = batch_cigar.mapqs_cigar.data[j].b
+                        m3 += 1
+                else:
+                    m3 += batch_cigar.mapqs_cigar.data[j].n
 
             # set ``read_pos_rank_cigar``
             for j in range(batch_cigar.read_pos_rank_cigar.size):
-                for _ in range(batch_cigar.read_pos_rank_cigar.data[j].n):
-                    batch_info.read_pos_rank[m4] = batch_cigar.read_pos_rank_cigar.data[j].b
-                    m4 += 1
+
+                if batch_cigar.read_pos_rank_cigar.data[j].b != 0:
+                    for _ in range(batch_cigar.read_pos_rank_cigar.data[j].n):
+                        batch_info.read_pos_rank[m4] = batch_cigar.read_pos_rank_cigar.data[j].b
+                        m4 += 1
+                else:
+                    m4 += batch_cigar.read_pos_rank_cigar.data[j].n
 
             # set ``strands``
             for j in range(batch_cigar.strands_cigar.size):
-                for _ in range(batch_cigar.strands_cigar.data[j].n):
-                    batch_info.strands[m5] = batch_cigar.strands_cigar.data[j].b
-                    m5 += 1
 
-        # if self.position % 100000:
-        logger.debug("Position %s:%s has %d base array, %d qual array, %d mapqs array,"
-                     "%d pos-rank array, %d strands array." %(
-            self.chrid, self.position, total_base_array_size, total_qual_array_size,
-            total_mapqs_array_size, total_pos_rank_array_size, total_strand_array_size))
+                if batch_cigar.strands_cigar.data[j].b != '.':
+                    for _ in range(batch_cigar.strands_cigar.data[j].n):
+                        batch_info.strands[m5] = batch_cigar.strands_cigar.data[j].b
+                        m5 += 1
+                else:
+                    m5 += batch_cigar.strands_cigar.data[j].n
+
+        if self.position % 100000 == 0:
+            logger.debug("Position %s:%s has %d base array, %d qual array, %d mapqs array, "
+                         "%d pos-rank array, %d strands array." % (
+                             self.chrid, self.position, total_base_array_size, total_qual_array_size,
+                             total_mapqs_array_size, total_pos_rank_array_size, total_strand_array_size))
 
         return batch_info
 
-    cdef _CigarStringArray _compress_string(self, char **data, int size):
-        cdef _CigarString *cigar = <_CigarString*>(calloc(size, sizeof(_CigarString)))
+    cdef _CigarStringArray _compress_string(self, char ** data, int size):
+        cdef _CigarString *cigar = <_CigarString*> (calloc(size, sizeof(_CigarString)))
 
         cdef int last_index = 0
         cdef int i = 0, base_size
@@ -350,7 +368,7 @@ cdef class PositionBatchCigarArray:
 
         cdef _CigarStringArray cigar_string_array
         cigar_string_array.size = last_index + 1
-        cigar_string_array.data = <_CigarString*>(calloc(cigar_string_array.size, sizeof(_CigarString)))
+        cigar_string_array.data = <_CigarString*> (calloc(cigar_string_array.size, sizeof(_CigarString)))
         for i in range(cigar_string_array.size):
             cigar_string_array.data[i] = cigar[i]
 
@@ -358,7 +376,7 @@ cdef class PositionBatchCigarArray:
         return cigar_string_array
 
     cdef _CigarCharArray _compress_char(self, char *data, int size):
-        cdef _CigarChar *cigar = <_CigarChar*>(calloc(size, sizeof(_CigarChar)))
+        cdef _CigarChar *cigar = <_CigarChar*> (calloc(size, sizeof(_CigarChar)))
 
         cdef int last_index = 0
         cdef int i = 0
@@ -382,7 +400,7 @@ cdef class PositionBatchCigarArray:
 
         cdef _CigarCharArray cigar_char_array
         cigar_char_array.size = last_index + 1
-        cigar_char_array.data = <_CigarChar*>(calloc(cigar_char_array.size, sizeof(_CigarChar)))
+        cigar_char_array.data = <_CigarChar*> (calloc(cigar_char_array.size, sizeof(_CigarChar)))
         for i in range(cigar_char_array.size):
             cigar_char_array.data[i] = cigar[i]
 
@@ -391,7 +409,7 @@ cdef class PositionBatchCigarArray:
 
     cdef _CigarIntArray _compress_int(self, int *data, int size):
 
-        cdef _CigarInt *cigar = <_CigarInt*>(calloc(size, sizeof(_CigarInt)))
+        cdef _CigarInt *cigar = <_CigarInt*> (calloc(size, sizeof(_CigarInt)))
 
         cdef int last_index = 0
         cdef int i = 0
@@ -415,13 +433,12 @@ cdef class PositionBatchCigarArray:
         cdef _CigarIntArray cigar_int_array
 
         cigar_int_array.size = last_index + 1
-        cigar_int_array.data = <_CigarInt*>(calloc(cigar_int_array.size, sizeof(_CigarInt)))
+        cigar_int_array.data = <_CigarInt*> (calloc(cigar_int_array.size, sizeof(_CigarInt)))
         for i in range(cigar_int_array.size):
             cigar_int_array.data[i] = cigar[i]
 
         free(cigar)
         return cigar_int_array
-
 
 cdef class BatchGenerator(object):
     """
@@ -457,13 +474,13 @@ cdef class BatchGenerator(object):
 
         # initialization the BatchInfo for each position in `ref_name:reg_start-reg_end`
         cdef long int _pos  # `_pos` is 1-base system in the follow code.
-        self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos - 1), sample_size)
-                           for _pos in range(reg_start, reg_end + 1)]
+        self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos-1), sample_size)
+                           for _pos in range(reg_start, reg_end+1)]
         self.start_pos_in_batch_heap = reg_start  # 1-base, represent the first element in `batch_heap`
         self.options = options
 
         # the same definition with class ``BamReadBuffer`` in read.pyx
-        self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
+        self.filtered_read_counts_by_type = <int*> (calloc(7, sizeof(int)))
         if options.filter_duplicates == 0:
             self.filtered_read_counts_by_type[DUPLICATE] = -1
 
@@ -482,7 +499,7 @@ cdef class BatchGenerator(object):
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
-    cdef void create_batch_in_region(self, tuple region, cAlignedRead **read_start, cAlignedRead **read_end,
+    cdef void create_batch_in_region(self, tuple region, cAlignedRead ** read_start, cAlignedRead ** read_end,
                                      int sample_index):  # The column index for the array in `batch_heap` represent a sample
         """Fetch batch information in a specific region."""
         cdef bytes chrom = region[0]
@@ -490,7 +507,7 @@ cdef class BatchGenerator(object):
         cdef long int end = region[2]  # 1-base coordinate system
 
         if chrom != self.ref_name:
-            logger.error("Error match chromosome (%s != %s)" %(chrom, self.ref_name))
+            logger.error("Error match chromosome (%s != %s)" % (chrom, self.ref_name))
             sys.exit(1)
 
         if self.start_pos_in_batch_heap < start or self.start_pos_in_batch_heap > end:

@@ -31,7 +31,7 @@ cdef class BamReadBuffer:
     cdef bint is_sorted
     cdef int window_start_base
     cdef int window_end_base
-    cdef int max_reads
+    # cdef int max_reads
     cdef int min_map_qual
     cdef int min_base_qual
     cdef int trim_overlapping
@@ -53,5 +53,6 @@ cdef class BamReadBuffer:
     cdef void log_filter_summary(self)
 
     cdef ReadArray broken_mates
+
     # cdef void sort_reads(self)
     # cdef void sort_broken_mates(self)
