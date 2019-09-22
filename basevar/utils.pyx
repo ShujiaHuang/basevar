@@ -597,7 +597,9 @@ def load_popgroup_info(samples, in_popgroup_file):
             tmpdict[sample_id] = group_id + '_AF'
 
     # group_id => [a list samples_index]
-    popgroup = {}
+    cdef dict popgroup = {}
+    cdef int i
+    cdef basestring s
     # keep the sample's order
     for i, s in enumerate(samples):
 
