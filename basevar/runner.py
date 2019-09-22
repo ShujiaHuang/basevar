@@ -53,8 +53,8 @@ def parser_commandline_args():
                                    'simultaneously')
 
     # The number of output subfiles
-    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=1000,
-                              help='INT simples per batchfile. [1000]')
+    basetype_cmd.add_argument('-B', '--batch-count', dest='batch_count', metavar='INT', type=int, default=500,
+                              help='INT simples per batchfile. [500]')
     basetype_cmd.add_argument('--nCPU', dest='nCPU', metavar='INT', type=int, default=1,
                               help='Number of processer to use. [1]')
     basetype_cmd.add_argument('-m', '--min-af', dest='min_af', type=float, metavar='float', default=0.001,
