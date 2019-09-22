@@ -145,20 +145,6 @@ cdef class BatchInfo:
 
         return
 
-    # This function may never be called
-    # cdef void fill_empty(self):
-    #     cdef int i
-    #     for i in range(self.size):
-    #         if self.is_empty[i]:
-    #             self.is_empty[i] = 0
-    #             self.mapqs[i] = 0
-    #             self.strands[i] = '.'
-    #             self.sample_bases[i] = 'N'
-    #             self.sample_base_quals[i] = 0
-    #             self.read_pos_rank[i] = 0
-    #
-    #     return
-
     cdef void clear(self):
         # free memory
         self.__dealloc__()
@@ -275,8 +261,20 @@ cdef class PositionBatchCigarArray:
         cdef int m1 = 0, m2 = 0, m3 = 0, m4 = 0, m5 = 0
         cdef int base_size = 0 # just for sample_bases
 
+        cdef int total_base_array_size = 0
+        cdef int total_qual_array_size = 0
+        cdef int total_mapqs_array_size = 0
+        cdef int total_pos_rank_array_size = 0
+        cdef int total_strand_array_size = 0
+
         for i in range(self.__size):
             batch_cigar = self.array[i]
+
+            total_base_array_size += batch_cigar.sample_bases_cigar.size
+            total_qual_array_size += batch_cigar.sample_base_quals_cigar.size
+            total_mapqs_array_size += batch_cigar.mapqs_cigar.size
+            total_pos_rank_array_size += batch_cigar.read_pos_rank_cigar.size
+            total_strand_array_size += batch_cigar.strands_cigar.size
 
             # set ``sample_bases``
             for j in range(batch_cigar.sample_bases_cigar.size):
@@ -312,6 +310,12 @@ cdef class PositionBatchCigarArray:
                 for _ in range(batch_cigar.strands_cigar.data[j].n):
                     batch_info.strands[m5] = batch_cigar.strands_cigar.data[j].b
                     m5 += 1
+
+        # if self.position % 100000:
+        logger.debug("Position %s:%s has %d base array, %d qual array, %d mapqs array,"
+                     "%d pos-rank array, %d strands array." %(
+            self.chrid, self.position, total_base_array_size, total_qual_array_size,
+            total_mapqs_array_size, total_pos_rank_array_size, total_strand_array_size))
 
         return batch_info
 

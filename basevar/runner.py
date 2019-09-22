@@ -165,8 +165,8 @@ def basetype(args):
 
     # The main function
     bt = BaseTypeRunner(args)
-    # is_success = bt.basevar_caller_singleprocess()  # Just for cProfile and optimization testing
-    is_success = bt.basevar_caller()
+    is_success = bt.basevar_caller_singleprocess()  # Just for cProfile and optimization testing
+    # is_success = bt.basevar_caller()
 
     return is_success
 
