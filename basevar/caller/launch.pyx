@@ -55,6 +55,8 @@ class BaseTypeRunner(object):
                            "batch count to be %d" % (self.options.batch_count, sample_num, sample_num))
             self.options.batch_count = sample_num
 
+
+    #####################################################################################################
     def basevar_caller(self):
         """
         Run variant caller
@@ -64,8 +66,8 @@ class BaseTypeRunner(object):
         cdef list out_vcf_names = []
         cdef list out_cvg_names = []
         cdef list successful_marker_files = []
-
         cdef list processes = []
+
         # Always create process manager even if nCPU==1, so that we can
         # listen signals from main thread
         for i in range(self.nCPU):
@@ -82,6 +84,15 @@ class BaseTypeRunner(object):
             logger.info("Process %d/%d output to temporary files:[%s, %s]." % (
                 i+1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
+            tmp_dir, name = os.path.split(os.path.realpath(sub_cvg_file))
+            cache_dir = tmp_dir + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
+
+            if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
+                # if `cache_dir` is not exist and `sub_cvg_file` is exists means
+                # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+                continue
+
+            cache_dir = utils.safe_makedir(cache_dir)
             processes.append(CallerProcess(BaseVarProcess,
                                            self.sample_id,
                                            self.alignfiles,
@@ -89,7 +100,17 @@ class BaseTypeRunner(object):
                                            self.regions_for_each_process[i],
                                            out_cvg_file=sub_cvg_file,
                                            out_vcf_file=sub_vcf_file,
+                                           cache_dir=cache_dir,
                                            options=self.options))
+
+            # processes.append(CallerProcess(BaseVarProcess,
+            #                                self.sample_id,
+            #                                self.alignfiles,
+            #                                self.reference_file,
+            #                                self.regions_for_each_process[i],
+            #                                out_cvg_file=sub_cvg_file,
+            #                                out_vcf_file=sub_vcf_file,
+            #                                options=self.options))
 
         process_runner(processes)
         cdef bint all_process_success = True
@@ -134,14 +155,33 @@ class BaseTypeRunner(object):
         else:
             sub_vcf_file = None
 
+        tmp_dir, name = os.path.split(os.path.realpath(sub_cvg_file))
+        cache_dir = tmp_dir + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
+
+        if self.options.smartrerun and os.path.isfile(sub_cvg_file) and (not os.path.exists(cache_dir)):
+            # if `cache_dir` is not exist and `sub_cvg_file` is exists means
+            # `sub_cvg_file and sub_vcf_file` has been finish successfully.
+            return True
+
+        cache_dir = utils.safe_makedir(cache_dir)
         bp = BaseVarProcess(self.sample_id,
                             self.alignfiles,
                             self.reference_file,
                             self.regions_for_each_process[0],
                             out_cvg_file=sub_cvg_file,
                             out_vcf_file=sub_vcf_file,
+                            cache_dir=cache_dir,
                             options=self.options)
+
         bp.run()
+        # bp = BaseVarProcess(self.sample_id,
+        #                     self.alignfiles,
+        #                     self.reference_file,
+        #                     self.regions_for_each_process[0],
+        #                     out_cvg_file=sub_cvg_file,
+        #                     out_vcf_file=sub_vcf_file,
+        #                     options=self.options)
+        # bp.run()
 
         # Final output
         utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)

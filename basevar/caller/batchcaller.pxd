@@ -19,5 +19,5 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        list align_files,
                                        FastaFile fa,
                                        list sample_ids,
-                                       bytes outdir,
+                                       basestring outdir,
                                        object options)

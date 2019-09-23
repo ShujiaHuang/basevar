@@ -25,7 +25,7 @@ cdef int LOW_MAP_QUAL = 6
 
 # A class to store batch information.
 cdef class BatchInfo:
-    def __cinit__(self, bytes chrid, long int position, bytes ref_base, int size):
+    def __cinit__(self, bytes chrid, long int position=0, bytes ref_base=b'N', int size=0):
         self.size = size  # default size is as the same as capacity
         self.__capacity = size
         self.chrid = chrid

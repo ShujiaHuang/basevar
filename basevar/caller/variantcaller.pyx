@@ -39,6 +39,146 @@ def output_header(fa_file_name, sample_ids, pop_group_sample_dict, out_cvg_handl
 
     return
 
+cdef bint variants_discovery(bytes chrid, list batchfiles, dict popgroup, float min_af,
+                             cvg_file_handle, vcf_file_handle):
+    """Function for variants discovery.
+    """
+    cdef list sampleinfos = []
+    cdef list batch_files_hd = [Open(f, 'rb') for f in batchfiles]
+    cdef bint is_empty = True
+    cdef bint eof = False
+    cdef bint is_error = False
+
+    cdef int *batch_count = <int*> (calloc(len(batchfiles), sizeof(int)))
+
+    cdef int total_sample_num = 0
+    cdef BatchInfo batchinfo
+
+    cdef int n = 0, i = 0
+    cdef bint is_first = True
+    while True:
+        # [CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand]
+        sampleinfos = []
+        for i, fh in enumerate(batch_files_hd):
+            line = fh.readline()
+            if line:
+                if line.startswith("#"):
+                    if line.startswith("##SampleIDs="):
+                        batch_count[i] = len(line.strip().split("=")[-1].split(","))
+                        total_sample_num += batch_count[i]
+
+                    continue
+
+                elif is_first:
+                    is_first = False
+                    # initial here
+                    batchinfo = BatchInfo(chrid, size=total_sample_num)
+
+                sampleinfos.append(line.strip().split())
+            else:
+                sampleinfos.append(None)
+                eof = True
+
+        # hit the end of files
+        if eof:
+            is_error = True if any(sampleinfos) else False
+            if is_error:
+                logger.warning(
+                    "%s\n[ERROR]Error happen when 'variants_discovery', they don't have the same "
+                    "positions in above files." % "\n".join(batchfiles))
+            break
+
+        # Empty!! Just get header information.
+        if not sampleinfos:
+            continue
+
+        # reset position and ref_base
+        batchinfo.position = int(sampleinfos[0][1])
+        batchinfo.ref_base = sampleinfos[0][2]
+
+        if n % 10000 == 0:
+            logger.info("Have been loading %d lines when hit position %s:%d" %
+                        (n if n > 0 else 1, chrid, batchinfo.position))
+        n += 1
+
+        # data in ``batchinfo`` will been updated automatically in this funcion
+        _fetch_baseinfo_by_position_from_batchfiles(sampleinfos, batch_count, batchinfo)
+
+        # ignore if coverage=0
+        if batchinfo.depth == 0:
+            continue
+
+        # Not empty
+        is_empty = False
+
+        # Calling varaints position one by one and output files.
+        _basetypeprocess(batchinfo, popgroup, min_af, cvg_file_handle, vcf_file_handle)
+
+    for fh in batch_files_hd:
+        fh.close()
+
+    free(batch_count)
+
+    return is_empty
+
+
+cdef void _fetch_baseinfo_by_position_from_batchfiles(list infolines, int *batch_count, BatchInfo batchinfo):
+
+    # reset depth
+    batchinfo.depth = 0
+
+    cdef char *c_t4
+    cdef char *c_t5
+    cdef char *c_t6
+    cdef char *c_t7
+    cdef char *c_t8
+
+    cdef int n = 0, index = 0
+    for i, col in enumerate(infolines):
+        # <CHROM POS REF Depth MappingQuality Readbases ReadbasesQuality ReadPositionRank Strand>
+        if len(col) == 0:
+            logger.error(" %d lines happen to be empty in batchfiles!" % (i + 1))
+            sys.exit(1)
+
+        col[1], col[3] = map(int, [col[1], col[3]])
+        if col[0] != batchinfo.chrid or col[1] != batchinfo.position or col[2] != batchinfo.ref_base:
+            logger.error("%d lines, chromosome [%s and %s] or position [%d and %s] "
+                         "or ref-base [%s and %s] in batchfiles not match with each other!\n" %
+                         (i + 1, col[0], batchinfo.chrid, col[1], batchinfo.position, col[2], batchinfo.ref_base))
+            sys.exit(1)
+
+        batchinfo.depth += col[3]
+        if col[3] > 0:
+
+            c_t4, c_t5, c_t6, c_t7, c_t8 = col[4:9]
+            for n in range(batch_count[i]):
+
+                # if catch segmentation fault then the problem would probably be here!
+                batchinfo.mapqs[index] = atoi(strsep(&c_t4, ","))
+                batchinfo.sample_bases[index] = strsep(&c_t5, ",")  # must all be all upper charater in batchfile!
+                batchinfo.sample_base_quals[index] = atoi(strsep(&c_t6, ","))
+                batchinfo.read_pos_rank[index] = atoi(strsep(&c_t7, ","))
+                batchinfo.strands[index] = strsep(&c_t8, ",")[0] # It's char not string
+
+                # move to the next
+                index += 1
+        else:
+            for n in range(batch_count[i]):
+
+                batchinfo.mapqs[index] = 0
+                batchinfo.sample_bases[index] = "N"
+                batchinfo.sample_base_quals[index] = 0
+                batchinfo.read_pos_rank[index] = 0
+                batchinfo.strands[index] = "."
+
+                # move to the next
+                index += 1
+
+    return
+
+
+
+#####################################################################################################################
 cdef void push_data_into_position_cigar_array(list regions_batch_cigar, list batch_generator_array, int sample_size):
 
     cdef PositionBatchCigarArray position_batch_cigar_array
