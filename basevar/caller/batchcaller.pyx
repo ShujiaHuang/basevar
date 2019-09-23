@@ -24,7 +24,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
                                        list align_files,
                                        FastaFile fa,
                                        list samples,
-                                       bytes outdir,
+                                       basestring outdir,
                                        object options):
     """
     ``regions`` is a 2-D array
