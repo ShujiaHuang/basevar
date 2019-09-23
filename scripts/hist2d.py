@@ -6,8 +6,8 @@ import sys
 import pandas as pd
 import numpy as np
 
-# import matplotlib
-# matplotlib.use("Agg")
+import matplotlib
+matplotlib.use("Agg")
 
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
@@ -38,6 +38,7 @@ def scale_format(value):
 
 def draw_hist2d(argv):
 
+    MIN_MAF = 0.0003
     ax = plt.gca()
 
     data = pd.read_table(argv[0])
@@ -64,6 +65,9 @@ def draw_hist2d(argv):
     max_a = max([max(np.log10(x)), max(np.log10(y))])
     ax.plot([min_a, max_a], [min_a, max_a], 'k--', linewidth=1)
 
+    ax.set_xlim([np.log10(MIN_MAF), max_a])
+    ax.set_ylim([np.log10(MIN_MAF), max_a])
+
     locs, _ = plt.xticks()
     # ax.set_xticklabels(['${10}^{%.1f}$'%i for i in locs])
     ax.set_xticklabels([scale_format(10 ** i) for i in locs])
@@ -80,11 +84,10 @@ def draw_hist2d(argv):
     plt.tight_layout()
     plt.savefig(out_fig_file)
 
-    plt.show()
+    #plt.show()
 
 
 if __name__ == '__main__':
 
+    # usage: python hist2d.py basvarc_plot.txt.gz "Real:Basevar" test.pdf
     draw_hist2d(sys.argv[1:])
-
-
