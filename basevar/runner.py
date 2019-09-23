@@ -74,14 +74,14 @@ def parser_commandline_args():
     basetype_cmd.add_argument("--max-read-length", dest="r_len", action='store', type=int, default=150,
                               help="Maximum read length. [150]")
 
-    # basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
-    #                           help="Maximium coverage in window. [5000000]")
-    # basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
-    #                           help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
-    #                                "This will slow things down, but reduce memory usage. [0]")
-    # basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
-    #                           help="This sets the granularity used when compressing quality scores. "
-    #                                "If > 1 then quality compression is lossy. [1]")
+    basetype_cmd.add_argument("--max_reads", dest="max_reads", action='store', type=float, default=5000000,
+                              help="Maximium coverage in window. [5000000]")
+    basetype_cmd.add_argument("--compress-reads", dest="is_compress_read", type=int, default=0,
+                              help="If this is set to 1, then all reads will be compressed, and decompressd on demand. "
+                                   "This will slow things down, but reduce memory usage. [0]")
+    basetype_cmd.add_argument("--qual_bin_size", dest="qual_bin_size", type=int, action='store', default=1,
+                              help="This sets the granularity used when compressing quality scores. "
+                                   "If > 1 then quality compression is lossy. [1]")
 
     basetype_cmd.add_argument("--trim-overlapping", dest="trim_overlapping", action='store_true',
                               help="If setted, overlapping paired reads have overlap set to qual 0.")
