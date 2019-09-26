@@ -18,6 +18,7 @@ from basevar.utils cimport generate_regions_by_process_num
 from basevar.io.bam cimport get_sample_names
 from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
+from basevar.caller.vqsr import vqsr
 
 
 class BaseTypeRunner(object):
@@ -186,6 +187,18 @@ class BaseTypeRunner(object):
         # Final output
         utils.output_cvg_and_vcf(out_cvg_names, out_vcf_names, self.outcvg, outvcf=self.outvcf)
         return True
+
+
+class VQSRRunner(object):
+    """Runner for VQSR"""
+    def __init__(self, args):
+        """Init function"""
+        self.opt = args
+        return
+
+    def run(self):
+        vqsr.main(self.opt)
+        return
 
 
 class MergeRunner(object):

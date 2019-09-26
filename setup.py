@@ -60,6 +60,7 @@ TB_INCLUDE_DIR = ROOT_DIR + "/basevar/io/BGZF"
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
     CALLER_PRE + '.utils',
+    CALLER_PRE + '.io.libcutils',
     CALLER_PRE + '.io.openfile',
     CALLER_PRE + '.io.fasta',
     CALLER_PRE + '.io.bam',
@@ -72,7 +73,14 @@ MOD_NAMES = [
     CALLER_PRE + '.caller.launch',
     CALLER_PRE + '.caller.do',
 
-    CALLER_PRE + '.io.libcutils',
+    # For VQSR
+    CALLER_PRE + '.caller.vqsr.vcfutils',
+    CALLER_PRE + '.caller.vqsr.vqsr',
+    CALLER_PRE + '.caller.vqsr.variant_datum',
+    CALLER_PRE + '.caller.vqsr.variant_recalibrator',
+    CALLER_PRE + '.caller.vqsr.variant_data_manager',
+    CALLER_PRE + '.caller.vqsr.variant_recalibrator_engine',
+    CALLER_PRE + '.caller.vqsr.variant_recalibrator_argument_collection'
 ]
 
 
