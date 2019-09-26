@@ -108,9 +108,9 @@ def parser_commandline_args():
 
     # VQSR commands
     vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
-    vqsr_cmd.add_argument('-I', '--input', dest='vcfInfile', metavar='VCF', required=True,
+    vqsr_cmd.add_argument('-I', '--input', dest='vcf_infile', metavar='VCF', required=True,
                           help='Input VCF file. This argument should be specified at least once.')
-    vqsr_cmd.add_argument('-T', '--Train', dest='trainData', metavar='VCF', required=True,
+    vqsr_cmd.add_argument('-T', '--Train', dest='train_data', metavar='VCF', required=True,
                           help='Traning data set at true category.')
     vqsr_cmd.add_argument('--fig', dest='figure', metavar='FIG', required=True,
                           help='The prefix of figure.')
@@ -138,7 +138,6 @@ def parser_commandline_args():
 
 @do_cprofile("./basetype.prof", is_do_profiling=True, stdout=True)
 def basetype(args):
-
     if args.outcvg and not args.outvcf:
         sys.stderr.write("***************************************************\n"
                          "********************* WARNING *********************\n"
@@ -169,16 +168,24 @@ def basetype(args):
     return is_success
 
 
-def nearby_indel(args):
-    from caller.launch import NearbyIndelRunner
-    nbi = NearbyIndelRunner(args)
-    nbi.run()
+# def nearby_indel(args):
+#     from caller.launch import NearbyIndelRunner
+#     nbi = NearbyIndelRunner(args)
+#     nbi.run()
+#
+#     return True
+
+def vqsr(args):
+    from basevar.caller.launch import VQSRRunner
+
+    vqsr_runner = VQSRRunner(args)
+    vqsr_runner.run()
 
     return True
 
 
 def merge(args):
-    from caller.launch import MergeRunner
+    from basevar.caller.launch import MergeRunner
 
     mg = MergeRunner(args)
     mg.run()
@@ -190,8 +197,8 @@ def main():
     start_time = time.time()
     runner = {
         'basetype': basetype,
+        'VQSR': vqsr,
         'merge': merge,
-        'NearByIndel': nearby_indel,
     }
 
     args = parser_commandline_args()
