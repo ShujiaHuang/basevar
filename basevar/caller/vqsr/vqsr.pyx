@@ -32,7 +32,7 @@ def main(opt):
     #     h_info.add('INFO', d[0], 1, d[1], d[2])
 
     # Outputting the result as VCF format
-    h_info.add('INFO', 'VQ', 1, 'Float', 'Variant Quality')
+    h_info.add('INFO', 'VQSLOD', 1, 'Float', 'Variant quality calculate by VQSR')
     h_info.add('INFO', 'CU', 1, 'String',
                'The annotation which was the worst '
                'performing in the Gaussian mixture modul, likely the reason why '
@@ -109,7 +109,7 @@ def main(opt):
         if d.at_anti_training_site:
             vcf_info['NEGATIVE_TRAIN_SITE'] = 'NEGATIVE_TRAIN_SITE'
 
-        vcf_info['VQ'] = 'VQ=' + str(d.lod)
+        vcf_info['VQSLOD'] = 'VQSLOD=' + str(d.lod)
         vcf_info['CU'] = 'CU=' + anno_texts[d.worst_annotation]
         for k, v in d.raw_annotations.items():
             if k not in vcf_info:
@@ -119,7 +119,7 @@ def main(opt):
         if d.lod < 0:
             d.lod = 0  # QUAL: donot allow less than 0
 
-        col[5] = str(d.lod)
+        # col[5] = str(d.lod)
         print ('\t'.join(col))
 
     I.close()
