@@ -14,7 +14,7 @@ class VariantRecalibratorArgumentCollection(object):
         self.NINIT = 100
         self.STD_THRESHOLD = 8.0
         self.MIN_NUM_BAD_VARIANTS = 1000
-        self.MAX_NUM_TRAINING_DATA = 50000
+        self.MAX_NUM_TRAINING_DATA = 500000
         self.TRAIN_SIZE_RATE = 0.6  # The ratio of Traing date set
         self.CV_SIZE_RATE = 0.2  # The ratio of cross validation data set
         self.TEST_SIZE_RATE = 0.2  # The ratio of test data set
