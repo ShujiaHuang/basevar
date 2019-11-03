@@ -112,7 +112,7 @@ def parser_commandline_args():
                           help='Input VCF file.')
     vqsr_cmd.add_argument('-T', '--Train', dest='train_data', metavar='VCF', required=True,
                           help='Traning data set at true category.')
-    vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', type=str, required=True,
+    vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', metavar='VCF', type=str, required=True,
                           help='Output VCF file after VQSR.')
 
     # ApplyVQSR commands
@@ -120,10 +120,10 @@ def parser_commandline_args():
                                                            'on the truth sensitivity level.')
     apply_vqsr_cmd.add_argument('-I', '--input', dest='vcf_infile', metavar='VCF', required=True,
                                 help='Input VCF file.')
-    apply_vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', type=str, required=True,
+    apply_vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', metavar='VCF', type=str, required=True,
                                 help='Output filtered and recalibrated VCF file in which each variant is '
                                      'annotated with its VQSLOD. Required')
-    apply_vqsr_cmd.add_argument('--ts', dest='truth_sensitivity_level', type=float, default=0.99,
+    apply_vqsr_cmd.add_argument('--ts', dest='truth_sensitivity_level', metavar='float', type=float, default=0.99,
                                 help='The truth sensitivity level at which to start filtering. default=0.99')
 
     # Merge files
@@ -135,14 +135,14 @@ def parser_commandline_args():
                            help='Output file')
 
     # Add nearby indels for variants
-    nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
-                                                      'indel type information for each variants in VCF.')
-    nbi_cmd.add_argument('-I', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
-                         help='The input vcf files.')
-    nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
-                         help='Input coverage file which has indel information.')
-    nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
-                         type=int, default=16, help='The distance around indels. [16]')
+    # nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
+    #                                                   'indel type information for each variants in VCF.')
+    # nbi_cmd.add_argument('-I', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
+    #                      help='The input vcf files.')
+    # nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
+    #                      help='Input coverage file which has indel information.')
+    # nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
+    #                      type=int, default=16, help='The distance around indels. [16]')
 
     return cmdparse.parse_args()
 
