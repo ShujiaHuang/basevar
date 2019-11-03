@@ -26,14 +26,6 @@ class VariantDataManager(object):
         self.VRAC = VRAC.VariantRecalibratorArgumentCollection()
         self.annotation_mean = None
         self.annotation_STD = None
-        # self.anno_texts = [['QUAL', 'Float', 'Raw variant quality before VQSR process'],
-        #                   ['DP', 'Integer', 'Total depth of this variant'],
-        #                   ['FS', 'Float', 'Phred-scaled p-value using '
-        #                                   'Fisher\'s exact test to detect strand bias'],
-        #                   ['Indel_SP', 'Integer', 'Indel species around this position.'
-        #                                           'The less the better.'],
-        #                   ['Indel_TOT', 'Integer', 'Number of Indel around this position.'
-        #                                            'The less the better.']]
 
         self.data = []  # list <VariantDatum>
         if data:  # data is not None
@@ -192,8 +184,6 @@ def load_data_set(vcf_infile, training_set):
             col = line.strip().split()
             if col[3] in ['N', 'n']:
                 continue
-
-            # qual = float(col[5])
 
             qd = re.search(r';?QD=([^;]+)', col[7])
             fs = re.search(r';?FS=([^;]+)', col[7])
