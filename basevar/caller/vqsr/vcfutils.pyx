@@ -19,76 +19,80 @@ class Header(object):
             self.header = hInfo
         
     def add(self, mark, id, num, type, description):
-        key = '##%s=<ID=%s' % (mark, id)
-        val = ('##%s=<ID=%s,Number=%s,Type=%s,Description="%s">' % 
+        tag = '##%s' % mark
+        val = ('##%s=<ID=%s,Number=%s,Type=%s,Description="%s">' %
               (mark, id, num if num is not None else '.', type, description))
 
-        self.header[key] = val
-        return self
+        if tag not in self.header:
+            self.header[tag] = []
+
+        self.header[tag].append(val)
 
     def record(self, headline):
+
         if re.search (r'^##fileformat', headline):
             tag = '###'
-        elif re.search (r'^#CHROM', headline):
-            tag = '#CHROM'
         else:
-            tag = headline.split(',')[0]
+            tag = headline.split("=")[0]
 
-        self.header[tag] = headline
+        if tag not in self.header:
+            self.header[tag] = []
 
-
-class Info(object): 
-
-    def __init__(self, info = None):
-        """
-        INOF fields information
-        """
-        self.info = {}
-        if info and (type(info) is not dict): 
-            raise ValueError ('The data type should be "dict" in class '
-                              'of "VCFInfo", but found %s' % str(type(info)))
-        if info: self.info = info
-
-    def add(self, key, context):
-        self.info[key] = context
-
-        return self
+        self.header[tag].append(headline)
 
 
-class Context(object): 
-
-    def __init__(self):
-
-        """
-        VCF comtext
-        """
-        self.chrom = None
-        self.pos   = None  
-        self.Id    = None
-        self.ref   = None  
-        self.alt   = []
-        self.qual  = None    
-        self.filter = []
-        self.info   = {} 
-        self.format = None 
-        self.sample = []
-
-    def print_context(self):
-        """
-        """
-        if self.chrom:
-
-            print ('\t'.join([self.chrom,
-                     str(self.pos),
-                     '.' if not self.Id else self.Id,
-                     self.ref,
-                     ','.join(self.alt),
-                     str(self.qual),
-                     '.' if not self.filter else ','.join(self.filter),
-                     '.' if not self.info else ';'.join(v
-                            for v in sorted(self.info.values())),
-                     ':'.join(self.format),
-                     '\t'.join(self.sample)]))
+# class Info(object):
+#
+#     def __init__(self, info = None):
+#         """
+#         INOF fields information
+#         """
+#         self.info = {}
+#         if info and (type(info) is not dict):
+#             raise ValueError ('The data type should be "dict" in class '
+#                               'of "VCFInfo", but found %s' % str(type(info)))
+#         if info: self.info = info
+#
+#     def add(self, key, context):
+#         self.info[key] = context
+#
+#         return self
+#
+#
+# class Context(object):
+#
+#     def __init__(self):
+#
+#         """
+#         VCF comtext
+#         """
+#         self.chrom = None
+#         self.pos   = None
+#         self.Id    = None
+#         self.ref   = None
+#         self.alt   = []
+#         self.qual  = None
+#         self.filter = []
+#         self.info   = {}
+#         self.format = None
+#         self.sample = []
+#
+#     def print_context(self):
+#         """
+#         """
+#         if self.chrom:
+#
+#             print ('\t'.join([self.chrom,
+#                      str(self.pos),
+#                      '.' if not self.Id else self.Id,
+#                      self.ref,
+#                      ','.join(self.alt),
+#                      str(self.qual),
+#                      '.' if not self.filter else ','.join(self.filter),
+#                      '.' if not self.info else ';'.join(v
+#                             for v in sorted(self.info.values())),
+#                      ':'.join(self.format),
+#                      '\t'.join(self.sample)]))
 
 
 def calcuInbreedCoeff(gt):
@@ -120,13 +124,14 @@ def calcuInbreedCoeff(gt):
     if n == 0: n = 1
     p = (2.0 * ref_count + het_count) / (2.0 * n) # expected REF allele freq
     q = 1.0 - p # expected alternative allele frequency
+
     # Inbreeding coefficient: the het_count VS expected of het_count
     expected_het_count = 2.0 * p * q * n if p * q > 0 else 1
     inbf = 1.0 - het_count / expected_het_count
     
     return inbf
 
-def loadPedigree(pedigree_file):
+def load_pedigree(pedigree_file):
     """
     """
     if not pedigree_file: return {} # 
