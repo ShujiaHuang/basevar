@@ -197,8 +197,18 @@ class VQSRRunner(object):
         return
 
     def run(self):
-        vqsr.main(self.opt)
+        vqsr.run_VQSR(self.opt)
         return
+
+
+class ApplyVQSRRunner(object):
+    """Apply VQSR"""
+    def __init__(self, args):
+        self.opt = args
+        return
+
+    def run(self):
+        vqsr.apply_VQSR(self.opt)
 
 
 class MergeRunner(object):

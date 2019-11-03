@@ -107,13 +107,24 @@ def parser_commandline_args():
                               help="Level of logging(1,3). [1]")
 
     # VQSR commands
-    vqsr_cmd = commands.add_parser('VQSR', help='Variants Recalibrator')
+    vqsr_cmd = commands.add_parser('VQSR', help='Variants quality recalibrate.')
     vqsr_cmd.add_argument('-I', '--input', dest='vcf_infile', metavar='VCF', required=True,
-                          help='Input VCF file. This argument should be specified at least once.')
+                          help='Input VCF file.')
     vqsr_cmd.add_argument('-T', '--Train', dest='train_data', metavar='VCF', required=True,
                           help='Traning data set at true category.')
-    vqsr_cmd.add_argument('--fig', dest='figure', metavar='FIG', required=True,
-                          help='The prefix of figure.')
+    vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', type=str, required=True,
+                          help='Output VCF file after VQSR.')
+
+    # ApplyVQSR commands
+    apply_vqsr_cmd = commands.add_parser('ApplyVQSR', help='Apply a score cutoff to filter variants based '
+                                                           'on the truth sensitivity level.')
+    apply_vqsr_cmd.add_argument('-I', '--input', dest='vcf_infile', metavar='VCF', required=True,
+                                help='Input VCF file.')
+    apply_vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', type=str, required=True,
+                                help='Output filtered and recalibrated VCF file in which each variant is '
+                                     'annotated with its VQSLOD. Required')
+    apply_vqsr_cmd.add_argument('--ts', dest='truth_sensitivity_level', type=float, default=0.99,
+                                help='The truth sensitivity level at which to start filtering. default=0.99')
 
     # Merge files
     merge_cmd = commands.add_parser('merge', help='Merge bed/vcf files')
@@ -168,18 +179,20 @@ def basetype(args):
     return is_success
 
 
-# def nearby_indel(args):
-#     from caller.launch import NearbyIndelRunner
-#     nbi = NearbyIndelRunner(args)
-#     nbi.run()
-#
-#     return True
-
 def vqsr(args):
     from basevar.caller.launch import VQSRRunner
 
     vqsr_runner = VQSRRunner(args)
     vqsr_runner.run()
+
+    return True
+
+
+def apply_vqsr(args):
+
+    from basevar.caller.launch import ApplyVQSRRunner
+    apply_vqsr_runner = ApplyVQSRRunner(args)
+    apply_vqsr_runner.run()
 
     return True
 
@@ -198,6 +211,7 @@ def main():
     runner = {
         'basetype': basetype,
         'VQSR': vqsr,
+        'ApplyVQSR': apply_vqsr,
         'merge': merge,
     }
 
