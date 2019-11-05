@@ -13,6 +13,7 @@ from basevar.caller.vqsr import variant_data_manager as vdm
 from basevar.caller.vqsr import variant_recalibrator as vror
 
 from basevar.io.openfile import Open
+from basevar.io.BGZF.tabix import tabix_index
 
 def run_VQSR(opt):
     # Just record the sites of training data
@@ -116,6 +117,10 @@ def run_VQSR(opt):
 
     OUT.close()
 
+    if opt.output_vcf_file_name.endswith(".gz"):
+        # create tabix index
+        tabix_index(opt.output_vcf_file_name, force=True, seq_col=0, start_col=1, end_col=1)
+
     logger.info('Finish Outputting %d lines.\n' % n)
 
     ## Output Summary
@@ -131,8 +136,10 @@ def run_VQSR(opt):
 def apply_VQSR(opt):
     """Apply a score cutoff to filter variants."""
 
-    logger.info("Find a VQSLOD cutoff base on %.2f truth sensitivity level ..." % opt.truth_sensitivity_level)
+    logger.info("Find a VQSLOD cutoff base on %.2f truth set sensitivity level "
+                "... ..." % opt.truth_sensitivity_level)
 
+    cdef int total_variant_num = 0
     truth_set_vqlod = []
     false_set_vqlod = []
     with Open(opt.vcf_infile, 'r') as I:
@@ -140,6 +147,7 @@ def apply_VQSR(opt):
             if line.startswith('#'):
                 continue
 
+            total_variant_num += 1
             col = line.strip().split()
 
             # get INFO
@@ -149,7 +157,7 @@ def apply_VQSR(opt):
                 vcf_info[cc[0]] = cc[-1]
 
             if 'VQSLOD' not in vcf_info:
-                logger.error("Missing VQSLOD, may because you have not run VQSR first!")
+                logger.error("Missing VQSLOD, may because you have not run VQSR yet. Abort")
                 sys.exit(1)
 
             if 'POSITIVE_TRAIN_SITE' in vcf_info:
@@ -185,6 +193,7 @@ def apply_VQSR(opt):
     OUT = Open(opt.output_vcf_file_name, "wb", isbgz=True) if opt.output_vcf_file_name.endswith(".gz") else \
         open(opt.output_vcf_file_name, "w")
 
+    cdef int pass_variant_num = 0
     with Open(opt.vcf_infile, 'r') as I:
         for line in I:
 
@@ -199,7 +208,16 @@ def apply_VQSR(opt):
 
             if vqslod >= vqlod_cutoff:
                 col[6] = "PASS"
+                pass_variant_num += 1
 
             OUT.write('\t'.join(col) + "\n")
 
     OUT.close()
+    logger.info("There are a total of %d variants, %d of which are PASS base on the VQSLOD "
+                "cutoff." % (total_variant_num, pass_variant_num))
+
+    if opt.output_vcf_file_name.endswith(".gz"):
+        # create tabix index
+        tabix_index(opt.output_vcf_file_name, force=True, seq_col=0, start_col=1, end_col=1)
+
+    return
