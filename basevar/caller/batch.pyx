@@ -490,7 +490,7 @@ cdef class BatchGenerator(object):
         if options.filter_reads_with_distant_mates == 0:
             self.filtered_read_counts_by_type[MATE_DISTANT] = -1
 
-        if options.filterReadPairsWithSmallInserts == 0:
+        if options.filter_read_pairs_with_small_inserts == 0:
             self.filtered_read_counts_by_type[SMALL_INSERT] = -1
 
     def __dealloc__(self):
