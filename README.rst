@@ -1,12 +1,13 @@
 BaseVar
 =======
 
-Call variants for ultra low-pass (<1.0x) WGS data, especially for NIPT data.
+This is the official development repository for BaseVar, which call variants for ultra low-pass (<1.0x) WGS data,
+especially for NIPT data.
 
 Prerequisites
 -------------
 
-BaseVar requires HTSlib 1.3(or later) and Cython. You should install Cython before build BaseVar.
+BaseVar requires HTSlib 1.3(or later) and Cython. You should compile htslib and install Cython before build BaseVar.
 
 .. code:: bash
 
@@ -14,7 +15,7 @@ BaseVar requires HTSlib 1.3(or later) and Cython. You should install Cython befo
 
 HTSlib can be downloaded from the `htslib web site <http://www.htslib.org/download/>`_.
 
-To build and install HTSlib, cd into HTSlib source and type `make install`.
+To compile and install HTSlib, cd into HTSlib source and type `make install`.
 This will install HTSlib under `/usr/local/` (see note below). To install HTSlib
 in any other directory use `make install prefix=/path/to/dir`.
 
