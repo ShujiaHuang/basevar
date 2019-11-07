@@ -227,6 +227,17 @@ class MergeRunner(object):
         utils.output_file(self.inputfiles, self.outputfile)
         return
 
+# from basevar.io.vcfconcat cimport call_vcfconcat
+# class MergeRunner_(object):
+#     """Runner for merging files"""
+#
+#     def __init__(self, args):
+#         """init function"""
+#         self.args = args
+#
+#     def run(self):
+#         return call_vcfconcat(self.args)
+
 
 class NearbyIndelRunner(object):
     """Add Nearby Indel density and type information for each variants of VCF"""

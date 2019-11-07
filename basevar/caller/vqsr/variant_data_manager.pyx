@@ -173,11 +173,11 @@ def load_data_set(vcf_infile, training_set):
         for line in I:
             # VCF format
             n += 1
-            if n % 100 == 0:
+            if n % 10000 == 0:
                 logger.info('Loading lines %d' % n)
 
             # Record the header information
-            if re.search(r'^#', line):
+            if line.startswith("#"):
                 h_info.record(line.strip())
                 continue
 
@@ -200,19 +200,13 @@ def load_data_set(vcf_infile, training_set):
             base_q_ranksum = round(float(base_q_ranksum.group(1)), 3) if base_q_ranksum.group(1) != "nan" else 10000
             sor = round(float(sor.group(1)), 3) if sor.group(1) != "nan" else 10000
             mq_ranksum = round(float(mq_ranksum.group(1)), 3) if mq_ranksum.group(1) != "nan" else 10000
-            read_pos_ranksum = round(float(read_pos_ranksum.group(1)), 3) if read_pos_ranksum.group(
-                1) != "nan" else 10000
+            read_pos_ranksum = round(float(read_pos_ranksum.group(1)), 3) \
+                if read_pos_ranksum.group(1) != "nan" else 10000
 
             if fs >= 10000.0:
                 fs = 10000.0
 
             datum = vd.VariantDatum()
-            datum.raw_annotations = dict(QD=qd,
-                                         FS=fs,
-                                         BaseQRanksum=base_q_ranksum,
-                                         SOR=sor,
-                                         MQRanksum=mq_ranksum,
-                                         ReadPosRankSum=read_pos_ranksum)
             datum.annotations = [qd, fs, base_q_ranksum, sor, mq_ranksum, read_pos_ranksum]
 
             datum.variant_order = col[0] + ':' + col[1]

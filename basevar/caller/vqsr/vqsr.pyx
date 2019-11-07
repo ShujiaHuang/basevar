@@ -7,6 +7,7 @@ Date  : 2014-05-23 11:21:53
 """
 import sys
 import re
+import time
 
 from basevar.log import logger
 from basevar.caller.vqsr import variant_data_manager as vdm
@@ -20,7 +21,9 @@ def run_VQSR(opt):
     training_set = vdm.load_training_site_from_VCF(opt.train_data)
 
     # Identify the training sites
+    start_time = time.time()
     h_info, data_set = vdm.load_data_set(opt.vcf_infile, training_set)
+    logger.info('Data loading is done, %d seconds elapsed.\n' % (time.time() - start_time))
 
     # init VariantRecalibrator object
     vr = vror.VariantRecalibrator()
@@ -39,9 +42,6 @@ def run_VQSR(opt):
     h_info.add('INFO', 'POSITIVE_TRAIN_SITE', 0, 'Flag',
                'This variant was used to build the positive training set of good variants')
 
-    culprit, good, tot = {}, {}, 0.0
-    anno_texts = ['QD', 'FS', 'BaseQRankSum', 'SOR', 'MQRankSum', 'ReadPosRankSum']
-
     logger.info("Outputting to %s ..." % opt.output_vcf_file_name)
     OUT = Open(opt.output_vcf_file_name, "wb", isbgz=True) if opt.output_vcf_file_name.endswith(".gz") else \
         open(opt.output_vcf_file_name, "w")
@@ -49,7 +49,11 @@ def run_VQSR(opt):
     for k, h in sorted(h_info.header.items(), key=lambda d: d[0]):
         OUT.write("\n".join(h) + "\n")
 
-    n, j, monitor = 0, 0, True
+    culprit, good, tot = {}, {}, 0.0
+    anno_texts = ['QD', 'FS', 'BaseQRankSum', 'SOR', 'MQRankSum', 'ReadPosRankSum']
+
+    cdef int n = 0, j = 0
+    cdef bint monitor = True
     with Open(opt.vcf_infile, 'r') as I:
         for line in I:
             n += 1
@@ -106,11 +110,8 @@ def run_VQSR(opt):
             if d.at_anti_training_site:
                 vcf_info['NEGATIVE_TRAIN_SITE'] = 'NEGATIVE_TRAIN_SITE'
 
-            vcf_info['VQSLOD'] = 'VQSLOD=' + str(d.lod)
             vcf_info['CU'] = 'CU=' + anno_texts[d.worst_annotation]
-            for k, v in d.raw_annotations.items():
-                if k not in vcf_info:
-                    vcf_info[k] = k + '=' + str('%.2f' % v)
+            vcf_info['VQSLOD'] = 'VQSLOD=' + str(d.lod)
 
             col[7] = ';'.join(sorted(vcf_info.values()))
             OUT.write('\t'.join(col) + "\n")
@@ -131,7 +132,6 @@ def run_VQSR(opt):
 
     for k, v in sorted(culprit.items(), key=lambda k: k[0]):
         logger.info(('  ** Culprit by %s: %d\t%.2f' % (k, v, v * 100.0 / tot)))
-
 
 def apply_VQSR(opt):
     """Apply a score cutoff to filter variants."""
@@ -157,8 +157,7 @@ def apply_VQSR(opt):
                 vcf_info[cc[0]] = cc[-1]
 
             if 'VQSLOD' not in vcf_info:
-                logger.error("Missing VQSLOD, may because you have not run VQSR yet. Abort")
-                sys.exit(1)
+                raise ValueError("[ERROR] VQSLOD is missing, may because you have not run basevar VQSR yet. Abort")
 
             if 'POSITIVE_TRAIN_SITE' in vcf_info:
                 truth_set_vqlod.append(float(vcf_info['VQSLOD']))
@@ -186,8 +185,8 @@ def apply_VQSR(opt):
         else:
             break
 
-    logger.info("VQLOD cutoff is %s for %s truth set sensitivity level and there are %.2f sensitivity false "
-                "variants." % (vqlod_cutoff, opt.truth_sensitivity_level, float(false_num) / false_set_num))
+    logger.info("The VQLOD cutoff is set to be %s for keeping %s truth sensitivity level, which will remain %.2f "
+                "bad variants. " % (vqlod_cutoff, opt.truth_sensitivity_level, float(false_num) / false_set_num))
 
     logger.info("Outputting to %s ..." % opt.output_vcf_file_name)
     OUT = Open(opt.output_vcf_file_name, "wb", isbgz=True) if opt.output_vcf_file_name.endswith(".gz") else \
@@ -198,7 +197,7 @@ def apply_VQSR(opt):
         for line in I:
 
             if line.startswith('#'):
-                OUT.write(line.strip()+"\n")
+                OUT.write(line.strip() + "\n")
                 continue
 
             col = line.strip().split()
