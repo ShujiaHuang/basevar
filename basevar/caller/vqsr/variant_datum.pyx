@@ -8,7 +8,6 @@ class VariantDatum(object):
 
     def __init__(self):
         self.annotations = []  # Will be normalize and use for VQSR
-        self.raw_annotations = {}  # Keep the raw value of each variant
         self.lod = None
         self.prior = 2.0
         self.at_training_site = False
