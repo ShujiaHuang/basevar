@@ -55,7 +55,8 @@ class install(_install):
 
 
 BC_INCLUDE_DIR = ROOT_DIR + "/basevar/caller"
-TB_INCLUDE_DIR = ROOT_DIR + "/basevar/io/BGZF"
+IO_INCLUDE_DIR = ROOT_DIR + "/basevar/io"
+TB_INCLUDE_DIR = IO_INCLUDE_DIR + "/BGZF"
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
@@ -105,6 +106,13 @@ if __name__ == "__main__":
                                 language='c',
                                 include_dirs=[BC_INCLUDE_DIR],
                                 libraries=['hts']))
+
+    # vcfconcat = CALLER_PRE + '.io.vcfconcat'
+    # extensions.append(Extension(name=vcfconcat,
+    #                             sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
+    #                             language='c',
+    #                             include_dirs=[IO_INCLUDE_DIR],
+    #                             libraries=['hts']))
 
     # other extensions
     extensions += [make_extension(name) for name in MOD_NAMES]
