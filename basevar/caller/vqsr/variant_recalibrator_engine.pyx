@@ -122,8 +122,8 @@ class VariantRecalibratorEngine(object):
 
         for i, d in enumerate(data):
             prob_diff = [self.evaluate_datum_in_one_dimension(good_model, d, k) -
-                        self.evaluate_datum_in_one_dimension(bad_model, d, k)
-                        for k in range(len(d.annotations))]
+                         self.evaluate_datum_in_one_dimension(bad_model, d, k)
+                         for k in range(len(d.annotations))]
 
             # Get the index of the worst annotations
             data[i].worst_annotation = np.argsort(prob_diff)[0]
@@ -135,7 +135,7 @@ class VariantRecalibratorEngine(object):
         p_var_in_gaussian_loge = [
             np.log(w) + normal_distribution_Loge(
                 gmm.means_[k][iii],
-                gmm.covariances_[k][iii][iii], # gmm.covars_[k][iii][iii],
+                gmm.covariances_[k][iii][iii],  # gmm.covars_[k][iii][iii],
                 datum.annotations[iii])
             for k, w in enumerate(gmm.weights_)
         ]
