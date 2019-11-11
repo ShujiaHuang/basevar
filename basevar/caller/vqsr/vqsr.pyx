@@ -5,7 +5,6 @@ Variant quality score recalibrator (VQSR)
 Author: Shujia Huang & Siyang Liu
 Date  : 2014-05-23 11:21:53
 """
-import sys
 import re
 import time
 
@@ -95,7 +94,7 @@ def run_VQSR(opt):
                                    (k, opt.vcf_infile))
                 vcf_info[k] = info
 
-            tot += 1.0  # Record For summary
+            tot += 1  # Record For summary
             culprit[anno_texts[d.worst_annotation]] = culprit.get(
                 anno_texts[d.worst_annotation], 0.0) + 1.0  # For summary
 
@@ -127,11 +126,10 @@ def run_VQSR(opt):
     ## Output Summary
     logger.info('[Summmary] Here is the summary information:')
     for k, v in sorted(good.items(), key=lambda k: k[0]):
-        logger.info(('  ** Variant Site score >= %d: %d\t%0.2f' %
-                     (k, v, v * 100 / tot)))
+        logger.info(('  ** Variant Site score >= %d: %d\t%0.2f' % (k, v, v*100.0/tot)))
 
     for k, v in sorted(culprit.items(), key=lambda k: k[0]):
-        logger.info(('  ** Culprit by %s: %d\t%.2f' % (k, v, v * 100.0 / tot)))
+        logger.info(('  ** Culprit by %s: %d\t%.2f' % (k, v, v*100.0/tot)))
 
 def apply_VQSR(opt):
     """Apply a score cutoff to filter variants."""
@@ -204,6 +202,10 @@ def apply_VQSR(opt):
 
             qd = re.search(r';?VQSLOD=([^;]+)', col[7])
             vqslod = float(qd.group(1))
+
+            # Reset FILTER field
+            if col[6] == "PASS":
+                col[6] = "."
 
             if vqslod >= vqlod_cutoff:
                 col[6] = "PASS"
