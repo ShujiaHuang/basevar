@@ -6,6 +6,8 @@ import time
 import cProfile
 import pstats
 
+from basevar.log import logger
+
 from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
@@ -405,6 +407,7 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
         output_file = Open(final_file_name, 'wb', isbgz=True if final_file_name.endswith(".gz") else False)
 
     cdef int index = 0
+    cdef int total_file_num = len(temp_file_names)
     cdef basestring file_name
     cdef dict check_position_in_order = {}
     for index, file_name in enumerate(temp_file_names):
@@ -438,6 +441,9 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
             the_file.close()
             if is_del_raw_file:
                 os.remove(file_name)
+
+        logger.info("Fast merge process %d/%d done." % (index+1, total_file_num))
+        
     return
 
 def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
