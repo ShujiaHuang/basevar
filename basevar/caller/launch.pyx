@@ -15,6 +15,7 @@ from basevar.log import logger
 from basevar import utils
 from basevar.utils cimport generate_regions_by_process_num
 
+from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.bam cimport get_sample_names
 from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
@@ -224,7 +225,18 @@ class MergeRunner(object):
         self.outputfile = args.outputfile
 
     def run(self):
-        utils.output_file(self.inputfiles, self.outputfile)
+        # utils.output_file(self.inputfiles, self.outputfile)
+
+        # Other merge methods!
+        if self.outputfile.endswith(".gz"):
+            utils.fast_merge_files(self.inputfiles, self.outputfile, False)
+
+            # Column indices are 0-based. Note: this is different from the tabix command line
+            # utility where column indices start at 1.
+            tabix_index(self.outputfile, force=True, seq_col=0, start_col=1, end_col=1)
+        else:
+            utils.fast_merge_files(self.inputfiles, self.outputfile, False)
+
         return
 
 # from basevar.io.vcfconcat cimport call_vcfconcat

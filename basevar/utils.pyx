@@ -406,6 +406,7 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
 
     cdef int index = 0
     cdef basestring file_name
+    cdef dict check_position_in_order = {}
     for index, file_name in enumerate(temp_file_names):
 
         the_file = Open(file_name, 'rb')
@@ -414,8 +415,21 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
             # End of this file
             if line[0] == "#":
                 if index == 0:
+                    # Keep the header of first file.
                     output_file.write(line.strip() + "\n")
             else:
+
+                chrom, pos = line.strip().split()[:2]
+                pos = int(pos)
+                if chrom not in check_position_in_order:
+                    check_position_in_order[chrom] = pos
+
+                if pos < check_position_in_order[chrom]:
+                    sys.stderr.write(("[ERROR] Previous position (%d) > the following position(%d). "
+                                      "This is not allow when call Merge function. You must keep increasing "
+                                      "order in of all your input files.\n"))
+                    sys.exit(1)
+
                 output_file.write(line.strip() + "\n")
 
         # If there are no calls in the temp file, we still want to
