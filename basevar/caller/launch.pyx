@@ -13,7 +13,7 @@ import time
 
 from basevar.log import logger
 from basevar import utils
-from basevar.utils cimport generate_regions_by_process_num
+from basevar.utils cimport generate_regions_by_process_num, fast_merge_files
 
 from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.bam cimport get_sample_names
@@ -229,13 +229,13 @@ class MergeRunner(object):
 
         # Other merge methods!
         if self.outputfile.endswith(".gz"):
-            utils.fast_merge_files(self.inputfiles, self.outputfile, False)
+            fast_merge_files(self.inputfiles, self.outputfile, False)
 
             # Column indices are 0-based. Note: this is different from the tabix command line
             # utility where column indices start at 1.
             tabix_index(self.outputfile, force=True, seq_col=0, start_col=1, end_col=1)
         else:
-            utils.fast_merge_files(self.inputfiles, self.outputfile, False)
+            fast_merge_files(self.inputfiles, self.outputfile, False)
 
         return
 
