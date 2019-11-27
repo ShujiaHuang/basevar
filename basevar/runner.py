@@ -189,7 +189,8 @@ def merge(args):
     from basevar.caller.launch import MergeRunner
 
     mg = MergeRunner(args)
-    return mg.run()
+    mg.run()
+    return True
 
 
 def main():
