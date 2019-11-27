@@ -443,7 +443,7 @@ cdef void fast_merge_files(list temp_file_names, basestring final_file_name, bin
                 os.remove(file_name)
 
         logger.info("Fast merge process %d/%d done." % (index+1, total_file_num))
-        
+
     return
 
 def merge_files(temp_file_names, final_file_name, is_del_raw_file=False):
