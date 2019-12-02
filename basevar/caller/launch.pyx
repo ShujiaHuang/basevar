@@ -275,5 +275,4 @@ class NearbyIndelRunner(object):
         nbi = NearbyIndel(self.in_vcf_file, self.in_cvg_file, self.output_file,
                           nearby_distance=self.nearby_dis_around_indel)
         nbi.run()
-
         return
