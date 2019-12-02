@@ -11,7 +11,7 @@ import time
 
 import numpy as np
 from basevar.io.openfile import Open
-from basevar.io.BGZF.tabix import TabixFile
+from basevar.io.BGZF.tabix import TabixFile, tabix_index
 
 class NearbyIndel(object):
 
@@ -109,5 +109,10 @@ class NearbyIndel(object):
                 OUT.write("%s\n" % "\t".join(col))
 
         self._close_input_file()
+        OUT.close()
+
+        if self.output_file_name.endswith(".gz"):
+            # create tabix index
+            tabix_index(self.output_file_name, force=True, seq_col=0, start_col=1, end_col=1)
 
         return self
