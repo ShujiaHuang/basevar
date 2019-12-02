@@ -15,11 +15,13 @@ from basevar.log import logger
 from basevar import utils
 from basevar.utils cimport generate_regions_by_process_num, fast_merge_files
 
-from basevar.io.BGZF.tabix import tabix_index
-from basevar.io.bam cimport get_sample_names
 from basevar.caller.do import CallerProcess, process_runner
 from basevar.caller.basetypeprocess cimport BaseVarProcess
+
+from basevar.io.BGZF.tabix import tabix_index
+from basevar.io.bam cimport get_sample_names
 from basevar.caller.vqsr import vqsr
+from basevar.caller.other import NearbyIndel
 
 
 class BaseTypeRunner(object):
@@ -57,7 +59,6 @@ class BaseTypeRunner(object):
                            "batch count to be %d" % (self.options.batch_count, sample_num, sample_num))
             self.options.batch_count = sample_num
 
-
     #####################################################################################################
     def basevar_caller(self):
         """
@@ -73,18 +74,18 @@ class BaseTypeRunner(object):
         # Always create process manager even if nCPU==1, so that we can
         # listen signals from main thread
         for i in range(self.nCPU):
-            sub_cvg_file = self.outcvg + '.temp_%d_%d' % (i+1, self.nCPU)
+            sub_cvg_file = self.outcvg + '.temp_%d_%d' % (i + 1, self.nCPU)
             out_cvg_names.append(sub_cvg_file)
             successful_marker_files.append(sub_cvg_file + ".PROCESS.AND_VCF_DONE_SUCCESSFULLY")
 
             if self.outvcf:
-                sub_vcf_file = self.outvcf + '.temp_%d_%d' % (i+1, self.nCPU)
+                sub_vcf_file = self.outvcf + '.temp_%d_%d' % (i + 1, self.nCPU)
                 out_vcf_names.append(sub_vcf_file)
             else:
                 sub_vcf_file = None
 
             logger.info("Process %d/%d output to temporary files:[%s, %s]." % (
-                i+1, self.nCPU, sub_vcf_file, sub_cvg_file))
+                i + 1, self.nCPU, sub_vcf_file, sub_cvg_file))
 
             tmp_dir, name = os.path.split(os.path.realpath(sub_cvg_file))
             cache_dir = tmp_dir + "/Batchfiles.%s.WillBeDeletedWhenJobsFinish" % name
@@ -127,7 +128,7 @@ class BaseTypeRunner(object):
                 all_process_success = False
                 fail_process_num.append(i)
 
-            os.remove(m) # remove any way
+            os.remove(m)  # remove any way
 
         # Final output if all the processes are ending successful!
         if all_process_success:
@@ -212,6 +213,16 @@ class ApplyVQSRRunner(object):
         vqsr.apply_VQSR(self.opt)
 
 
+# from basevar.io.vcfconcat cimport call_vcfconcat
+# class MergeRunner_(object):
+#     """Runner for merging files"""
+#     def __init__(self, args):
+#         """init function"""
+#         self.args = args
+#     def run(self):
+#         return call_vcfconcat(self.args)
+
+
 class MergeRunner(object):
     """Runner for merging files"""
 
@@ -227,7 +238,7 @@ class MergeRunner(object):
     def run(self):
         # utils.output_file(self.inputfiles, self.outputfile)
 
-        # Other merge methods!
+        # A new merge methods!
         if self.outputfile.endswith(".gz"):
             fast_merge_files(self.inputfiles, self.outputfile, False)
 
@@ -239,17 +250,6 @@ class MergeRunner(object):
 
         return
 
-# from basevar.io.vcfconcat cimport call_vcfconcat
-# class MergeRunner_(object):
-#     """Runner for merging files"""
-#
-#     def __init__(self, args):
-#         """init function"""
-#         self.args = args
-#
-#     def run(self):
-#         return call_vcfconcat(self.args)
-
 
 class NearbyIndelRunner(object):
     """Add Nearby Indel density and type information for each variants of VCF"""
@@ -259,20 +259,21 @@ class NearbyIndelRunner(object):
         args.nearby_dis_around_indel = int(args.nearby_dis_around_indel)
         self.in_vcf_file = args.in_vcf_file
         self.in_cvg_file = args.in_cvg_file
+        self.output_file = args.outputfile
         self.nearby_dis_around_indel = args.nearby_dis_around_indel
 
         sys.stderr.write('[INFO] basevar NearbyIndel'
-                         '\n\t-i %s'
-                         '\n\t-c %s'
-                         '\n\t-d %d' % (args.in_vcf_file,
-                                        args.in_cvg_file,
-                                        args.nearby_dis_around_indel)
-                         )
+                         '\n\t-I %s'
+                         '\n\t-C %s'
+                         '\n\t-D %d'
+                         '\n\t-O %s\n' % (args.in_vcf_file,
+                                          args.in_cvg_file,
+                                          args.nearby_dis_around_indel,
+                                          args.outputfile))
 
     def run(self):
-        from .other import NearbyIndel
-
-        nbi = NearbyIndel(self.in_vcf_file, self.in_cvg_file, nearby_distance=self.nearby_dis_around_indel)
+        nbi = NearbyIndel(self.in_vcf_file, self.in_cvg_file, self.output_file,
+                          nearby_distance=self.nearby_dis_around_indel)
         nbi.run()
 
         return

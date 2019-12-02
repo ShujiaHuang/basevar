@@ -133,6 +133,19 @@ def parser_commandline_args():
     merge_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', required=True,
                            help='Output file')
 
+    # Nearby Indel calculation
+    # Add nearby indels for variants
+    nbi_cmd = commands.add_parser('NearByIndel', help='Calculating and adding Nearby Indel density and '
+                                                      'indel type information for each variants in VCF.')
+    nbi_cmd.add_argument('-I', '--in-vcf-file', dest='in_vcf_file', metavar='VCF_FILE', required=True,
+                         help='The input vcf files.')
+    nbi_cmd.add_argument('-C', '--in-cvg-file', dest='in_cvg_file', metavar='BaseVar_CVG_FILE', required=True,
+                         help='Input coverage file which has indel information.')
+    nbi_cmd.add_argument('-D', '--nearby-distance-around-indel', dest='nearby_dis_around_indel', metavar='INT',
+                         type=int, default=16, help='The distance around indels. [16]')
+    nbi_cmd.add_argument('-O', '--outputfile', dest='outputfile', metavar='FILE', required=True,
+                         help='Output file')
+
     return cmdparse.parse_args()
 
 
@@ -192,6 +205,12 @@ def merge(args):
     mg.run()
     return True
 
+def nearby_indel(args):
+    from basevar.caller.launch import NearbyIndelRunner
+    nbi = NearbyIndelRunner(args)
+    nbi.run()
+    return True
+
 
 def main():
     start_time = time.time()
@@ -200,6 +219,7 @@ def main():
         'VQSR': vqsr,
         'ApplyVQSR': apply_vqsr,
         'merge': merge,
+        'NearByIndel': nearby_indel
     }
 
     args = parser_commandline_args()
