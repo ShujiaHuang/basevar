@@ -10,6 +10,8 @@ import sys
 import time
 
 import numpy as np
+
+from basevar.caller.vqsr import vcfutils
 from basevar.io.openfile import Open
 from basevar.io.BGZF.tabix import TabixFile, tabix_index
 
@@ -55,28 +57,35 @@ class NearbyIndel(object):
 
     def run(self):
 
+        # Get VCF Header
+        h_info = vcfutils.Header()
+        with Open(self.in_vcf_file, 'r') as I:
+            for line in I:
+                # Record the header information
+                if line.startswith("#"):
+                    h_info.record(line.strip())
+                else:
+                    break
+
+        h_info.add("INFO", "Indel_SDI", 1, "Float", "Indel diversity by Shannon's diversity index. The less the better.")
+        h_info.add("INFO", "Indel_SP", 1, "Integer", "Indel species around this position. The less the better.")
+        h_info.add("INFO", "Indel_TOT", 1, "Integer", "Number of Indel around this position. The less the better.")
+
         # Final output file
         if self.output_file_name == "-":
             OUT = sys.stdout
         else:
             OUT = Open(self.output_file_name, 'wb', isbgz=True if self.output_file_name.endswith(".gz") else False)
 
+        for k, h in sorted(h_info.header.items(), key=lambda d: d[0]):
+            OUT.write("\n".join(h) + "\n")
+
         with Open(self.in_vcf_file, 'r') as I:
 
             n, monitor = 0, True
             for r in I:
 
-                if r.startswith('##FORMAT=<ID=GT,'):
-
-                    OUT.write('##INFO=<ID=Indel_SDI,Number=1,Type=Float,Description="Indel diversity by Shannon\'s '
-                              'diversity index. The less the better.">\n')
-                    OUT.write('##INFO=<ID=Indel_SP,Number=1,Type=Integer,Description="Indel species around this '
-                              'position. The less the better.">\n')
-                    OUT.write('##INFO=<ID=Indel_TOT,Number=1,Type=Integer,Description="Number of Indel around this '
-                              'position. The less the better.">\n')
-
                 if r.startswith('#'):
-                    OUT.write(r.strip()+"\n")
                     continue
 
                 n += 1
