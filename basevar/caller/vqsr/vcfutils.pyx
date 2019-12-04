@@ -7,7 +7,7 @@ import re
 
 class Header(object):
 
-    def __init__(self, hInfo = None): 
+    def __init__(self, hInfo=None):
         """
         VCF header information
         """
@@ -131,21 +131,21 @@ def calcuInbreedCoeff(gt):
     
     return inbf
 
-def load_pedigree(pedigree_file):
-    """
-    """
-    if not pedigree_file: return {} # 
-
-    pedigree = {}
-    for line in open(pedigree_file):
-        # 1006 1006-05 1006-01 1006-02 0 0
-        col = line.strip('\n').split()
-        if col[1] in pedigree:
-            raise ValueError('[ERROR] %s is already in "pedigree". Your file ' 
-                             'may have the duplication sample name.' % col[1])
-        pedigree[col[1]] = [col[2], col[3]]
-
-    return pedigree
+# def load_pedigree(pedigree_file):
+#     """
+#     """
+#     if not pedigree_file: return {} #
+#
+#     pedigree = {}
+#     for line in open(pedigree_file):
+#         # 1006 1006-05 1006-01 1006-02 0 0
+#         col = line.strip('\n').split()
+#         if col[1] in pedigree:
+#             raise ValueError('[ERROR] %s is already in "pedigree". Your file '
+#                              'may have duplication sample name.' % col[1])
+#         pedigree[col[1]] = [col[2], col[3]]
+#
+#     return pedigree
 
 
 

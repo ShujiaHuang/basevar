@@ -5,6 +5,7 @@ Variant quality score recalibrator (VQSR)
 Author: Shujia Huang & Siyang Liu
 Date  : 2014-05-23 11:21:53
 """
+import sys
 import re
 import time
 
@@ -16,12 +17,38 @@ from basevar.io.openfile import Open
 from basevar.io.BGZF.tabix import tabix_index
 
 def run_VQSR(opt):
-    # Just record the sites of training data
+    # record the sites of training data
     training_set = vdm.load_training_site_from_VCF(opt.train_data)
+
+    # fetch VCF header
+    cdef dict header_info = {}
+    with Open(opt.vcf_infile, 'r') as I:
+        for line in I:
+            if line.startswith("#"):
+                g = re.search(r'^##([^=]+)=<ID=([^,]+),', line)
+                if not g:
+                    continue
+                if g.group(1) not in header_info:
+                    header_info[g.group(1)] = set()
+
+                # record header tag
+                header_info[g.group(1)].add(g.group(2))
+            else:
+                break
+
+    if 'INFO' not in header_info:
+        logger.error("%s Missing INFO in header." % opt.vcf_infile)
+        sys.exit(1)
+
+    # check annotation text.
+    for an in opt.annotation:
+        if an not in header_info['INFO']:
+            logger.error("%s tag is one of the information in INFO." % an)
+            sys.exit(1)
 
     # Identify the training sites
     start_time = time.time()
-    h_info, data_set = vdm.load_data_set(opt.vcf_infile, training_set)
+    h_info, data_set = vdm.load_data_set(opt.vcf_infile, training_set, opt.annotation)
     logger.info('Data loading is done, %d seconds elapsed.\n' % (time.time() - start_time))
 
     # init VariantRecalibrator object
@@ -49,10 +76,10 @@ def run_VQSR(opt):
         OUT.write("\n".join(h) + "\n")
 
     culprit, good, tot = {}, {}, 0.0
-    anno_texts = ['QD', 'FS', 'BaseQRankSum', 'SOR', 'MQRankSum', 'ReadPosRankSum']
 
     cdef int n = 0, j = 0
     cdef bint monitor = True
+    cdef bint not_exit_anno = False
     with Open(opt.vcf_infile, 'r') as I:
         for line in I:
             n += 1
@@ -66,17 +93,17 @@ def run_VQSR(opt):
             if col[3] in ['N', 'n']:
                 continue
 
-            qd = re.search(r';?QD=([^;]+)', col[7])
-            fs = re.search(r';?FS=([^;]+)', col[7])
-            base_q_ranksum = re.search(r';?BaseQRankSum=([^;]+)', col[7])
-            sor = re.search(r';?SOR=([^;]+)', col[7])
-            mq_ranksum = re.search(r';?MQRankSum=([^;]+)', col[7])
-            read_pos_ranksum = re.search(r';?ReadPosRankSum=([^;]+)', col[7])
+            not_exit_anno = False
+            for an in opt.annotation:
+                g = re.search(r';?%s=([^;]+)' % an, col[7])
+                if not g:
+                    not_exit_anno = True
+                    break
 
-            if any([not qd, not fs, not base_q_ranksum, not sor, not mq_ranksum, not read_pos_ranksum]):
+            if not_exit_anno:
                 continue
 
-            order = col[0] + ':' + col[1]
+            order = col[0] + ":" + col[1]
             d = data_set[j]
             j += 1  # increase the index of data_set for the next cycle.
             if d.variant_order != order:
@@ -95,8 +122,8 @@ def run_VQSR(opt):
                 vcf_info[k] = info
 
             tot += 1  # Record For summary
-            culprit[anno_texts[d.worst_annotation]] = culprit.get(
-                anno_texts[d.worst_annotation], 0.0) + 1.0  # For summary
+            culprit[opt.annotation[d.worst_annotation]] = culprit.get(
+                opt.annotation[d.worst_annotation], 0.0) + 1.0  # For summary
 
             d.lod = round(d.lod * 10, 2)
             for lod in [0, 1, 2, 3, 4, 5, 10, 20, 25, 30, 35, 40, 45, 50]:
@@ -109,16 +136,15 @@ def run_VQSR(opt):
             if d.at_anti_training_site:
                 vcf_info['NEGATIVE_TRAIN_SITE'] = 'NEGATIVE_TRAIN_SITE'
 
-            vcf_info['CU'] = 'CU=' + anno_texts[d.worst_annotation]
+            vcf_info['CU'] = 'CU=' + opt.annotation[d.worst_annotation]
             vcf_info['VQSLOD'] = 'VQSLOD=' + str(d.lod)
 
-            col[7] = ';'.join(sorted(vcf_info.values()))
-            OUT.write('\t'.join(col) + "\n")
+            col[7] = ";".join(sorted(vcf_info.values()))
+            OUT.write("\t".join(col) + "\n")
 
     OUT.close()
 
     if opt.output_vcf_file_name.endswith(".gz"):
-        # create tabix index
         tabix_index(opt.output_vcf_file_name, force=True, seq_col=0, start_col=1, end_col=1)
 
     logger.info('Finish Outputting %d lines.\n' % n)
