@@ -112,6 +112,9 @@ def parser_commandline_args():
                           help='Input VCF file.')
     vqsr_cmd.add_argument('-T', '--Train', dest='train_data', metavar='VCF', required=True,
                           help='Traning data set at true category.')
+    vqsr_cmd.add_argument('--an', dest='annotation', metavar='String', action='append', default=[], required=True,
+                          help='The names of the annotations which should used for calculations. This argument '
+                               'must specified at least once. Required')
     vqsr_cmd.add_argument('-O', '--output', dest='output_vcf_file_name', metavar='VCF', type=str, required=True,
                           help='Output VCF file after VQSR.')
 

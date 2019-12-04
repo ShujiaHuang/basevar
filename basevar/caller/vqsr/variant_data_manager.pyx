@@ -161,14 +161,18 @@ def load_training_site_from_VCF(vcf_file):
 
     return data_set
 
-def load_data_set(vcf_infile, training_set):
+def load_data_set(vcf_infile, training_set, annotation):
     if len(training_set) == 0:
         raise ValueError('[ERROR] No Training Data found')
 
-    I = Open(vcf_infile, 'r')
     logger.info('Loading data set from VCF %s' % vcf_infile)
 
-    n, data, h_info = 0, [], vcfutils.Header()
+    cdef int n = 0
+    cdef bint not_exit_anno = False
+
+    print("\t".join(["#CHROM", "POS", "REF", "ALT"] + annotation + ["IS_POSITIVE_SITE"]))
+
+    data, h_info = [], vcfutils.Header()
     with Open(vcf_infile, 'r') as I:
         for line in I:
             # VCF format
@@ -185,34 +189,25 @@ def load_data_set(vcf_infile, training_set):
             if col[3] in ['N', 'n']:
                 continue
 
-            qd = re.search(r';?QD=([^;]+)', col[7])
-            fs = re.search(r';?FS=([^;]+)', col[7])
-            base_q_ranksum = re.search(r';?BaseQRankSum=([^;]+)', col[7])
-            sor = re.search(r';?SOR=([^;]+)', col[7])
-            mq_ranksum = re.search(r';?MQRankSum=([^;]+)', col[7])
-            read_pos_ranksum = re.search(r';?ReadPosRankSum=([^;]+)', col[7])
-
-            if any([not qd, not fs, not base_q_ranksum, not sor, not mq_ranksum, not read_pos_ranksum]):
-                continue
-
-            qd = round(float(qd.group(1)), 3) if qd.group(1) != "nan" else 10000
-            fs = round(float(fs.group(1)), 3) if fs.group(1) != "nan" else 10000
-            base_q_ranksum = round(float(base_q_ranksum.group(1)), 3) if base_q_ranksum.group(1) != "nan" else 10000
-            sor = round(float(sor.group(1)), 3) if sor.group(1) != "nan" else 10000
-            mq_ranksum = round(float(mq_ranksum.group(1)), 3) if mq_ranksum.group(1) != "nan" else 10000
-            read_pos_ranksum = round(float(read_pos_ranksum.group(1)), 3) \
-                if read_pos_ranksum.group(1) != "nan" else 10000
-
-            if fs >= 10000.0:
-                fs = 10000.0
-
             datum = vd.VariantDatum()
-            datum.annotations = [qd, fs, base_q_ranksum, sor, mq_ranksum, read_pos_ranksum]
+            not_exit_anno = False
+            annotation_info = []
+            for an in annotation:
+                g = re.search(r';?%s=([^;]+)' % an, col[7])
+                if g:
+                    datum.annotations.append(round(float(g.group(1)), 3) if g.group(1) != "nan" else 10000)
+                else:
+                    not_exit_anno = True
+                    break
+
+            if not_exit_anno:
+                continue
 
             datum.variant_order = col[0] + ':' + col[1]
             if datum.variant_order in training_set:
                 datum.at_training_site = True
 
+            print("%s\t%d" % ("\t".join([col[0], col[1], col[3], col[4]]+map(str, datum.annotations)), datum.at_training_site))
             data.append(datum)
 
     logger.info('Finish loading data set %d lines.' % n)
