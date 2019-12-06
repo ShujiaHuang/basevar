@@ -170,7 +170,7 @@ def load_data_set(vcf_infile, training_set, annotation):
     cdef int n = 0
     cdef bint not_exit_anno = False
 
-    print("\t".join(["#CHROM", "POS", "REF", "ALT"] + annotation + ["IS_POSITIVE_SITE"]))
+    print("\t".join(["#CHROM", "POS", "REF", "ALT", "CM_AC", "CM_DP"] + annotation + ["IS_POSITIVE_SITE"]))
 
     data, h_info = [], vcfutils.Header()
     with Open(vcf_infile, 'r') as I:
@@ -207,7 +207,10 @@ def load_data_set(vcf_infile, training_set, annotation):
             if datum.variant_order in training_set:
                 datum.at_training_site = True
 
-            print("%s\t%d" % ("\t".join([col[0], col[1], col[3], col[4]]+map(str, datum.annotations)), datum.at_training_site))
+            # Just for testing VQSR
+            cm_ac = re.search(r';?CM_AC=([^;]+)', col[7])
+            cm_dp = re.search(r';?CM_DP=([^;]+)', col[7])
+            print("%s\t%d" % ("\t".join([col[0], col[1], col[3], col[4], cm_ac.group(1), cm_dp.group(1)]+map(str, datum.annotations)), datum.at_training_site))
             data.append(datum)
 
     logger.info('Finish loading data set %d lines.' % n)
