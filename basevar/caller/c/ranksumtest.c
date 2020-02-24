@@ -1,6 +1,3 @@
-/*
-*   lizilong@bgi.com 201903
-*/
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
