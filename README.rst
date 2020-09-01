@@ -56,17 +56,18 @@ For OSX
 Installation
 ------------
 
-To build BaseVar, do the following:
+To build BaseVar, please download the stable version which is v0.8.0, do the following:
 
 .. code:: bash
 
-    git clone https://github.com/ShujiaHuang/basevar.git
+    wget https://github.com/ShujiaHuang/basevar/archive/v0.8.0.tar.gz
 
 Then do
 
 .. code:: bash
 
-    $ cd basevar
+    $ tar zxvf v0.8.0.tar.gz
+    $ cd basevar-0.8.0/
     $ python setup.py install
 
 Now you can use `basevar` in your commandline.
@@ -91,7 +92,7 @@ Call variants from several bamfiles
         -I 1kyws27hoc.bam \
         --output-vcf test.vcf.gz \
         --output-cvg test.cvg.tsv.gz \
-        --nCPU 4 && echo "** 5 done **"
+        --nCPU 4 && echo "** job done **"
 
 Or call variants from bamlist
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,5 +105,5 @@ Or call variants from bamlist
         -L bamfile.list \ 
         --output-vcf test.vcf.gz \
         --output-cvg test.cvg.tsv.gz \
-        --nCPU 4 && echo "** 5 done **"
+        --nCPU 4 && echo "** job done **"
 
