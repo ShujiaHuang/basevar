@@ -61,6 +61,7 @@ To build BaseVar, please download the stable version which is v0.8.0, do the fol
 .. code:: bash
 
     wget https://github.com/ShujiaHuang/basevar/archive/v0.8.0.tar.gz
+    
 
 Then do
 
