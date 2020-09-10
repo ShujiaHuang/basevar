@@ -14,14 +14,32 @@ basevar/caller/vqsr/*.c
 basevar/io/*.c
 basevar/io/BGZF/*.c
 
+setup~.py
+
+tests/data/140k_thalassemia_brca_bam/basetype.prof
+tests/data/140k_thalassemia_brca_bam/basevar_caller.prof
+tests/data/140k_thalassemia_brca_bam/basevar_process_run.prof
+
+tests/data/Homo_sapiens_assembly38.*
+tests/data/140k_thalassemia_brca_bam/test*
+tests/data/hg19.NC_012920.fasta
+tests/data/hg19.NC_012920.fasta.fai
+
+tests/data/hmmcopy/
+tests/data/VQSR/
+old_stable_version/
+tests/data/1Million_bam/
+
 dist/
 build/
 *.egg-info/
-.DS_Store
 
 venv/
+venv3/
 .idea/
 .ipynb_checkpoints/
 trash/
 basevar/caller/backup/
 basevar/io/pysam_BGZF_trash/
+
+.DS_Store
