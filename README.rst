@@ -56,7 +56,7 @@ For OSX
 Installation
 ------------
 
-To build BaseVar, please download the stable version which is v0.8.0, do the following:
+To build BaseVar, please download the stable version which is v0.8.0 instead of clone the codes from github repository, do the following:
 
 .. code:: bash
 
