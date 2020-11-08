@@ -38,7 +38,7 @@ def scale_format(value):
 
 def draw_hist2d(argv):
 
-    MIN_MAF = 0.0003
+    MIN_MAF = 0.003
     ax = plt.gca()
 
     data = pd.read_table(argv[0])
