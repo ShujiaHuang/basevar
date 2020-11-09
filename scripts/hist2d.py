@@ -16,22 +16,22 @@ import matplotlib.pyplot as plt
 def scale_format(value):
 
     if value < 0.0001:
-        value = '%.5f' % value
+        value = "%.5f" % value
 
     elif value < 0.001:
-        value = '%.4f' % value
+        value = "%.4f" % value
 
     elif value < 0.01:
-        value = '%.3f' % value
+        value = "%.3f" % value
 
     elif value < 0.1:
-        value = '%.2f' % value
+        value = "%.2f" % value
 
     elif value < 0.5:
-        value = '%.1f' % value
+        value = "%.1f" % value
 
     else:
-        value = '%.0f' % value
+        value = "%.0f" % value
 
     return value
 
@@ -42,7 +42,7 @@ def draw_hist2d(argv):
     ax = plt.gca()
 
     data = pd.read_table(argv[0])
-    labels = argv[1].strip().split(':')
+    labels = argv[1].strip().split(":")
     out_fig_file = argv[2]
 
     data = pd.DataFrame(data.values, columns=labels, dtype=float)
@@ -82,7 +82,7 @@ def draw_hist2d(argv):
     plt.savefig(out_fig_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # usage: python hist2d.py basvarc_plot.txt.gz "Real:Basevar" test.pdf
     draw_hist2d(sys.argv[1:])
