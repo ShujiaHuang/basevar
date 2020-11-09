@@ -59,8 +59,8 @@ def draw_hist2d(argv):
     #x[x==0] = min_value
     #y[y==0] = min_value
     #im = ax.hist2d(x=np.log10(x), y=np.log10(y), bins=100, norm=LogNorm(), cmap=plt.cm.hsv)
-    im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.jet)
     #im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.rainbow)
+    im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.jet)
 
     min_a = min([min(np.log10(x)), min(np.log10(y))])
     max_a = max([max(np.log10(x)), max(np.log10(y))])
