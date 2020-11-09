@@ -56,16 +56,18 @@ def draw_hist2d(argv):
     if min_value == 0:
         min_value = min([min(x[x > 0]), min(y[y > 0])])
 
-    x[x==0] = min_value
-    y[y==0] = min_value
+    #x[x==0] = min_value
+    #y[y==0] = min_value
     #im = ax.hist2d(x=np.log10(x), y=np.log10(y), bins=100, norm=LogNorm(), cmap=plt.cm.hsv)
-    im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.hsv)
+    im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.jet)
+    #im = ax.hist2d(x=x, y=y, bins=100, norm=LogNorm(), cmap=plt.cm.rainbow)
 
     min_a = min([min(np.log10(x)), min(np.log10(y))])
     max_a = max([max(np.log10(x)), max(np.log10(y))])
-    ax.plot([min_a, max_a], [min_a, max_a], 'k--', linewidth=1)
+    ax.plot([min_a, max_a], [min_a, max_a], "k--", linewidth=1)
 
-    ax.set_xlim([0.0, 1.0]); ax.set_ylim([0.0, 1.0])
+    ax.set_xlim([0.0, 1.0])
+    ax.set_ylim([0.0, 1.0])
     #ax.set_xlim([np.log10(MIN_MAF), max_a]); ax.set_ylim([np.log10(MIN_MAF), max_a])
     #locs, _ = plt.xticks()
     #ax.set_xticklabels([scale_format(10 ** i) for i in locs])
