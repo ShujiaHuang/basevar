@@ -113,7 +113,7 @@ cdef class ReadArray:
             temp = <cAlignedRead**>(realloc(self.array, 2 * sizeof(cAlignedRead*) * self.__capacity))
 
             if temp == NULL:
-                raise StandardError, "Could not re-allocate ReadArray"
+                raise ValueError, "Could not re-allocate ReadArray"
             else:
                 self.array = temp
                 self.__capacity *= 2
@@ -154,7 +154,7 @@ cdef class ReadArray:
                 logger.error("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
                     start, end, start_pos_of_reads, end_pos_of_reads))
                 logger.error("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                raise ValueError, "This should never happen. Read start pointer > read end pointer!!"
 
             return r_end - r_start
 
@@ -187,7 +187,7 @@ cdef class ReadArray:
                 logger.info("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
                 start, end, start_pos_of_reads, end_pos_of_reads))
                 logger.info("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                raise ValueError, "This should never happen. Read start pointer > read end pointer!!"
 
     cdef void set_window_pointers_based_on_mate_pos(self, int start, int end):
         """
@@ -215,7 +215,7 @@ cdef class ReadArray:
                 logger.info("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
                 start, end, start_pos_of_reads, end_pos_of_reads))
                 logger.info("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                raise ValueError, "This should never happen. Read start pointer > read end pointer!!"
 
     cdef int get_length_of_longest_read(self):
         """Return the longest read size

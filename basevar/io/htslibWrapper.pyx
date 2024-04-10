@@ -560,7 +560,7 @@ cdef class Samfile:
         closed and a new file will be opened.
         """
         if mode not in ("r", "rb", "rbh"):
-            raise StandardError, "invalid file opening mode `%s`" % mode
+            raise ValueError, "invalid file opening mode `%s`" % mode
 
         if self.samfile != NULL:
             if load_index and self.index == NULL:
@@ -573,7 +573,7 @@ cdef class Samfile:
         if mode[0] == "r":
             self._open_bamfile(mode)
         else:
-            raise StandardError, "BAM file is read-only."
+            raise ValueError, "BAM file is read-only."
 
         if self.samfile == NULL:
             raise IOError("Could not open file `%s`. Check that file/path exists." % self.filename)
@@ -612,7 +612,7 @@ cdef class Samfile:
         if self._is_bam() or self._is_cram():
             return ReadIterator(self, region)
         else:
-            raise StandardError, "Random access query only allowed for BAM/CRAM files."
+            raise ValueError, "Random access query only allowed for BAM/CRAM files."
 
     cdef void close(self):
         """closes file."""
@@ -677,7 +677,7 @@ cdef class Samfile:
                     if not line.strip(): continue
 
                     if not line.startswith("@"):
-                        raise StandardError, "Header line without '@': '%s. Total header text is %s'" % (line, t)
+                        raise ValueError, "Header line without '@': '%s. Total header text is %s'" % (line, t)
 
                     fields = line[1:].split("\t")
                     record = fields[0]
@@ -729,7 +729,7 @@ cdef class ReadIterator:
         self.b = NULL
 
         if not samfile._is_open():
-            raise StandardError, "Samfile %s is not open. Cannot read from file." % (samfile.filename)
+            raise ValueError, "Samfile %s is not open. Cannot read from file." % (samfile.filename)
 
         self.the_samfile = samfile.samfile
 
@@ -737,8 +737,8 @@ cdef class ReadIterator:
         if samfile._has_index():
             self.the_iterator = sam_itr_querys(samfile.index, samfile.the_header, region)
         else:
-            raise StandardError, ("Cannot retrieve random region from Samfile %s, as it "
-                                  "does not have an index" % samfile.filename)
+            raise ValueError, ("Cannot retrieve random region from Samfile %s, as it "
+                               "does not have an index" % samfile.filename)
 
         self.b = bam_init1()
 

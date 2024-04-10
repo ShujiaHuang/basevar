@@ -59,12 +59,12 @@ cdef list get_sample_names(list bamfiles, bint filename_has_samplename):
                 if "RG" not in the_header:
                     logger.error("%s: missing @RG in the header." % bamfiles[i])
                     bf.close()
-                    raise StandardError, ("%s: missing @RG in the header." % bamfiles[i])
+                    raise ValueError, ("%s: missing @RG in the header." % bamfiles[i])
 
                 sample_names.append(the_header['RG'][0]['SM'])
                 bf.clear_header()
 
-            except StandardError, e:
+            except ValueError, e:
                 logger.error("Error in BAM header sample parsing. The error is\n%s\n" % e)
                 bf.close()
                 sys.exit(1)
