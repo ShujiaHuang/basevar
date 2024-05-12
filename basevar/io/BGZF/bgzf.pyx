@@ -4,15 +4,12 @@
 import io
 from cpython cimport PyBytes_FromStringAndSize
 
-
 from basevar.io.htslibWrapper cimport BGZF, bgzf_open, bgzf_close, bgzf_write, bgzf_read, \
     bgzf_index_build_init, bgzf_flush, bgzf_index_dump, bgzf_seek, bgzf_tell, bgzf_getline, \
     int64_t, kstring_t, free
 
-
 from basevar.io.libcutils cimport force_bytes
 from basevar.io.libcutils cimport encode_filename
-
 
 # defines imported from samtools
 DEF SEEK_SET = 0
@@ -23,7 +20,6 @@ __all__ = ["BGZFile"]
 
 BUFFER_SIZE = io.DEFAULT_BUFFER_SIZE
 
-
 cdef class BGZFile(object):
     """The BGZFile class simulates most of the methods of a file object with
     the exception of the truncate() method.
@@ -31,7 +27,7 @@ cdef class BGZFile(object):
     This class only supports opening files in binary mode. If you need to open a
     compressed file in text mode, use the gzip.open() function.
     """
-    cdef BGZF* bgzf
+    cdef BGZF*bgzf
     cdef readonly object name, index
 
     def __init__(self, filename, mode=None, index=None):
@@ -78,7 +74,7 @@ cdef class BGZFile(object):
             data = memoryview(data)
             length = data.nbytes
 
-        if length > 0 and bgzf_write(self.bgzf, <char *>data, length) < 0:
+        if length > 0 and bgzf_write(self.bgzf, <char *> data, length) < 0:
             raise IOError('BGZFile write failed')
 
         return length
@@ -97,8 +93,8 @@ cdef class BGZFile(object):
             chunks = []
             while 1:
                 chunk = PyBytes_FromStringAndSize(NULL, BUFFER_SIZE)
-                cdata = <bytes>chunk
-                read_size = bgzf_read(self.bgzf, <char *>chunk, BUFFER_SIZE)
+                cdata = <bytes> chunk
+                read_size = bgzf_read(self.bgzf, <char *> chunk, BUFFER_SIZE)
                 if read_size < 0:
                     raise IOError('Error reading from BGZFile')
                 elif not read_size:
@@ -110,7 +106,7 @@ cdef class BGZFile(object):
 
         elif size > 0:
             chunk = PyBytes_FromStringAndSize(NULL, size)
-            read_size = bgzf_read(self.bgzf, <char *>chunk, size)
+            read_size = bgzf_read(self.bgzf, <char *> chunk, size)
             if read_size < 0:
                 raise IOError('Error reading from BGZFile')
             elif read_size < size:

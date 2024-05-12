@@ -234,7 +234,7 @@ cdef int bisect_reads_left(cAlignedRead** reads, int test_pos, int n_reads, int 
 
     while low < high:
 
-        mid = (low + high) / 2
+        mid = int((low + high) / 2)
 
         if not test_mate_pos:
             if reads[mid].pos < test_pos:

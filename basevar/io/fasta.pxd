@@ -6,8 +6,8 @@ Date: 2019-05-29
 cdef class FastaIndex:
     cdef long int n_targets
     cdef dict references
-    cpdef dict target_name
-    cpdef dict target_length
+    cdef dict target_name
+    cdef dict target_length
 
 
 cdef class FastaFile:

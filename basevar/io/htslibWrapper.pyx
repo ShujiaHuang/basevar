@@ -966,7 +966,7 @@ cdef void compress_qual(cAlignedRead* read, int qual_bin_size):
     cdef int i = 0
     if qual_bin_size > 1:
         for i in range(read.r_len):
-            qual[i] = (qual[i] / qual_bin_size) * qual_bin_size
+            qual[i] = int((qual[i] / qual_bin_size) * qual_bin_size)
 
     for i in range(read.r_len):
 

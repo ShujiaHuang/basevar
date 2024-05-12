@@ -180,7 +180,7 @@ cdef class PositionBatchCigarArray:
 
         self.array = <BatchCigar*>(malloc(array_size * sizeof(BatchCigar)))
         if self.array == NULL:
-            raise StandardError, "Could not allocate memory for PositionBatchCigarArray"
+            raise ValueError, "Could not allocate memory for PositionBatchCigarArray"
 
         self.__size = 0  # We don't put anything in here yet
         self.__capacity = array_size
@@ -210,7 +210,7 @@ cdef class PositionBatchCigarArray:
     cdef void append(self, BatchInfo value):
 
         if value.chrid != self.chrid or value.position != self.position:
-            raise StandardError, (
+            raise ValueError, (
                     "Error in ``PositionBatchCigarArray`` when call append()! "
                     "Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
                         self.chrid, value.chrid, self.position, value.position)
@@ -221,7 +221,7 @@ cdef class PositionBatchCigarArray:
             temp = <BatchCigar*> (realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
 
             if temp == NULL:
-                raise StandardError, "Could not re-allocate PositionBatchCigarArray!!"
+                raise ValueError, "Could not re-allocate PositionBatchCigarArray!!"
             else:
                 self.array = temp
                 self.__capacity *= 2

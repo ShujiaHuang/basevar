@@ -39,7 +39,7 @@ cdef list create_batchfiles_in_regions(bytes chrom_name,
     # store all the batch files
     cdef list batchfiles = []
     cdef int batchcount = options.batch_count
-    cdef int part_num = len(align_files) / batchcount
+    cdef int part_num = int(len(align_files) / batchcount)
     if part_num * batchcount < len(align_files):
         part_num += 1
 
