@@ -17,7 +17,7 @@ DEF SEEK_SET = 0
 DEF SEEK_CUR = 1
 DEF SEEK_END = 2
 
-# maximum genomic coordinace
+# maximum genomic coordinate
 cdef int MAX_POS = (1 << 31) - 1
 
 cdef tuple FORMAT_CATEGORIES = ('UNKNOWN', 'ALIGNMENTS', 'VARIANTS', 'INDEX', 'REGIONS')
