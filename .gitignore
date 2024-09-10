@@ -1,6 +1,5 @@
 *.py[cod]
 *.log
-*.sh
 *.pdf
 *.png
 *.so
