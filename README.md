@@ -1,4 +1,7 @@
-# BaseVar: Call variants from ultra low-pass WGS data.
+# BaseVar: Call variants from ultra low-pass WGS data
+
+BaseVar has been fully implemented in C++, instead of the original [Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Great improvements were made in the C++ implemetation compare to the previous Python version. The speed of BaseVar is 20 times greater than that of Python version, and the memory usage less than Python version. Generally, each thread (-t/--thread) requires only 3GB to 4GB if the -B (--batch-count) option is set to 200.
+
 
 ## Installation
 
