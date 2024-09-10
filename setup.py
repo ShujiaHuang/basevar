@@ -50,7 +50,7 @@ if __name__ == "__main__":
         install_requires=[
             'numpy==1.15.4',
             'pysam==0.12.0.1',
-            'scikit-learn==0.20.2',
+            'scikit-learn==1.5.0',
             'scipy==1.1.0'
         ],
 
