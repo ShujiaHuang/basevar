@@ -1,4 +1,6 @@
 *.py[cod]
+*.gzi
+*.fai
 *.log
 *.pdf
 *.png
@@ -6,6 +8,9 @@
 .*.sw?
 *.egg
 .DS_Store
+
+bin/basevar
+old_stable_version/
 
 venv/
 .idea/
