@@ -6,22 +6,12 @@
 *.so
 .*.sw?
 *.egg
-*.html
-
-basevar/*.c
-basevar/caller/*.c
-basevar/caller/vqsr/*.c
-basevar/io/*.c
-basevar/io/BGZF/*.c
-
-dist/
-build/
-*.egg-info/
 .DS_Store
 
 venv/
 .idea/
 .ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
 trash/
-basevar/caller/backup/
-basevar/io/pysam_BGZF_trash/
