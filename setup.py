@@ -54,9 +54,9 @@ class install(_install):
         return
 
 
-BC_INCLUDE_DIR = ROOT_DIR + "/basevar/caller"
-IO_INCLUDE_DIR = ROOT_DIR + "/basevar/io"
-TB_INCLUDE_DIR = IO_INCLUDE_DIR + "/BGZF"
+BC_INCLUDE_DIR = f"{ROOT_DIR}.basevar.caller".replace('.', os.path.sep)
+IO_INCLUDE_DIR = f"{ROOT_DIR}.basevar.io".replace('.', os.path.sep)
+TB_INCLUDE_DIR = f"{IO_INCLUDE_DIR}.BGZF".replace('.', os.path.sep)
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
@@ -97,8 +97,11 @@ if __name__ == "__main__":
         CALLER_PRE + '.io.BGZF.bgzf',
         CALLER_PRE + '.io.BGZF.tabix',
     ]
-    extensions = [Extension(name=mod, sources=[mod.replace('.', os.path.sep) + '.pyx'], language='c',
-                            include_dirs=[TB_INCLUDE_DIR], libraries=['hts']) for mod in htslib_mod]
+    extensions = [Extension(name=mod,
+                            sources=[mod.replace('.', os.path.sep) + '.pyx'],
+                            language='c',
+                            include_dirs=[TB_INCLUDE_DIR],
+                            libraries=['hts']) for mod in htslib_mod]
 
     algorithm = CALLER_PRE + '.caller.algorithm'
     extensions.append(Extension(name=algorithm,
@@ -149,8 +152,9 @@ if __name__ == "__main__":
         },
         classifiers=[
             'Intended Audience :: Science/Research',
-            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
             'License :: OSI Approved :: BSD License',
             'Topic :: Scientific/Engineering :: Bio-Informatics',
             'Operating System :: POSIX',

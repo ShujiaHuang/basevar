@@ -32,6 +32,7 @@ cdef class SequenceTuple:
         self.line_length = line_length
         self.full_line_length = full_line_length
 
+
 cdef class FastaIndex:
     """
     Index file of a FastaFile. Contains start and end positions of all
@@ -114,7 +115,7 @@ cdef class FastaFile:
         except KeyError:
             raise KeyError, "Cannot find %s in reference fasta file" % seq_name
 
-    cpdef void close(self):
+    cdef void close(self):
         """
         Wrapper function to close self.theFile
         """

@@ -21,7 +21,7 @@ cdef class FastaFile:
     cdef long int cache_start_pos
     cdef long int cache_end_pos
 
-    cpdef void close(self)
+    cdef void close(self)
     cdef bytes get_character(self, bytes seq_name, long int pos)
     cdef bytes get_sequence(self, bytes seq_name, long int begin_pos, long int end_pos)
     cdef void set_cache_sequence(self, bytes seq_name, long int begin_pos, long int end_pos)
