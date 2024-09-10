@@ -1,150 +1,64 @@
 """Setup file and install script for BaseVar.
 
-Last modify (Jul 16, 2019)
-Copyright (C) 2019 Shujia Huang <huangshujia9@gmail.com>
+Version 1.0.0 (Dec 16, 2018)
+Copyright (C) 2018 Shujia Huang <huangshujia9@gmail.com>
 """
 import os
-import re
 
-from setuptools import setup, find_packages, Extension
-from setuptools.command.sdist import sdist as _sdist
-from setuptools.command.install import install as _install
+try:
+    from setuptools import setup, find_packages
+    _has_setuptools = True
+except ImportError:
+    from distutils.core import setup, find_packages
 
-from Cython.Distutils import build_ext
-from Cython.Build import cythonize
 
 DESCRIPTION = "BaseVar: A python software for calling variants from ultra low pass WGS data."
 DISTNAME = 'basevar'
 MAINTAINER = 'Shujia Huang & Siyang Liu'
 MAINTAINER_EMAIL = 'huangshujia9@gmail.com'
-URL = 'https://pypi.org/project/basevar'
-DOWNLOAD_URL = 'https://pypi.org/project/basevar'
+URL = 'https://github.com/ShujiaHuang/basevar'
 LICENSE = 'BSD (3-clause)'
-
-ROOT_DIR = os.path.split(os.path.realpath(__file__))[0]
-
-
-def get_version():
-    try:
-        f = open(ROOT_DIR + "/basevar/_version.py")
-    except EnvironmentError:
-        return None
-
-    for line in f.readlines():
-        mo = re.match("__version__ = '([^']+)'", line)
-        if mo:
-            version = mo.group(1)
-            return version
-
-    return None
-
-
-class sdist(_sdist):
-
-    def run(self):
-        self.distribution.metadata.version = get_version()
-        return _sdist.run(self)
-
-
-class install(_install):
-
-    def run(self):
-        self.distribution.metadata.version = get_version()
-        _install.run(self)
-        return
-
-
-BC_INCLUDE_DIR = ROOT_DIR + "/basevar/caller"
-IO_INCLUDE_DIR = ROOT_DIR + "/basevar/io"
-TB_INCLUDE_DIR = IO_INCLUDE_DIR + "/BGZF"
-
-CALLER_PRE = 'basevar'
-MOD_NAMES = [
-    CALLER_PRE + '.utils',
-    CALLER_PRE + '.io.libcutils',
-    CALLER_PRE + '.io.openfile',
-    CALLER_PRE + '.io.fasta',
-    CALLER_PRE + '.io.bam',
-    CALLER_PRE + '.io.read',
-    CALLER_PRE + '.caller.basetype',
-    CALLER_PRE + '.caller.batch',
-    CALLER_PRE + '.caller.batchcaller',
-    CALLER_PRE + '.caller.variantcaller',
-    CALLER_PRE + '.caller.basetypeprocess',
-    CALLER_PRE + '.caller.launch',
-    CALLER_PRE + '.caller.do',
-
-    # For VQSR
-    CALLER_PRE + '.caller.vqsr.vcfutils',
-    CALLER_PRE + '.caller.vqsr.vqsr',
-    CALLER_PRE + '.caller.vqsr.variant_datum',
-    CALLER_PRE + '.caller.vqsr.variant_recalibrator',
-    CALLER_PRE + '.caller.vqsr.variant_data_manager',
-    CALLER_PRE + '.caller.vqsr.variant_recalibrator_engine',
-    CALLER_PRE + '.caller.vqsr.variant_recalibrator_argument_collection'
-]
-
-
-def make_extension(modname):
-    the_cython_file = modname.replace('.', os.path.sep) + '.pyx'
-    return Extension(name=modname, sources=[the_cython_file], language='c')
+DOWNLOAD_URL = 'https://github.com/ShujiaHuang/basevar'
+VERSION = "0.0.1.3"
 
 
 if __name__ == "__main__":
-    # extension for htslib!
-    htslib_mod = [
-        CALLER_PRE + '.io.htslibWrapper',
-        CALLER_PRE + '.io.BGZF.bgzf',
-        CALLER_PRE + '.io.BGZF.tabix',
-    ]
-    extensions = [Extension(name=mod, sources=[mod.replace('.', os.path.sep) + '.pyx'], language='c',
-                            include_dirs=[TB_INCLUDE_DIR], libraries=['hts']) for mod in htslib_mod]
 
-    algorithm = CALLER_PRE + '.caller.algorithm'
-    extensions.append(Extension(name=algorithm,
-                                sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
-                                language='c',
-                                include_dirs=[BC_INCLUDE_DIR],
-                                libraries=['hts']))
+    # requirements_file = os.path.split(os.path.realpath(__file__))[0] + "/requirements.txt"
+    long_description = os.path.split(os.path.realpath(__file__))[0] + "/README.rst"
 
-    # vcfconcat = CALLER_PRE + '.io.vcfconcat'
-    # extensions.append(Extension(name=vcfconcat,
-    #                             sources=[algorithm.replace('.', os.path.sep) + '.pyx'],
-    #                             language='c',
-    #                             include_dirs=[IO_INCLUDE_DIR],
-    #                             libraries=['hts']))
-
-    # other extensions
-    extensions += [make_extension(name) for name in MOD_NAMES]
+    # requirements = []
+    # with open(requirements_file) as I:
+    #     for line in I:
+    #         requirements.append(line.strip())
 
     setup(
         name=DISTNAME,
-        version=get_version(),
+        version=VERSION,
         author=MAINTAINER,
         author_email=MAINTAINER_EMAIL,
         maintainer=MAINTAINER,
         maintainer_email=MAINTAINER_EMAIL,
         description=DESCRIPTION,
-        long_description=(open(ROOT_DIR + "/README.rst").read()),
+        long_description=(open(long_description).read()),
         license=LICENSE,
         url=URL,
         download_url=DOWNLOAD_URL,
         packages=find_packages(),
         include_package_data=True,
-        ext_modules=cythonize(extensions),
-        cmdclass={'build_ext': build_ext, 'sdist': sdist, 'install': install},
+        # install_requires=requirements,
         install_requires=[
-            'Cython>=0.29.6',
-            'Logbook>=1.4.3',
-            'numpy>=1.15.4',
-            'scikit-learn>=0.20.2',
-            'scipy>=1.1.0'
+            'numpy==1.15.4',
+            'pysam==0.12.0.1',
+            'scikit-learn==0.20.2',
+            'scipy==1.1.0'
         ],
+
         # scripts=[],
         entry_points={
 
             'console_scripts': [
-                'basevar = basevar.runner:main'
+                'basevar = basevar.BaseVar:main'
             ]
         },
         classifiers=[
