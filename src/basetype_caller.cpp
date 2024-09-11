@@ -89,10 +89,9 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
     // Output the commandline options
     std::cout << 
         "[INFO] BaseVar commandline and arguments:\n"
-        "basevar basetype -R " + _args->reference + " \\ \n" + (_args->input_bf.empty() ? "" : 
+        "basevar basetype -R " + _args->reference        + " \\ \n"  + (_args->input_bf.empty() ? "" : 
         "   -I " + ngslib::join(_args->input_bf, " -I ") + " \\ \n") + (_args->in_bamfilelist.empty() ? "" : 
         "   -L " + _args->in_bamfilelist       + " \\ \n") <<
-        "   -R " + _args->reference            + " \\ \n"
         "   -q " << _args->mapq               << " \\ \n"
         "   -m " << _args->min_af             << " \\ \n"
         "   -B " << _args->batchcount         << " \\ \n"
@@ -585,7 +584,7 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
                                      "Sample ids in bamfiles  : " + ngslib::join(sample_ids, ",") + "\n");
 
     /************* Done for reading data prepare *************/
-    
+
     // Start calling variants
     BGZF *VCF = bgzf_open(tmp_vcf_fn.c_str(), "w"); // output vcf file
     if (!VCF) throw std::runtime_error("[ERROR] " + tmp_vcf_fn + " open failure.");
@@ -700,13 +699,14 @@ bool _basevar_caller(const std::vector<std::string> &smp_bf_line_vector,
         (samples_bi.map_strands.size()      != n_sample) || 
         (samples_bi.base_pos_ranks.size()   != n_sample))
     {
-        std::cerr << "Total samples size is: "     << n_sample << "\n" + samples_bi.ref_id           << " " 
-                  << samples_bi.ref_pos << " "                 << samples_bi.ref_base                << "\n" 
-                  << "bt.samples_bi.mapqs.size():            " << samples_bi.mapqs.size()            << "\n"
-                  << "bt.samples_bi.align_bases.size():      " << samples_bi.align_bases.size()      << "\n"
-                  << "bt.samples_bi.align_base_quals.size(): " << samples_bi.align_base_quals.size() << "\n"
-                  << "bt.samples_bi.map_strands.size():      " << samples_bi.map_strands.size()      << "\n"
-                  << "bt.samples_bi.base_pos_ranks.size():   " << samples_bi.base_pos_ranks.size()   << "\n";
+        std::cerr << "Total samples size is: " << n_sample            << "\n" + samples_bi.ref_id    << " " 
+                  << samples_bi.ref_pos << " " << samples_bi.ref_base << " " << samples_bi.depth     << "\n" 
+                  << "bt.samples_bi.mapqs.size():            " << samples_bi.mapqs.size()            << "\t" << ngslib::join(samples_bi.mapqs, " ")            << "\n"
+                  << "bt.samples_bi.align_bases.size():      " << samples_bi.align_bases.size()      << "\t" << ngslib::join(samples_bi.align_bases, " ")      << "\n"
+                  << "bt.samples_bi.align_base_quals.size(): " << samples_bi.align_base_quals.size() << "\t" << ngslib::join(samples_bi.align_base_quals, " ") << "\n"
+                  << "bt.samples_bi.map_strands.size():      " << samples_bi.map_strands.size()      << "\t" << ngslib::join(samples_bi.map_strands, " ")      << "\n"
+                  << "bt.samples_bi.base_pos_ranks.size():   " << samples_bi.base_pos_ranks.size()   << "\t" << ngslib::join(samples_bi.base_pos_ranks, " ")   << "\n"
+                  << std::endl;
         throw std::runtime_error("[ERROR] Something is wrong in batchfiles.");
     }
     
@@ -935,7 +935,7 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
         align_base_info.mapq = sample_map_reads[i].mapq();
 
         aligned_pairs = sample_map_reads[i].get_aligned_pairs(fa_seq);
-        char mean_qqual_char = int(sample_map_reads[i].mean_qqual());
+        char mean_qqual_char = int(sample_map_reads[i].mean_qqual()) + 33; // 33 is the offset of base QUAL
         uint32_t map_ref_pos;
         for (size_t i(0); i < aligned_pairs.size(); ++i) {
             // Todo: The data of 'align_base_info' and 'aligned_pairs[i]' is similar, 
