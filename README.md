@@ -162,7 +162,7 @@ basevar basetype -R reference.fasta -B 200 -t 4 \
 
 Please cite the follow papers if you use BaseVar in your publish projects or papers. 
 
-- Liu et al., [Genomic analyses from non-invasive prenatal testing reveal genetic associations, patterns of viral infections, and chinese population history](https://doi.org/10.1016/j.cell.2018.08.016). *Cell* 175.2 (2018), 347-359
+- Liu, S. Huang, S. et al. [Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections , and Chinese Population History](https://doi.org/10.1016/j.cell.2018.08.016). Cell 175, 347-359.e14 (2018).
 
 - Liu et al., [Utilizing Non-Invasive Prenatal Test Sequencing Data for Human Genetic Investigation](https://www.biorxiv.org/content/10.1101/2023.12.11.570976v1). BioRxiv (2023)
 
