@@ -14,7 +14,7 @@
 #include "basetype_caller.h"
 
 static const std::string AUTHOR = "Shujia Huang (hshujia@qq.com)";
-static const std::string VERSION = "version 1.0.0";
+static const std::string VERSION = "version 1.0.1";
 
 static int usage() {
     // Usage discription
