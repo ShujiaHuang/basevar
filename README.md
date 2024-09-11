@@ -1,6 +1,8 @@
 # BaseVar: Call variants from ultra low-pass WGS data
 
-BaseVar has been fully implemented by C++. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Now, the computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
+*BaseVar* was specifically designed to process the variant calling from ultra low-depth (<1x) sequencing data, especilly for non-invasive prenatal test (NIPT) sequencing data in human genetic studies.
+
+BaseVar has been fully implemented by C++ now. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Now, the computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
 
 
 ## Installation
