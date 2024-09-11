@@ -7,7 +7,7 @@ BaseVar has been fully implemented by C++. Great improvements were made in the C
 
 ## Installation
 
-*BaseVar requires C++17 or higher.* Build the source codes step-by-step.
+*BaseVar requires C++17 or higher.* Compile the program from source codes step-by-step.
 
 
 ### How to install htslib
@@ -67,6 +67,13 @@ make: *** [test/test_khash.o] Error 1
 
 Navegate into `bin/` folder (basevar/bin) first and do the following commands:
 
+**For Linux**
+
+```bash
+$ cd bin/
+$ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/basetype_caller.cpp ../src/utils.cpp ../src/fasta.cpp ../src/bam_header.cpp ../src/bam.cpp ../src/bam_record.cpp ../src/basetype_utils.cpp ../htslib/libhts.a -I ../htslib -lz -lbz2 -lm -llzma -lpthread -lcurl -lssl -lcrypto -o basevar
+```
+
 **For MacOS**
 
 ```bash
@@ -75,20 +82,13 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 
 ```
 
-**For Linux**
-
-```bash
-$ cd bin/
-$ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/basetype_caller.cpp ../src/utils.cpp ../src/fasta.cpp ../src/bam_header.cpp ../src/bam.cpp ../src/bam_record.cpp ../src/basetype_utils.cpp ../htslib/libhts.a -I ../htslib -lz -lbz2 -lm -llzma -lpthread -lcurl -lssl -lcrypto -o basevar
-
-```
-
 **BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
 
+To review each of the parameters, you can type `basevar basetype -h` in Linux/MacOS Terminal. 
 
-To review each of the parameters, you can type `basevar basetype -h` in terminal. 
+```bash
+$ /path/to/basevar basetype -h
 
-```
 BaseVar: A software for calling variants efficiently from low-pass whole genome sequencing data.
 
 About: Calling variants by BaseVar.
