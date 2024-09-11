@@ -1,15 +1,13 @@
 # BaseVar: Call variants from ultra low-pass WGS data
 
-*BaseVar* was specifically designed to process variant calling from ultra low-depth (<1x) sequencing data, especilly for non-invasive prenatal test (**NIPT**) sequencing data in human genetic studies.
+*BaseVar* was specifically designed to process variant calling from ultra low-depth (<1x) sequencing data, especilly for non-invasive prenatal test (**NIPT**) sequencing data in human genetic studies. Within BaseVar, maximum likelihood and likelihood ratio models are employed to determine the polymorphism of a genomic position and estimate the allele frequencies. Detailed matematical documentation can be found [here](https://doi.org/10.1016/j.cell.2018.08.016).
 
-BaseVar has been fully implemented by C++ now. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Now, the computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
+BaseVar has been fully implemented by C++. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). The computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
 
 
 ## Installation
 
-*BaseVar requires C++17 or higher.*
-
-Build the source codes step-by-step.
+*BaseVar requires C++17 or higher.* Build the source codes step-by-step.
 
 
 ### How to install htslib
@@ -103,7 +101,7 @@ optional arguments:
 
   -m, --min-af=float           Setting prior precision of MAF and skip uneffective caller positions.
                                Usually you can set it to be min(0.001, 100/x), x is the number of input
-                               BAM files.[min(0.001, 100/x)]. In generally, you don't have to worry about
+                               BAM files.[min(0.001,100/x)]. In generally, you don't have to worry about
                                this parameter.
   -q, --mapq=INT               Only include reads with mapping quality >= INT. [10]
   -B, --batch-count=INT        INT simples per batchfile. [200]
@@ -122,7 +120,6 @@ optional arguments:
   --smart-rerun                Rerun process by checking batchfiles.
   -h, --help                   Show this help message and exit.
 ```
-
 
 ## Quick start
 
@@ -163,7 +160,6 @@ basevar basetype -R reference.fasta -B 200 -t 4 \
 Please cite the follow papers if you use BaseVar in your publish projects or papers. 
 
 - Liu, S. Huang, S. et al. [Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections , and Chinese Population History](https://doi.org/10.1016/j.cell.2018.08.016). Cell 175, 347-359.e14 (2018).
-
 - Liu et al., [Utilizing Non-Invasive Prenatal Test Sequencing Data for Human Genetic Investigation](https://www.biorxiv.org/content/10.1101/2023.12.11.570976v1). BioRxiv (2023)
 
 
