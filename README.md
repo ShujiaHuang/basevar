@@ -88,6 +88,42 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 **BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
 
 
+To review each of the parameters, you can type `basevar basetype -h` in terminal. 
+
+```
+BaseVar: A software for calling variants efficiently from low-pass whole genome sequencing data.
+
+About: Calling variants by BaseVar.
+Usage: basevar basetype [options] <-R Fasta> <--output-vcf> <--output-cvg> [-I input] ...
+
+optional arguments:
+  -I, --input=FILE             BAM/CRAM file containing reads.
+  -L, --align-file-list=FILE   BAM/CRAM files list, one file per row.
+  -R, --reference FILE         Input reference fasta file.
+
+  -m, --min-af=float           Setting prior precision of MAF and skip uneffective caller positions.
+                               Usually you can set it to be min(0.001, 100/x), x is the number of input
+                               BAM files.[min(0.001, 100/x)]. In generally, you don't have to worry about
+                               this parameter.
+  -q, --mapq=INT               Only include reads with mapping quality >= INT. [10]
+  -B, --batch-count=INT        INT simples per batchfile. [200]
+  -t, --thread=INT             Number of threads. [4]
+
+  -G, --pop-group=FILE         Calculating the allele frequency for specific population.
+  -r, --regions=chr:start-end  Skip positions which not in these regions. This parameter could be a list
+                               of comma deleimited genome regions(e.g.: chr:start-end) or a file contain
+                               the list of regions.
+  --output-vcf FILE            Output VCF file.
+  --output-cvg FILE            Output position coverage file.
+
+  --filename-has-samplename    If the name of bamfile is something like 'SampleID.xxxx.bam', set this
+                               argrument could save a lot of time during get the sample id from BAMfile
+                               header information.
+  --smart-rerun                Rerun process by checking batchfiles.
+  -h, --help                   Show this help message and exit.
+```
+
+
 ## Quick start
 
 ### Call variants from several bamfiles
