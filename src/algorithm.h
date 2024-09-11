@@ -103,15 +103,15 @@ double wilcoxon_ranksum_test(const std::vector<double>& sample1, const std::vect
     }
 
     // 计算样本1的秩和
-    double rankSum1 = 0.0;
+    double smp1_ranksum = 0.0;
     for (size_t i = 0; i < rank_idx.size(); ++i) {
         if (rank_idx[i] < n1) {
-            rankSum1 += rankvalues[i];
+            smp1_ranksum += rankvalues[i];
         }
     }
 
     double e = (double)(n1 * (n1 + n2 + 1)) / 2.0;
-    double z = (rankSum1 - e) / std::sqrt(double(n1*n2*(n1+n2+1))/12.0);
+    double z = (smp1_ranksum - e) / std::sqrt(double(n1*n2*(n1+n2+1))/12.0);
     double p = 2 * norm_dist(std::abs(z));
     
     // 返回秩和检验 pvalue
