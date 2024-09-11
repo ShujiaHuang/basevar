@@ -7,6 +7,8 @@ BaseVar has been fully implemented by C++ now. Great improvements were made in t
 
 ## Installation
 
+*BaseVar requires C++17 or higher.*
+
 Build the source codes step-by-step.
 
 
