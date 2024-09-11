@@ -1,6 +1,6 @@
 # BaseVar: Call variants from ultra low-pass WGS data
 
-BaseVar has been fully implemented in C++, instead of the original [Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Great improvements were made in the C++ implemetation compare to the previous Python version. The speed of BaseVar is 20 times greater than that of Python version, and the memory usage less than Python version. Generally, each thread (-t/--thread) requires only 3GB to 4GB if the -B (--batch-count) option is set to 200.
+BaseVar has been fully implemented by C++. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). Now, the computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
 
 
 ## Installation
@@ -10,7 +10,7 @@ Build the source codes step-by-step.
 
 ### How to install htslib
 
-1. Download BaseVar from github
+**1. Download BaseVar from github**
 
 ```bash
 $ git clone --recursive https://github.com/ShujiaHuang/basevar.git
@@ -20,7 +20,7 @@ $ git clone --recursive https://github.com/ShujiaHuang/basevar.git
 > the network problem.
 
 
-2. Shift to htscodecs directory and run the following commands: 
+**2. Shift to htscodecs directory and run the following commands**
 
 ```bash
 
@@ -31,7 +31,7 @@ $ make
 
 ```
 
-3. Go back to the upper directory and install main htslib by running the commands below:
+**3. Go back to the upper directory and install main htslib by running the commands below**
 
 ```bash
 
@@ -57,7 +57,7 @@ test/test_khash.c:53:18: note: each undeclared identifier is reported only once 
 make: *** [test/test_khash.o] Error 1
 ```
 
-4. Go back to the upper directory and install `basevar` by running the commands below:
+**4. Go back to the upper directory and install `basevar` by running the commands below**
 
 **For MacOS**
 
