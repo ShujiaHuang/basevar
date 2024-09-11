@@ -97,7 +97,7 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
         "   -B " << _args->batchcount         << " \\ \n"
         "   -t " << _args->thread_num         << " \\ \n"  << (_args->regions.empty() ? "" : 
         "   -r " + _args->regions              + " \\ \n") << (_args->pop_group_file.empty() ? "" : 
-        "   -p " + _args->pop_group_file       + " \\ \n") <<
+        "   -G " + _args->pop_group_file       + " \\ \n") <<
         "   --output-vcf " + _args->output_vcf + " \\ \n"
         "   --output-vcg " + _args->output_cvg << (_args->filename_has_samplename ? " \\ \n"
         "   --filename-has-samplename" : "")   << (_args->smart_rerun ? " \\ \n"
