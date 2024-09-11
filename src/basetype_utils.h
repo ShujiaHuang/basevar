@@ -26,7 +26,7 @@ static const std::string __BASETYPE_USAGE =
 
     "  -m, --min-af=float           Setting prior precision of MAF and skip uneffective caller positions.\n"
     "                               Usually you can set it to be min(0.001, 100/x), x is the number of input\n"
-    "                               BAM files.[min(0.001, 100/x)]. Probably you don't need to take care about\n"
+    "                               BAM files.[min(0.001, 100/x)]. In generally, you don't have to worry about\n"
     "                               this parameter.\n"
     "  -q, --mapq=INT               Only include reads with mapping quality >= INT. [10]\n"
     "  -B, --batch-count=INT        INT simples per batchfile. [200]\n" 

@@ -88,7 +88,7 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
 
     // Output the commandline options
     std::cout << 
-        "[INFO] BaseVar commandline and arguments:\n"
+        "[INFO] BaseVar arguments:\n"
         "basevar basetype -R " + _args->reference        + " \\ \n"  + (_args->input_bf.empty() ? "" : 
         "   -I " + ngslib::join(_args->input_bf, " -I ") + " \\ \n") + (_args->in_bamfilelist.empty() ? "" : 
         "   -L " + _args->in_bamfilelist       + " \\ \n") <<
