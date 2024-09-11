@@ -20,7 +20,7 @@ static const std::string __BASETYPE_USAGE =
     "About: Calling variants by BaseVar.\n" 
     "Usage: basevar basetype [options] <-R Fasta> <--output-vcf> <--output-cvg> [-I input] ...\n\n" 
     "optional arguments:\n" 
-    "  -I, --input=FILE             BAM/SAM/CRAM file containing reads.\n"
+    "  -I, --input=FILE             BAM/CRAM file containing reads.\n"
     "  -L, --align-file-list=FILE   BAM/CRAM files list, one file per row.\n"
     "  -R, --reference FILE         Input reference fasta file.\n\n"
 
