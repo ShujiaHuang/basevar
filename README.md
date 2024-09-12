@@ -4,6 +4,12 @@
 
 BaseVar has been fully implemented by C++. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). The computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
 
+## Citation
+
+Please cite the follow papers if you use BaseVar in your publish projects or papers. 
+
+> Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
+
 
 ## Installation
 
@@ -154,12 +160,4 @@ basevar basetype -R reference.fasta -B 200 -t 4 \
     --output-vcf test.vcf.gz \
     --output-cvg test.cvg.tsv.gz
 ```
-
-## Citation
-
-Please cite the follow papers if you use BaseVar in your publish projects or papers. 
-
-- Liu, S. Huang, S. et al. [Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections , and Chinese Population History](https://doi.org/10.1016/j.cell.2018.08.016). Cell 175, 347-359.e14 (2018).
-- Liu et al., [Utilizing Non-Invasive Prenatal Test Sequencing Data for Human Genetic Investigation](https://www.biorxiv.org/content/10.1101/2023.12.11.570976v1). BioRxiv (2023)
-
 
