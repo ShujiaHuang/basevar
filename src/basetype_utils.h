@@ -24,10 +24,11 @@ static const std::string __BASETYPE_USAGE =
     "  -L, --align-file-list=FILE   BAM/CRAM files list, one file per row.\n"
     "  -R, --reference FILE         Input reference fasta file.\n\n"
 
-    "  -m, --min-af=float           Setting prior precision of MAF and skip uneffective caller positions.\n"
-    "                               Usually you can set it to be min(0.001, 100/x), x is the number of input\n"
-    "                               BAM files.[min(0.001, 100/x)]. In generally, you don't have to worry about\n"
-    "                               this parameter.\n"
+    "  -m, --min-af=float           Setting prior precision of MAF and skip ineffective caller positions,\n"
+    "                               a typical approach involves setting it to min(0.001, 100/x), where x \n"
+    "                               represents the number of input BAM files [min(0.001, 100/x)]. In most\n"
+    "                               cases, users need not be overly concerned about this parameter, as it \n"
+    "                               is generally handled automatically by the program.\n"
     "  -q, --mapq=INT               Only include reads with mapping quality >= INT. [10]\n"
     "  -B, --batch-count=INT        INT simples per batchfile. [200]\n" 
     "  -t, --thread=INT             Number of threads. [4]\n\n"
@@ -40,8 +41,7 @@ static const std::string __BASETYPE_USAGE =
     "  --output-cvg FILE            Output position coverage file.\n\n"
 
     "  --filename-has-samplename    If the name of bamfile is something like 'SampleID.xxxx.bam', set this\n"
-    "                               argrument could save a lot of time during get the sample id from BAMfile\n"
-    "                               header information.\n"
+    "                               argrument could save a lot of time during get the sample id from BAMfile.\n"
     "  --smart-rerun                Rerun process by checking batchfiles.\n"
     "  -h, --help                   Show this help message and exit."; 
 

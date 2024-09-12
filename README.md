@@ -55,8 +55,7 @@ $ make
 
 ```
 
-**Note**: If you hit something error information looks like the following when you're compilling the `htslib` above, 
-you can ignore it and the codes should still work well.
+**Note**: If you encounter an error message similar to the following during the compilation of htslib, you can safely disregard it as the code should continue to function properly:
 
 ```bash
 test/test_khash.c: In function 'write_stats_str2int':
@@ -70,9 +69,11 @@ test/test_khash.c:53:18: note: each undeclared identifier is reported only once 
 make: *** [test/test_khash.o] Error 1
 ```
 
+Feel free to proceed with your installation tasks despite encountering this error during the compilation process.
+
 **4. Go back to the upper directory and install `basevar` by running the commands below**
 
-Navegate into `bin/` folder (basevar/bin) first and do the following commands:
+Navigate into `bin/` folder (`cd basevar/bin`) first and execute the following commands:
 
 **For Linux**
 
@@ -89,9 +90,7 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 
 ```
 
-**BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
-
-To review each of the parameters, you can type `basevar basetype -h` in Linux/MacOS Terminal. 
+To review each of the parameters, you can type `basevar basetype -h` in the Linux/MacOS Terminal. 
 
 ```bash
 $ /path/to/basevar basetype -h
@@ -128,6 +127,9 @@ optional arguments:
   -h, --help                   Show this help message and exit.
 ```
 
+This command will provide detailed information about the parameters of `basevar`.
+
+
 ## Quick start
 
 ### Call variants from several bamfiles
@@ -161,4 +163,6 @@ basevar basetype -R reference.fasta -B 200 -t 4 \
     --output-vcf test.vcf.gz \
     --output-cvg test.cvg.tsv.gz
 ```
+
+**BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
 
