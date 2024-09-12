@@ -7,7 +7,7 @@ Now, BaseVar has been fully implemented by C++. BaseVar showcases significant en
 
 ## Citation
 
-Please cite the follow paper if you use BaseVar in your publish projects or papers. 
+Please cite the following paper if you use BaseVar in your published projects or papers. 
 
 > Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
 
