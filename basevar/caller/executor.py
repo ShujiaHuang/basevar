@@ -79,7 +79,7 @@ def _load_sample_id_from_bam(bamfiles, filename_has_samplename=True):
                              (i + 1, len(bamfiles), time.asctime()))
 
         if filename_has_samplename:
-            filename = os.path.basename(al)
+            filename = str(os.path.basename(al))
 
             # sample id should be the first element separate by ".",
             # e.g: "CL100045504_L02_61.sorted.rmdup.realign.BQSR.bam", "CL100045504_L02_61" is sample id.
