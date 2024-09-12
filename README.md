@@ -1,12 +1,13 @@
 # BaseVar: Call variants from ultra low-pass WGS data
 
-*BaseVar* was specifically designed to process variant calling from ultra low-depth (<1x) sequencing data, especilly for non-invasive prenatal test (**NIPT**) sequencing data in human genetic studies. Within BaseVar, maximum likelihood and likelihood ratio models are employed to determine the polymorphism of a genomic position and estimate the allele frequencies. Detailed matematical documentation can be found [here](https://doi.org/10.1016/j.cell.2018.08.016).
+*BaseVar* is a specialized tool tailored for variant calling using ultra low-depth (<1x) sequencing data, particularly catering to non-invasive prenatal test (NIPT) data in human genetic studies. Leveraging maximum likelihood and likelihood ratio models, BaseVar accurately identifies polymorphisms at genomic positions and calculates allele frequencies. For in-depth mathematical explanations, refer to the comprehensive documentation available [here](https://doi.org/10.1016/j.cell.2018.08.016).
 
-BaseVar has been fully implemented by C++. Great improvements were made in the C++ implemetation compare to the [original Python version](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). The computing speed of BaseVar is more than 20 times faster than the Python version, and requires much less memory. Generally, each thread (-t/--thread) requires only 3GB to 4GB if -B (--batch-count) option is set to 200, while the Python version need more than 20GB.
+Now, BaseVar has been fully implemented by C++. BaseVar showcases significant enhancements over its [original Python counterpart](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). The C++ implementation delivers a computing speed exceeding 20 times that of the Python version, all while demanding substantially less memory. Typically, each thread (-t/--thread) consumes merely 3GB to 4GB of memory when the -B (--batch-count) option is configured to 200, a stark contrast to the Python version's requirement of over 20GB.
+
 
 ## Citation
 
-Please cite the follow papers if you use BaseVar in your publish projects or papers. 
+Please cite the follow paper if you use BaseVar in your publish projects or papers. 
 
 > Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
 
