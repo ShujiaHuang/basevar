@@ -10,8 +10,8 @@ import sys
 import time
 
 from basevar.log import logger
-from caller.launch import BaseTypeRunner
 from basevar.utils import do_cprofile
+from caller.launch cimport BaseTypeRunner
 
 
 def parser_commandline_args():
@@ -36,11 +36,11 @@ def parser_commandline_args():
                               help="Minimum allowed base-calling quality. Any bases with qual below "
                                    "this are ignored in SNP-calling. [20]", required=False)
 
-    basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
-                              help='Output VCF file. If not provide will skip variants discovery and just output '
-                                   'position coverage file which filename is provided by --output-cvg.')
     basetype_cmd.add_argument('--output-cvg', dest='outcvg', type=str, required=True,
                               help='Output position coverage file.')
+    basetype_cmd.add_argument('--output-vcf', dest='outvcf', type=str,
+                              help='Output VCF file. If not provide BaseVar will skip variants discovery and just '
+                                   'output position coverage file which filename is provided by --output-cvg.')
 
     basetype_cmd.add_argument('--positions', metavar='position-list-file', type=str, dest='positions',
                               help='skip unlisted positions one per row. The position format in the file could '

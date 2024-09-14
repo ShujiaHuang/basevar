@@ -3,6 +3,9 @@
 Author: shujia Huang
 Date: 2020-02-24 10:36:55
 """
+cdef extern from "ctype.h":
+    int isspace(int c)
+
 ctypedef struct GenomeRegion:
     char *chrom
     unsigned long start
@@ -13,6 +16,7 @@ ctypedef struct GenomeRegionArray:
     size_t __capacity
     GenomeRegion *array
 
+cdef char *make_region_str(const GenomeRegion src) # return the GenomeRegion to be a string: chrom:start-end
 cdef bint genome_region_array_init(GenomeRegionArray *dest, const size_t size)
 cdef bint genome_region_init_by_pylist(GenomeRegionArray *dest, list py_array)
 cdef void genome_region_array_destroy(GenomeRegionArray *dest)

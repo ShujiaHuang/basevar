@@ -6,14 +6,21 @@ Date: 2019-06-03 00:28:50
 from basevar.io.htslibWrapper cimport Samfile
 from basevar.caller.batch cimport BatchGenerator
 
-cdef list get_sample_names(list bamfiles, bint filename_has_samplename)
-cdef list load_bamdata(dict bamfiles, list samples, bytes chrom, long int start, long int end,
-                       char* refseq, options)
+from basevar.utils cimport BaseTypeCmdOptions
+from basevar.datatype.strarray cimport StringArray
+from basevar.datatype.genomeregion cimport GenomeRegion
+
+cdef StringArray get_sample_names(StringArray bamfiles, bint filename_has_samplename)
+
+cdef list load_bamdata(const StringArray *bamfiles,
+                       const StringArray *samples,
+                       const GenomeRegion region,
+                       BaseTypeCmdOptions options)
+
 cdef bint load_data_from_bamfile(Samfile bam_reader,
-                                 bytes sample_id,
-                                 bytes chrom,
-                                 long int start, # 1-base
-                                 long int end,   # 1-base
+                                 char *sample_id,
+                                 GenomeRegion region, # 1-base in GenomeRegion
                                  BatchGenerator sample_batch_buffers,
-                                 int sample_index,
+                                 unsigned long sample_index,
                                  options)
+

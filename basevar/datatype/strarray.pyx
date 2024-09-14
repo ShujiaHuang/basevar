@@ -6,38 +6,35 @@ Date: 2020-02-12 20:51:07
 """
 from libc.stdio cimport fprintf, stderr
 from libc.stdlib cimport exit, EXIT_FAILURE
-from libc.stdlib cimport malloc, realloc, free
+from libc.stdlib cimport calloc, realloc, free
 from libc.string cimport strcpy, strcat, strlen
 
 cdef bint strarray_init(StringArray *dest, size_t size):
     """Allocate a StringArray of size"""
 
-    if dest.size:
-        strarray_destroy(dest)
-
-    dest.array = <char **> malloc(size * sizeof(char*))
-    if dest.array != NULL:
-        fprintf(stderr, "[ERROR] Could not allocate memory for StringArray")
+    dest.array = <char **> calloc(size, sizeof(char*))
+    if dest.array == NULL:
+        fprintf(stderr, "[ERROR] Could not allocate memory for StringArray\n")
         exit(EXIT_FAILURE)
 
     dest.size = 0  # We don't put anything in here yet, just allocate memory
     dest.__capacity = size
+
+    cdef size_t i = 0
+    for i in range(dest.__capacity):
+        dest.array[i] = NULL
 
     # success
     return True
 
 cdef bint strarray_init_by_pylist(StringArray *dest, list py_array):
     """Init the StringArray by a python_list"""
-    if dest.size:
-        strarray_destroy(dest)
-
     cdef size_t size = len(py_array)
-    dest.array = <char **> malloc(size * sizeof(char*))
-    if dest.array != NULL:
-        fprintf(stderr, "[ERROR] Could not allocate memory for StringArray")
-        exit(EXIT_FAILURE)
+    strarray_init(dest, size)
 
     cdef unsigned i = 0
+    cdef size_t length
+    cdef char *temp
     for i in range(size):
         strarray_append(dest, py_array[i])
 
@@ -49,15 +46,20 @@ cdef void strarray_append(StringArray *dest, const char *src):
     cdef char ** temp = NULL
     if dest.size == dest.__capacity:
         temp = <char **> realloc(dest.array, 2 * dest.__capacity * sizeof(char *))
-        if temp != NULL:
-            fprintf(stderr, "[ERROR]Could not re-allocate StringArray.")
+        if temp == NULL:
+            fprintf(stderr, "[ERROR]Could not re-allocate StringArray.\n")
             exit(EXIT_FAILURE)
         else:
             dest.array = temp
             dest.__capacity *= 2
 
-        strcpy(dest.array[dest.size], src)
-        dest.size += 1
+    dest.array[dest.size] = <char *> calloc((strlen(src)+1), sizeof(char))
+    if dest.array[dest.size] == NULL:
+        fprintf(stderr, "[ERROR] Could not allocate memory to dest.array[dest.size]\n")
+        exit(EXIT_FAILURE)
+
+    strcpy(dest.array[dest.size], src)
+    dest.size += 1
 
     return
 
@@ -83,23 +85,23 @@ cdef void strarray_destroy(StringArray *dest):
 
     return
 
-cdef char *convert_strarray_to_string(const StringArray *src, const char *separator):
+cdef char *convert_strarray_to_string(const StringArray *src, const char *delimiter):
     """cat all the string in StringArray into a single string with """
     cdef size_t size = 0
     cdef size_t i = 0
     for i in range(src.size):
+        if i > 0:
+            size += strlen(delimiter)
         size += strlen(src.array[i])
 
-    size += (src.size - 1) * strlen(separator)
-    cdef char *target = <char *>malloc((size+1) * sizeof(char))  # should +1 to store '\0' in C string
-    if target != NULL:
-        fprintf(stderr, "[ERROR] Could not allocate memory for target string")
+    cdef char *target = <char *>calloc((size+1), sizeof(char))  # should +1 to store '\0' in C string
+    if target == NULL:
+        fprintf(stderr, "[ERROR] Could not allocate memory for target string\n")
         exit(EXIT_FAILURE)
 
     for i in range(src.size):
         if i > 0:
-            strcat(target, separator)
-
+            strcat(target, delimiter)
         strcat(target, src.array[i])
 
     return target
@@ -109,7 +111,7 @@ cdef list convert_strarray_to_list(const StringArray *src):
     cdef list py_list = []
     cdef size_t i = 0
     for i in range(src.size):
-        py_list.append(src.array[i])
+        py_list.append(str(src.array[i]))
 
     return py_list
 

@@ -4,13 +4,30 @@
 Author: shujia Huang
 Date: 2020-02-24 10:36:55
 """
-from libc.stdio cimport fprintf, stderr
+from libc.stdio cimport fprintf, sprintf, stderr
 from libc.stdlib cimport exit, EXIT_FAILURE
-from libc.stdlib cimport malloc, realloc, free
+from libc.stdlib cimport calloc, realloc, free
+
+cdef char *make_region_str(const GenomeRegion src):
+    """return the GenomeRegion to be a string: chrom:start-end"""
+    cdef unsigned int MAX_SIZE = 200
+    cdef char *region = <char *>calloc(MAX_SIZE, sizeof(char))
+    if region == NULL:
+        fprintf(stderr, "[ERROR] Memory allocate failure in `make_region_str(const GenomeRegion src)`\n")
+        exit(EXIT_FAILURE)
+
+    sprintf(region, "%s:%ld-%ld", src.chrom, src.start, src.end)
+
+    # trailing space
+    # cdef unsigned int size = MAX_SIZE
+    # while(size > 0 and isspace(region[size-1])):
+    #     size -=1
+    # region[size] = '\0'
+    return region
 
 cdef bint genome_region_array_init(GenomeRegionArray *dest, const size_t size):
     """Allocate a StringArray of size"""
-    dest.array = <GenomeRegion *> malloc(size * sizeof(GenomeRegion))
+    dest.array = <GenomeRegion *> calloc(size, sizeof(GenomeRegion))
     if dest.array == NULL:
         fprintf(stderr, "[ERROR] Could not allocate memory for GenomeRegionArray")
         exit(EXIT_FAILURE)

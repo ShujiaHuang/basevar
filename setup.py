@@ -60,12 +60,19 @@ TB_INCLUDE_DIR = IO_INCLUDE_DIR + "/BGZF"
 
 CALLER_PRE = 'basevar'
 MOD_NAMES = [
+    CALLER_PRE + '.runner',
     CALLER_PRE + '.utils',
+
+    CALLER_PRE + '.datatype.strarray',
+    CALLER_PRE + '.datatype.genomeregion',
+    CALLER_PRE + '.datatype.dynamicstring',
+
     CALLER_PRE + '.io.libcutils',
     CALLER_PRE + '.io.openfile',
     CALLER_PRE + '.io.fasta',
     CALLER_PRE + '.io.bam',
     CALLER_PRE + '.io.read',
+
     CALLER_PRE + '.caller.basetype',
     CALLER_PRE + '.caller.batch',
     CALLER_PRE + '.caller.batchcaller',

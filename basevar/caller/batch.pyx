@@ -3,12 +3,18 @@
 Author: Shujia Huang
 Date: 2019-06-05 10:59:21
 """
-import sys
+from libc.stdio cimport fprintf, stderr, stdout
+from libc.stdlib cimport exit, EXIT_FAILURE
+from libc.stdlib cimport calloc, realloc, free
+from libc.string cimport strcpy, strcmp, strlen
 
-from basevar.log import logger
+from basevar.utils cimport c_min, c_max
 from basevar.io.read cimport cAlignedRead
 from basevar.io.htslibWrapper cimport Read_IsQCFail
 from basevar.io.htslibWrapper cimport Read_IsReverse
+from basevar.datatype.genomeregion cimport GenomeRegion
+from basevar.datatype.dynamicstring cimport dstring, dstring_init, dstring_append, \
+    dstring_append_char, dstring_append_long, dstring_append_int
 
 cdef int SIN = 0  # Just a single base
 cdef int INS = 1
@@ -25,12 +31,17 @@ cdef int LOW_MAP_QUAL = 6
 
 # A class to store batch information.
 cdef class BatchInfo:
-    def __cinit__(self, bytes chrid, long int position=0, bytes ref_base=b'N', int size=0):
+    def __cinit__(self, char *chrid, long int position, char *ref_base, int size):
         self.size = size  # default size is as the same as capacity
         self.__capacity = size
-        self.chrid = chrid
+
+        self.chrid = <char *>calloc(strlen(chrid)+1, sizeof(char))
+        strcpy(self.chrid, chrid)
+
         self.position = position
-        self.ref_base = ref_base
+
+        self.ref_base = <char *>calloc(strlen(ref_base)+1, sizeof(char))
+        strcpy(self.ref_base, ref_base)
 
         self.depth = 0
         self.strands = <char*> (calloc(self.__capacity, sizeof(char)))
@@ -40,93 +51,103 @@ cdef class BatchInfo:
         self.read_pos_rank = <int*> (calloc(self.__capacity, sizeof(int)))
         self.is_empty = <int*> (calloc(self.__capacity, sizeof(int)))
 
-        # check initialization
-        assert self.sample_bases != NULL, "Could not allocate memory for self.sample_bases in BatchInfo."
-        assert self.sample_base_quals != NULL, "Could not allocate memory for self.sample_base_quals in BatchInfo."
-        assert self.read_pos_rank != NULL, "Could not allocate memory for self.read_pos_rank in BaseInfo."
-        assert self.mapqs != NULL, "Could not allocate memory for self.mapqs in BaseInfo."
-        assert self.strands != NULL, "Could not allocate memory for self.strands in BatchInfo."
-        assert self.is_empty != NULL, "Could not allocate memory for self.is_empty in BaseInfo."
+        if (self.strands == NULL) or (self.sample_bases == NULL) or (self.sample_base_quals == NULL) \
+                or (self.mapqs == NULL) or (self.read_pos_rank == NULL) or (self.is_empty == NULL):
+            fprintf(stderr, "[ERROR] Could not allocate memory for self.samples_info in BatchInfo.\n")
+            exit(EXIT_FAILURE)
 
+        self.set_empty()
+
+    cdef void set_size(self, size_t size):
+        """call this function to adjust the self.size, if the real size is not equal to capacity"""
+        if size > self.__capacity:
+            fprintf(stderr, "[ERROR] The size (%zu) is larger than the capacity(%zu) in ``BatchInfo``.", size,
+                    self.__capacity)
+            exit(EXIT_FAILURE)
+
+        self.size = size
+        return
+
+    cdef void set_empty(self):
         # initialization and set empty mark for all the element, 1=>empty, 0=> not empty
         cdef int i
         for i in range(self.__capacity):
             self.is_empty[i] = 1
             self.mapqs[i] = 0
             self.strands[i] = '.'
-            self.sample_bases[i] = 'N'
+
+            self.sample_bases[i] = <char*>calloc(2, sizeof(char))
+            strcpy(self.sample_bases[i], "N")
+
             self.sample_base_quals[i] = 0
             self.read_pos_rank[i] = 0
 
-    def __str__(self):
-        """
-        __str__ is called when you do str(BatchInfo) or print BatchInfo, and will return a short string, which
-        describing the BatchInfo.
-        """
-        return self.get_str()
-
-    cdef void set_size(self, int size):
-        """call this function to adjust the self.size, if the real size is not equal to capacity"""
-        if size > self.__capacity:
-            logger.error("The size (%d) is larger than the capacity(%d) in ``BatchInfo``." % (
-                size, self.__capacity))
-            sys.exit(1)
-
-        self.size = size
-        return
-
-    cdef void set_empty(self):
         self.depth = 0
-
-        cdef int i
-        for i in range(self.__capacity):
-            self.is_empty[i] = 1
-            self.mapqs[i] = 0
-            self.strands[i] = '.'
-            self.sample_bases[i] = 'N'
-            self.sample_base_quals[i] = 0
-            self.read_pos_rank[i] = 0
-
         return
 
-    cdef basestring get_str(self):
+    cdef dstring get_str(self):
 
-        cdef list sample_bases = []
-        cdef list sample_base_quals = []
-        cdef list read_pos_rank = []
-        cdef list mapqs = []
-        cdef list strands = []
+        cdef dstring ds
+        dstring_init(&ds, 128)
+        fprintf(stdout, ">>>>>>>>>>>> %d, %d, %s\n", ds.size, ds.__capacity, ds.s)
 
-        cdef int i = 0
+        dstring_append(&ds, self.chrid)
+        dstring_append_char(&ds, '\t')
+        dstring_append_long(&ds, self.position)
+        fprintf(stdout, "*******: %d, %d, %s\n", ds.size, ds.__capacity, ds.s)
+        dstring_append_char(&ds, '\t')
+        dstring_append(&ds, self.ref_base)
+        dstring_append_char(&ds, '\t')
+        dstring_append_long(&ds, self.depth)
+        dstring_append_char(&ds, '\t')
+
+        cdef unsigned i = 0
         if self.depth > 0:
+
             for i in range(self.size):
-                sample_bases.append(self.sample_bases[i])  # Note: sample_bases must all be upper
-                sample_base_quals.append(str(self.sample_base_quals[i]))
-                read_pos_rank.append(str(self.read_pos_rank[i]))
-                strands.append(chr(self.strands[i]))
-                mapqs.append(str(self.mapqs[i]))
+                if i > 0:
+                    dstring_append_char(&ds, ',')
+                dstring_append_int(&ds, self.mapqs[i])
+            dstring_append_char(&ds, '\t')
 
-            return "\t".join([self.chrid,
-                              str(self.position),
-                              self.ref_base,
-                              str(self.depth),
-                              ",".join(mapqs),
-                              ",".join(sample_bases),
-                              ",".join(sample_base_quals),
-                              ",".join(read_pos_rank),
-                              ",".join(strands)])
+            for i in range(self.size):
+                if i > 0:
+                    dstring_append_char(&ds, ',')
+                dstring_append(&ds, self.sample_bases[i]) # Must all be upper
+            dstring_append_char(&ds, '\t')
+
+            for i in range(self.size):
+                if i > 0:
+                    dstring_append_char(&ds, ',')
+                dstring_append_int(&ds, self.sample_base_quals[i])
+            dstring_append_char(&ds, '\t')
+
+            for i in range(self.size):
+                if i > 0:
+                    dstring_append_char(&ds, ',')
+                dstring_append_int(&ds, self.read_pos_rank[i])
+            dstring_append_char(&ds, '\t')
+
+            for i in range(self.size):
+                if i > 0:
+                    dstring_append_char(&ds, ',')
+                dstring_append_char(&ds, self.strands[i])
         else:
-            return "\t".join(map(str, [self.chrid, self.position, self.ref_base, self.depth, ".\t.\t.\t.\t."]))
+            dstring_append(&ds, ".\t.\t.\t.\t.")
 
-    cdef void update_info_by_index(self, int index, bytes _target_chrom, long int _target_position, int mapq,
+        return ds
+
+    cdef void update_info_by_index(self, int index, char *_target_chrom, unsigned long _target_position, int mapq,
                                    char map_strand, char *read_base, int base_qual, int read_pos_rank):
         """Update information"""
-        assert _target_chrom == self.chrid and _target_position == self.position, \
-            "Error! Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
+        # fprintf (stdout, "---- before update: %s, %ld, %d, %s\n", self.chrid, self.position, self.depth, read_base)
+        if strcmp(self.chrid, _target_chrom) != 0 or (_target_position != self.position):
+            fprintf(stderr, "[ERROR] Chromosome(%s, %s) or position(%ld, %ld) not exactly match.\n",
                 self.chrid, _target_chrom, self.position, _target_position)
 
         if read_base[0] != '-' and read_base[0] != '+':
             self.depth += 1
+
 
         if self.is_empty[index]:
             self.is_empty[index] = 0  # not empty
@@ -136,19 +157,22 @@ cdef class BatchInfo:
         self.sample_base_quals[index] = base_qual
         self.read_pos_rank[index] = read_pos_rank
 
-        cdef int base_size = strlen(read_base)
-        self.sample_bases[index] = <char*> (calloc(base_size, sizeof(char)))
+        free(self.sample_bases[index])
+        self.sample_bases[index] = <char*> (calloc(strlen(read_base)+1, sizeof(char)))
         strcpy(self.sample_bases[index], read_base)
 
+        fprintf (stdout, "---- After update: %s, %ld, %d, %s, %d, %s\n", self.chrid, self.position, self.depth, read_base, strlen(read_base), self.sample_bases[index])
         return
 
     cdef void clear(self):
-        # free memory
         self.__dealloc__()
         return
 
     def __dealloc__(self):
         """Free memory"""
+        free(self.chrid)
+        free(self.ref_base)
+
         self.depth = 0
         if self.strands != NULL:
             free(self.strands)
@@ -170,7 +194,7 @@ cdef class BatchInfo:
 # compress the ``BatchInfo`` of ``BatchGenerator``
 cdef class PositionBatchCigarArray:
     """A class for Element record of each position."""
-    def __cinit__(self, bytes chrid, long int position, bytes ref_base, int array_size):
+    def __cinit__(self, char *chrid, long int position, char *ref_base, unsigned long array_size):
         """Allocate an array of size 'size', with initial values 'init'.
         """
         # base information at specific position!
@@ -178,9 +202,10 @@ cdef class PositionBatchCigarArray:
         self.position = position
         self.ref_base = ref_base
 
-        self.array = <BatchCigar*>(malloc(array_size * sizeof(BatchCigar)))
+        self.array = <BatchCigar*>calloc(array_size, sizeof(BatchCigar))
         if self.array == NULL:
-            raise StandardError, "Could not allocate memory for PositionBatchCigarArray"
+            fprintf(stderr, "[ERROR] Could not allocate PositionBatchCigarArray!!\n")
+            exit(EXIT_FAILURE)
 
         self.__size = 0  # We don't put anything in here yet
         self.__capacity = array_size
@@ -192,7 +217,7 @@ cdef class PositionBatchCigarArray:
         Free memory
         """
         cdef BatchCigar batch_cigar
-        cdef int i = 0
+        cdef unsigned i = 0
         if self.array != NULL:
             for i in range(self.__size):
                 batch_cigar = self.array[i]
@@ -204,24 +229,25 @@ cdef class PositionBatchCigarArray:
 
             free(self.array)
 
-    cdef int size(self):
+    cdef unsigned long size(self):
         return self.__size
 
     cdef void append(self, BatchInfo value):
 
         if value.chrid != self.chrid or value.position != self.position:
-            raise StandardError, (
-                    "Error in ``PositionBatchCigarArray`` when call append()! "
-                    "Chromosome(%s, %s) or position(%s, %s) not exactly match " % (
-                        self.chrid, value.chrid, self.position, value.position)
-            )
+            fprintf(stderr,
+                    "[ERROR] Error in ``PositionBatchCigarArray`` when call append()! "
+                    "Chromosome(%s, %s) or position(%ld, %ld) not exactly match \n",
+                    self.chrid, value.chrid, self.position, value.position)
+            exit(EXIT_FAILURE)
 
         cdef BatchCigar *temp = NULL
         if self.__size == self.__capacity:
             temp = <BatchCigar*> (realloc(self.array, 2 * sizeof(BatchCigar) * self.__capacity))
 
             if temp == NULL:
-                raise StandardError, "Could not re-allocate PositionBatchCigarArray!!"
+                fprintf(stderr, "[ERROR] Could not re-allocate PositionBatchCigarArray!!\n")
+                exit(EXIT_FAILURE)
             else:
                 self.array = temp
                 self.__capacity *= 2
@@ -330,10 +356,10 @@ cdef class PositionBatchCigarArray:
                     m5 += batch_cigar.strands_cigar.data[j].n
 
         if self.position % 100000 == 0:
-            logger.debug("Position %s:%s has %d base array, %d qual array, %d mapqs array, "
-                         "%d pos-rank array, %d strands array." % (
-                             self.chrid, self.position, total_base_array_size, total_qual_array_size,
-                             total_mapqs_array_size, total_pos_rank_array_size, total_strand_array_size))
+            fprintf(stdout,
+                    "[INFO] Position %s:%ld has %d base array, %d qual array, %d mapqs array, "
+                    "%d pos-rank array, %d strands array.\n", self.chrid, self.position, total_base_array_size,
+                    total_qual_array_size, total_mapqs_array_size, total_pos_rank_array_size, total_strand_array_size)
 
         return batch_info
 
@@ -442,13 +468,13 @@ cdef class PositionBatchCigarArray:
 
 cdef class BatchGenerator(object):
     """
-    A class to generate batch informattion from a bunch of reads.
+    A class to generate batch information from a bunch of reads.
     """
-    def __cinit__(self, bytes ref_name, long int reg_start, long int reg_end, FastaFile ref_fa, int sample_size,
-                  options):
+    def __cinit__(self, const GenomeRegion region,  # The coordinate system of ``region`` is 1-base
+                  FastaFile ref_fa,
+                  int sample_size,
+                  BaseTypeCmdOptions options):
         """
-        ``refresh``: mean the data in ``batch_heap`` will be changed.
-
         Constructor. Create a storage place for batchfile, and store the values of some flags which
         are used in the pysam CIGAR information.
         """
@@ -460,27 +486,25 @@ cdef class BatchGenerator(object):
         self.CIGAR_S = 4  # Soft clipping. Sequence is present in read
         self.CIGAR_H = 5  # Hard clipping. Sequence is not present in read
         self.CIGAR_P = 6  # Padding. Used for padded alignment
-        self.CIGAR_EQ = 7  # Alignment match; sequence match
+        self.CIGAR_EQ = 7 # Alignment match; sequence match
         self.CIGAR_X = 8  # Alignment match; sequence mismatch
 
+        self.region = region  # 1-base system
         self.sample_size = sample_size
         self.ref_fa = ref_fa
-        self.ref_name = ref_name
-        self.reg_start = reg_start  # 1-base
-        self.reg_end = reg_end  # 1-base
 
-        self.ref_seq_start = max(0, self.reg_start - 200)
-        self.ref_seq_end = min(self.reg_end + 200, self.ref_fa.references[self.ref_name].seq_length - 1)
+        self.ref_seq_start = c_max(0, self.region.start-200)
+        self.ref_seq_end = c_min(self.region.end+200, self.ref_fa.references[self.region.chrom].seq_length-1)
 
         # initialization the BatchInfo for each position in `ref_name:reg_start-reg_end`
-        cdef long int _pos  # `_pos` is 1-base system in the follow code.
-        self.batch_heap = [BatchInfo(ref_name, _pos, self.ref_fa.get_character(self.ref_name, _pos-1), sample_size)
-                           for _pos in range(reg_start, reg_end+1)]
-        self.start_pos_in_batch_heap = reg_start  # 1-base, represent the first element in `batch_heap`
+        cdef unsigned long _pos  # `_pos` is 1-base system in the follow code.
+        self.batch_heap = [BatchInfo(self.region.chrom, _pos, self.ref_fa.get_character(self.region.chrom, _pos-1), sample_size)
+                           for _pos in range(self.region.start, self.region.end+1)]
+        self.start_pos_in_batch_heap = self.region.start  # 1-base, represent the first element in `batch_heap`
         self.options = options
 
         # the same definition with class ``BamReadBuffer`` in read.pyx
-        self.filtered_read_counts_by_type = <int*> (calloc(7, sizeof(int)))
+        self.filtered_read_counts_by_type = <int *>calloc(7, sizeof(int))
         if options.filter_duplicates == 0:
             self.filtered_read_counts_by_type[DUPLICATE] = -1
 
@@ -499,33 +523,30 @@ cdef class BatchGenerator(object):
         if self.filtered_read_counts_by_type != NULL:
             free(self.filtered_read_counts_by_type)
 
-    cdef void create_batch_in_region(self, tuple region, cAlignedRead ** read_start, cAlignedRead ** read_end,
+    cdef void create_batch_in_region(self, const GenomeRegion region, cAlignedRead **read_start, cAlignedRead **read_end,
                                      int sample_index):  # The column index for the array in `batch_heap` represent a sample
         """Fetch batch information in a specific region."""
-        cdef bytes chrom = region[0]
-        cdef long int start = region[1]  # 1-base coordinate system
-        cdef long int end = region[2]  # 1-base coordinate system
+        if strcmp(self.region.chrom, region.chrom) != 0:
+            fprintf(stderr, "[ERROR] Error match chromosome (%s != %s)\n", self.region.chrom, region.chrom)
+            exit(EXIT_FAILURE)
 
-        if chrom != self.ref_name:
-            logger.error("Error match chromosome (%s != %s)" % (chrom, self.ref_name))
-            sys.exit(1)
+        if self.start_pos_in_batch_heap < region.start or self.start_pos_in_batch_heap > region.end:
+            fprintf(stderr, "[ERROR] %ld is not in region %s:%ld-%ld\n",
+                self.start_pos_in_batch_heap, region.chrom, region.start, region.end)
+            exit(EXIT_FAILURE)
 
-        if self.start_pos_in_batch_heap < start or self.start_pos_in_batch_heap > end:
-            logger.error("%s is not in region %s:%s-%s" % (
-                self.start_pos_in_batch_heap, chrom, start, end))
-            sys.exit(1)
+        if region.start < self.ref_seq_start:
+            fprintf(stderr, "[ERROR] Start position (%ld) is outside the reference region (%s:%ld-%ld)\n",
+                region.start, self.region.chrom, self.ref_seq_start, self.ref_seq_end)
+            exit(EXIT_FAILURE)
 
-        if start < self.ref_seq_start:
-            logger.error("Start position (%s) is outside the reference region (%s)" % (
-                start, "%s:%s-%s" % (self.ref_name, self.ref_seq_start, self.ref_seq_end)))
-            sys.exit(1)
-
-        if end > self.ref_seq_end:
-            logger.error("End position (%s) is outside the reference region (%s)" % (
-                end, "%s:%s-%s" % (self.ref_name, self.ref_seq_start, self.ref_seq_end)))
-            sys.exit(1)
+        if region.end > self.ref_seq_end:
+            fprintf(stderr, "[ERROR] End position (%ld) is outside the reference region (%s:%ld-%ld)\n",
+                region.end, self.region.chrom, self.ref_seq_start, self.ref_seq_end)
+            exit(EXIT_FAILURE)
 
         cdef int read_num = 0
+        cdef long int read_start_pos  # delete
         while read_start != read_end:
 
             if Read_IsQCFail(read_start[0]):
@@ -533,19 +554,21 @@ cdef class BatchGenerator(object):
                 continue
 
             # still behind the region, do nothing but continue
-            if read_start[0].end < start:
+            if read_start[0].end < region.start:
                 read_start += 1
                 continue
 
             # Break the loop when mapping start position is outside the region.
-            if read_start[0].pos > end:
+            if read_start[0].pos > region.end:
                 break
 
             # get batch information here!
-            self.get_batch_from_single_read_in_region(read_start[0], start, end, sample_index)
-
+            self.get_batch_from_single_read_in_region(read_start[0], region.start, region.end, sample_index)
+            read_start_pos = read_start[0].pos
             read_num += 1  # how many reads in this regions
+            fprintf(stdout, "Read:[%ld, %ld], %ld,  read_num: %d\n", region.start, region.end, read_start_pos, read_num)
             read_start += 1  # move to the next read
+
 
         return
 
@@ -606,7 +629,7 @@ cdef class BatchGenerator(object):
 
                     if batch_info.is_empty[sample_index]:
                         # Just record the information of first read, so do not update if it's not empty
-                        batch_info.update_info_by_index(sample_index, self.ref_name, ref_pos, mapq, map_strand,
+                        batch_info.update_info_by_index(sample_index, self.region.chrom, ref_pos, mapq, map_strand,
                                                         "+%s" % insert_seq, 0, read_offset)
 
                 read_offset += length
@@ -621,7 +644,7 @@ cdef class BatchGenerator(object):
                     ref_offset += length
                     continue
 
-                deleted_seq = self.ref_fa.get_sequence(self.ref_name, read_start_pos + ref_offset,
+                deleted_seq = self.ref_fa.get_sequence(self.region.chrom, read_start_pos + ref_offset,
                                                        read_start_pos + ref_offset + length)
                 ref_pos = read_start_pos + ref_offset - 1
                 ref_pos += 1  # `ref_pos` is 1-base
@@ -633,7 +656,7 @@ cdef class BatchGenerator(object):
 
                     if batch_info.is_empty[sample_index]:
                         # Just record the information of first read, so do not update if it's not empty
-                        batch_info.update_info_by_index(sample_index, self.ref_name, ref_pos, mapq, map_strand,
+                        batch_info.update_info_by_index(sample_index, self.region.chrom, ref_pos, mapq, map_strand,
                                                         "-%s" % deleted_seq, 0, read_offset)
 
                 ref_offset += length
@@ -674,8 +697,8 @@ cdef class BatchGenerator(object):
         return
 
     cdef void _get_matchbase_from_read_segment(self, int sample_index,
-                                               char *read_seq,
-                                               char *read_qual,
+                                               const char *read_seq,
+                                               const char *read_qual,
                                                int mapq,
                                                char map_strand,
                                                int read_start,
@@ -729,9 +752,10 @@ cdef class BatchGenerator(object):
             pos_index = ref_pos - self.start_pos_in_batch_heap
             batch_info = self.batch_heap[pos_index]
 
+            # if batch_info.is_empty[sample_index]:
             if batch_info.is_empty[sample_index]:
                 # Just record the information of first read, so do not update if it's not empty
-                batch_info.update_info_by_index(sample_index, self.ref_name, ref_pos, mapq, map_strand,
+                batch_info.update_info_by_index(sample_index, self.region.chrom, ref_pos, mapq, map_strand,
                                                 base_char, base_qual, base_index)
 
         return

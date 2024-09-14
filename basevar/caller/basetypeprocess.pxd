@@ -3,21 +3,22 @@
 Author: Shujia Huang
 Date: 2019-06-10 09:19:19
 """
+from basevar.utils cimport BaseTypeCmdOptions
 from basevar.io.fasta cimport FastaFile
+from basevar.datatype.strarray cimport StringArray
+from basevar.datatype.genomeregion cimport GenomeRegionArray
 
 cdef class BaseVarProcess:
-    cdef list samples
-    cdef list align_files
+    cdef StringArray align_files
+    cdef StringArray samples
 
     cdef FastaFile fa_file_hd
-    cdef list regions
-    cdef dict dict_regions
-    cdef dict popgroup
+    cdef GenomeRegionArray regions
+    cdef dict pop_group
 
+    cdef char *cache_dir
     cdef basestring out_vcf_file
     cdef basestring out_cvg_file
-    cdef basestring cache_dir
 
-    cdef object options
-    cdef void run_variant_discovery_in_regions(self)
+    cdef BaseTypeCmdOptions options
     cdef void run_variant_discovery_by_batchfiles(self)

@@ -4,11 +4,10 @@ Author: Shujia Huang
 Date: 2019-05-29
 """
 cdef class FastaIndex:
-    cdef long int n_targets
+    cdef unsigned long n_targets
     cdef dict references
     cpdef dict target_name
     cpdef dict target_length
-
 
 cdef class FastaFile:
     cdef bytes filename
@@ -22,6 +21,7 @@ cdef class FastaFile:
     cdef long int cache_end_pos
 
     cpdef void close(self)
-    cdef bytes get_character(self, bytes seq_name, long int pos)
+    # cdef bytes get_character(self, bytes seq_name, long int pos)
+    cdef char *get_character(self, bytes seq_name, long int pos)
     cdef bytes get_sequence(self, bytes seq_name, long int begin_pos, long int end_pos)
     cdef void set_cache_sequence(self, bytes seq_name, long int begin_pos, long int end_pos)

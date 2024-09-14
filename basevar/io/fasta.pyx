@@ -4,13 +4,10 @@ FastaFile is a utility class used for reading the Fasta file format,
 and facilitating access to reference sequences.
 """
 import sys
+from libc.stdlib cimport atol
 
 from basevar.log import logger
 from basevar.io.openfile import Open
-
-
-cdef extern from "stdlib.h":
-    long int atoll(char*)
 
 
 cdef class SequenceTuple:
@@ -71,8 +68,7 @@ cdef class FastaIndex:
                     if len(ids) >= 4 and ids[2] == "ref":
                         seq_name = ids[3]
 
-                self.references[seq_name] = SequenceTuple(col[0], atoll(col[1]), atoll(col[2]),
-                                                          atoll(col[3]), atoll(col[4]))
+                self.references[seq_name] = SequenceTuple(col[0], atol(col[1]), atol(col[2]), atol(col[3]), atol(col[4]))
 
                 self.target_name[self.n_targets] = self.references[seq_name].seq_name
                 self.target_length[self.n_targets] = self.references[seq_name].seq_length
@@ -120,7 +116,7 @@ cdef class FastaFile:
         """
         self.the_file.close()
 
-    cdef bytes get_character(self, bytes seq_name, long int pos):
+    cdef char *get_character(self, bytes seq_name, long int pos):
         """
         Returns the character at the specified (0-indexed means 0-base system) position
         of the specified sequence.
@@ -209,7 +205,7 @@ cdef class FastaFile:
         cdef long int seq_length = seq_tuple.seq_length
 
         # make 0-base system
-        begin_pos = max(0, begin_pos)
+        begin_pos = max(0, begin_pos-1)
         end_pos = min(seq_length - 1, end_pos)
 
         cdef long int seq_start_pos = seq_tuple.start_position

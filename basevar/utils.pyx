@@ -6,8 +6,9 @@ import time
 import cProfile
 import pstats
 
-from basevar.log import logger
+from basevar.datatype.strarray cimport StringArray
 
+from basevar.log import logger
 from basevar.io.BGZF.tabix import tabix_index
 from basevar.io.fasta cimport FastaFile
 from basevar.io.openfile import Open, FileForQueueing
@@ -118,8 +119,8 @@ def vcf_header_define(ref_file_path, info=None, samples=None):
         samples = []
 
     fa = FastaFile(ref_file_path, ref_file_path + ".fai")
-    fa_name = os.path.basename(fa.filename)
-    contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" % (c, s, fa_name) for c, s in zip(fa.refnames, fa.lengths)]
+    contigs = ["##contig=<ID=%s,length=%d,assembly=%s>" %
+               (c, s, os.path.basename(fa.filename)) for c, s in zip(fa.refnames, fa.lengths)]
     header = [
         '##fileformat=VCFv4.2',
         '##FILTER=<ID=LowQual,Description="Low quality (QUAL < 60)">',
@@ -607,7 +608,7 @@ def merge_batch_files(temp_file_names, final_file_name, output_isbgz=False, is_d
 
     return
 
-def load_popgroup_info(samples, in_popgroup_file):
+cdef dict load_popgroup_info(const StringArray *samples, in_popgroup_file):
     """loading population group"""
 
     tmpdict = {}
@@ -633,8 +634,8 @@ def load_popgroup_info(samples, in_popgroup_file):
     cdef int i
     cdef basestring s
     # keep the sample's order
-    for i, s in enumerate(samples):
-
+    for i in range(samples.size):
+        s = str(samples.array[i])
         if s in tmpdict:
             if tmpdict[s] not in popgroup:
                 popgroup[tmpdict[s]] = []

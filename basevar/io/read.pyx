@@ -1,7 +1,11 @@
 # cython: profile=True
 """Fast cython implementation of some windowing functions.
 """
-from basevar.log import logger
+from libc.stdio cimport fprintf, stderr, stdout
+from libc.stdlib cimport exit, EXIT_FAILURE
+from libc.stdlib cimport calloc, realloc, free
+
+from basevar.utils cimport BaseTypeCmdOptions
 from basevar.io.htslibWrapper cimport cAlignedRead
 from basevar.io.htslibWrapper cimport destroy_read
 from basevar.io.htslibWrapper cimport compress_read
@@ -17,7 +21,6 @@ from basevar.io.htslibWrapper cimport Read_IsSecondaryAlignment
 from basevar.io.htslibWrapper cimport Read_SetQCFail
 from basevar.io.htslibWrapper cimport Read_IsCompressed
 
-
 cdef int LOW_QUAL_BASES = 0
 cdef int UNMAPPED_READ = 1
 cdef int MATE_UNMAPPED = 2
@@ -26,18 +29,8 @@ cdef int SMALL_INSERT = 4
 cdef int DUPLICATE = 5
 cdef int LOW_MAP_QUAL = 6
 
-
-cdef extern from "stdlib.h":
-    void *malloc(size_t)
-    void *calloc(size_t, size_t)
-    void *realloc(void *, size_t)
-    void free(void *)
-    void qsort(void*, size_t, size_t, int(*)(void*, void*))
-
-
 cdef extern from "math.h":
     int abs(int)
-
 
 # @cython.profile(False)
 # cdef inline int read_pos_comp(const void* x, const void* y) nogil:
@@ -68,11 +61,13 @@ cdef extern from "math.h":
 cdef class ReadArray:
     """Simple structure to wrap a raw C array, with some bounds checking.
     """
-    def __cinit__(self, int size):
+    def __cinit__(self, unsigned long size):
         """Allocate an array of size 'size', with initial values 'init'.
         """
-        self.array = <cAlignedRead**> (malloc(size * sizeof(cAlignedRead*)))
-        assert self.array != NULL, "Could not allocate memory for ReadArray"
+        self.array = <cAlignedRead **>calloc(size, sizeof(cAlignedRead*))
+        if self.array == NULL:
+            fprintf(stderr, "[ERROR] Could not allocate memory for ReadArray\n")
+            exit(EXIT_FAILURE)
 
         self.__size = 0  # We don't put anything in here yet, just allocate memory
         self.__capacity = size
@@ -81,24 +76,24 @@ cdef class ReadArray:
         self.window_end = NULL
 
         # Always initialise to NULL
-        cdef int index = 0
-        for index in range(size):
+        cdef unsigned index = 0
+        for index in range(self.__capacity):
             self.array[index] = NULL
 
     def __dealloc__(self):
         """
         Free memory
         """
-        cdef int index = 0
+        cdef unsigned index = 0
         if self.array != NULL:
-            for index in range(self.__size):
+            for index in range(self.__capacity):
                 if self.array[index] != NULL:
                     destroy_read(self.array[index])
                     self.array[index] = NULL
 
             free(self.array)
 
-    cdef int get_size(self):
+    cdef unsigned long get_size(self):
         """
         Return the size of the array
         """
@@ -111,9 +106,9 @@ cdef class ReadArray:
 
         if self.__size == self.__capacity:
             temp = <cAlignedRead**>(realloc(self.array, 2 * sizeof(cAlignedRead*) * self.__capacity))
-
             if temp == NULL:
-                raise StandardError, "Could not re-allocate ReadArray"
+                fprintf(stderr, "[ERROR] Could not re-allocate ReadArray\n")
+                exit(EXIT_FAILURE)
             else:
                 self.array = temp
                 self.__capacity *= 2
@@ -125,7 +120,7 @@ cdef class ReadArray:
         if read_length > self.__longest_read:
             self.__longest_read = read_length
 
-    cdef int count_reads_covering_region(self, int start, int end):
+    cdef unsigned long count_reads_covering_region(self, int start, int end):
         """
         Return the number of reads which overlap this region, where 'end' is not
         included, and 'start' is.
@@ -151,10 +146,11 @@ cdef class ReadArray:
             r_end = min(self.array + end_pos_of_reads, self.array + self.__size)
 
             if start_pos_of_reads > end_pos_of_reads:
-                logger.error("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
-                    start, end, start_pos_of_reads, end_pos_of_reads))
-                logger.error("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                fprintf(stderr, "[ERROR] Start pos = %d. End pos = %d. Read start pos = %d. end pos = %d\n",
+                        start, end, start_pos_of_reads, end_pos_of_reads)
+                fprintf(stderr, "[ERROR] There are %s reads here.\n", self.__size)
+                fprintf(stderr, "[ERROR] This should never happen. Read start pointer > read end pointer!!\n")
+                exit(EXIT_FAILURE)
 
             return r_end - r_start
 
@@ -184,10 +180,11 @@ cdef class ReadArray:
             self.window_end = min(self.array + end_pos_of_reads, self.array + self.__size)
 
             if start_pos_of_reads > end_pos_of_reads:
-                logger.info("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
-                start, end, start_pos_of_reads, end_pos_of_reads))
-                logger.info("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                fprintf(stderr, "[ERROR] Start pos = %d. End pos = %d. Read start pos = %d. end pos = %d\n",
+                        start, end, start_pos_of_reads, end_pos_of_reads)
+                fprintf(stderr, "[ERROR] There are %s reads here.\n", self.__size)
+                fprintf(stderr, "[ERROR] This should never happen. Read start pointer > read end pointer!!\n")
+                exit(EXIT_FAILURE)
 
     cdef void set_window_pointers_based_on_mate_pos(self, int start, int end):
         """
@@ -212,12 +209,13 @@ cdef class ReadArray:
             self.window_end = min(self.array + end_pos_of_reads, self.array + self.__size)
 
             if start_pos_of_reads > end_pos_of_reads:
-                logger.info("Start pos = %s. End pos = %s. Read start pos = %s. end pos = %s" % (
-                start, end, start_pos_of_reads, end_pos_of_reads))
-                logger.info("There are %s reads here." % (self.__size))
-                raise StandardError, "This should never happen. Read start pointer > read end pointer!!"
+                fprintf(stderr, "[ERROR] Start pos = %d. End pos = %d. Read start pos = %d. end pos = %d\n",
+                        start, end, start_pos_of_reads, end_pos_of_reads)
+                fprintf(stderr, "[ERROR] There are %s reads here.\n", self.__size)
+                fprintf(stderr, "[ERROR] This should never happen. Read start pointer > read end pointer!!\n")
+                exit(EXIT_FAILURE)
 
-    cdef int get_length_of_longest_read(self):
+    cdef unsigned get_length_of_longest_read(self):
         """Return the longest read size
         """
         return self.__longest_read
@@ -368,29 +366,25 @@ cdef class BamReadBuffer:
     Utility class for bufffering reads from a single BAM file, so we only make a single pass
     through the data in each BAM in the loop through windows.
     """
-    def __cinit__(self, char* chrom, long int start, long int end, options):
+    def __cinit__(self, const char *sample_id, const GenomeRegion region, BaseTypeCmdOptions options):
         """
         Constructor.
+
+        ``region``: 0-base in this GenomeRegion
 
         ``start``: 0-base
         ``end``: 0-base
         """
-        cdef int initial_size = max(100, ((end - start)/options.r_len))
+        cdef int initial_size = max(100, ((region.end - region.start)/options.r_len))
         self.is_sorted = True
 
         self.reads = ReadArray(initial_size)
         self.bad_reads = ReadArray(initial_size)
         self.broken_mates = ReadArray(initial_size)
         self.filtered_read_counts_by_type = <int*>(calloc(7, sizeof(int)))
-        self.chrom = chrom
-        self.start = start
-        self.end = end
-
-        # self.max_reads = options.max_reads
-        self.min_map_qual = options.mapq
-        self.trim_overlapping = options.trim_overlapping
-        self.trim_soft_clipped = options.trim_soft_clipped
-        self.verbosity = options.verbosity
+        self.sample = sample_id
+        self.region = region  # 0-base
+        self.options = options
 
         self.last_read = NULL
 
@@ -415,25 +409,28 @@ cdef class BamReadBuffer:
     cdef void log_filter_summary(self):
         """Useful debug information about which reads have been filtered out.
         """
-        if self.verbosity >= 3:
-            region = "%s:%s-%s" % (self.chrom, self.start+1, self.end+1)
-            logger.debug("Sample %s has %s good reads in %s" % (self.sample, self.reads.get_size(), region))
-            logger.debug("Sample %s has %s bad reads in %s" % (self.sample, self.bad_reads.get_size(), region))
-            logger.debug("Sample %s has %s broken mates %s" % (self.sample, self.broken_mates.get_size(), region))
-            logger.debug("|-- low map quality reads = %s" % (self.filtered_read_counts_by_type[LOW_MAP_QUAL]))
-            logger.debug("|-- low qual reads = %s" % (self.filtered_read_counts_by_type[LOW_QUAL_BASES]))
-            logger.debug("|-- un-mapped reads = %s" % (self.filtered_read_counts_by_type[UNMAPPED_READ]))
-            logger.debug("|-- reads with unmapped mates = %s" % (self.filtered_read_counts_by_type[MATE_UNMAPPED]))
-            logger.debug("|-- reads with distant mates = %s" % (self.filtered_read_counts_by_type[MATE_DISTANT]))
-            logger.debug("|-- reads pairs with small inserts = %s" % (self.filtered_read_counts_by_type[SMALL_INSERT]))
-            logger.debug("|__ duplicate reads = %s\n" % (self.filtered_read_counts_by_type[DUPLICATE]))
+        if self.options.verbosity >= 3:
+            fprintf(stdout, "[INFO] Sample %s has %s good reads in %s:%ld-%ld\n", self.sample, self.reads.get_size(),
+                    self.region.chrom, self.region.start+1, self.region.end+1)
+            fprintf(stdout, "[INFO] Sample %s has %s bad reads in %s:%ld-%ld\n", self.sample, self.bad_reads.get_size(),
+                    self.region.chrom, self.region.start+1, self.region.end+1)
+            fprintf(stdout, "[INFO] Sample %s has %s broken reads in %s:%ld-%ld\n", self.sample, self.broken_mates.get_size(),
+                    self.region.chrom, self.region.start+1, self.region.end+1)
+            fprintf(stdout, "[INFO] Sample %s has %s broken reads in %s:%ld-%ld\n", self.sample, self.broken_mates.get_size())
+            fprintf(stdout, "[INFO] |-- low map quality reads = %s\n", self.filtered_read_counts_by_type[LOW_MAP_QUAL])
+            fprintf(stdout, "[INFO] |-- low qual reads = %\n", self.filtered_read_counts_by_type[LOW_QUAL_BASES])
+            fprintf(stdout, "[INFO] |-- un-mapped reads = %s\n", self.filtered_read_counts_by_type[UNMAPPED_READ])
+            fprintf(stdout, "[INFO] |-- reads with unmapped mates = %s\n", self.filtered_read_counts_by_type[MATE_UNMAPPED])
+            fprintf(stdout, "[INFO] |-- reads with distant mates = %s\n", self.filtered_read_counts_by_type[MATE_DISTANT])
+            fprintf(stdout, "[INFO] |-- reads pairs with small inserts = %s\n", self.filtered_read_counts_by_type[SMALL_INSERT])
+            fprintf(stdout, "[INFO] |__ duplicate reads = %s\n", self.filtered_read_counts_by_type[DUPLICATE])
 
-            if self.trim_overlapping == 1:
-                logger.debug("Overlapping segments of read pairs were clipped")
+            if self.options.trim_overlapping == 1:
+                fprintf(stdout, "[DEBUG] Overlapping segments of read pairs were clipped\n")
             else:
-                logger.debug("Overlapping segments of read pairs were not clipped")
+                fprintf(stdout, "[DEBUG] Overlapping segments of read pairs were not clipped\n")
 
-            logger.debug("Overhanging bits of reads were not clipped")
+            fprintf(stdout, "[DEBUG] Overhanging bits of reads were not clipped\n")
 
     cdef void add_read_to_buffer(self, cAlignedRead *the_read):
         """Add a new read to the buffer, making sure to re-allocate memory when necessary.
@@ -450,15 +447,22 @@ cdef class BamReadBuffer:
 
             # TODO: Check that this works for duplicates when first read goes into bad reads pile...
             if self.last_read != NULL:
-                read_ok = check_and_trim_read(the_read, self.last_read, self.filtered_read_counts_by_type,
-                                              self.min_map_qual, self.trim_overlapping,
-                                              self.trim_soft_clipped)
+                read_ok = check_and_trim_read(the_read,
+                                              self.last_read,
+                                              self.filtered_read_counts_by_type,
+                                              self.options.mapq,
+                                              self.options.trim_overlapping,
+                                              self.options.trim_soft_clipped)
 
                 if self.last_read.pos > the_read.pos:
                     self.is_sorted = False
             else:
-                read_ok = check_and_trim_read(the_read, NULL, self.filtered_read_counts_by_type, self.min_map_qual,
-                                              self.trim_overlapping, self.trim_soft_clipped)
+                read_ok = check_and_trim_read(the_read,
+                                              NULL,
+                                              self.filtered_read_counts_by_type,
+                                              self.options.mapq,
+                                              self.options.trim_overlapping,
+                                              self.options.trim_soft_clipped)
 
             # ignore read which the same mapping position
             if self.reads.get_size() > 0 and self.last_read.pos == the_read.pos:
@@ -479,10 +483,10 @@ cdef class BamReadBuffer:
         Count and return the number of indels seen
         by the mapper in all good and bad reads.
         """
-        cdef cAlignedRead** start = self.reads.window_start
-        cdef cAlignedRead** end = self.reads.window_end
-        cdef cAlignedRead** b_start = self.bad_reads.window_start
-        cdef cAlignedRead** b_end = self.bad_reads.window_end
+        cdef cAlignedRead **start = self.reads.window_start
+        cdef cAlignedRead **end = self.reads.window_end
+        cdef cAlignedRead **b_start = self.bad_reads.window_start
+        cdef cAlignedRead **b_end = self.bad_reads.window_end
 
         cdef int n_gaps = 0
         cdef int i = 0
@@ -508,10 +512,10 @@ cdef class BamReadBuffer:
         Count and return the number of reads (Good and bad) that
         are members of improper pairs.
         """
-        cdef cAlignedRead** start = self.reads.window_start
-        cdef cAlignedRead** end = self.reads.window_end
-        cdef cAlignedRead** b_start = self.bad_reads.window_start
-        cdef cAlignedRead** b_end = self.bad_reads.window_end
+        cdef cAlignedRead **start = self.reads.window_start
+        cdef cAlignedRead **end = self.reads.window_end
+        cdef cAlignedRead **b_start = self.bad_reads.window_start
+        cdef cAlignedRead **b_end = self.bad_reads.window_end
 
         cdef int n_improper = 0
 
@@ -527,14 +531,14 @@ cdef class BamReadBuffer:
 
         return n_improper
 
-    cdef int count_reads_covering_region(self, long long int start, long long int end):
+    cdef int count_reads_covering_region(self, long int start, long int end):
         """
         Return the number of 'good' reads covering this region.
         """
         return self.reads.count_reads_covering_region(start, end)
 
-    cdef void set_window_pointers(self, long long int start, long long int end, long long int refstart,
-                                  long long int refend, char* refseq, int qual_bin_size):
+    cdef void set_window_pointers(self, long int start, long int end, long int refstart, long int refend,
+                                  char* refseq, int qual_bin_size):
         """
         Set the window_start and window_end pointers to point to the first
         and last+1 reads covering this window.
@@ -570,8 +574,8 @@ cdef class BamReadBuffer:
                 uncompress_read(the_start[0], refseq, refstart, refend, qual_bin_size)
                 the_start += 1
 
-    cdef void recompress_reads_in_current_window(self, long long int refstart, long long int refend,
-                                                 char* refseq, int qual_bin_size, int is_compress_reads):
+    cdef void recompress_reads_in_current_window(self, long int refstart, long int refend, char* refseq,
+                                                 int qual_bin_size, int is_compress_reads):
         """
         Set the windowStart and windowEnd pointers to point to the first
         and last+1 reads covering this window.
