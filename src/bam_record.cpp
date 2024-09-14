@@ -322,7 +322,7 @@ namespace ngslib {
         uint8_t *p = bam_get_qual(_b);
         if (!p) return "";
 
-        std::string qual(_b->core.l_qseq, ' ');
+        std::string qual(_b->core.l_qseq, (char)(offset));
         for (size_t i = 0; i < _b->core.l_qseq; ++i)
             qual[i] = (char) (p[i] + offset);
 

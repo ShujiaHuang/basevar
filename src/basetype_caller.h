@@ -52,7 +52,6 @@ private:
     // templary output files
     std::vector<std::string> _sub_out_vcf, _sub_out_cvg;
 
-    void _get_bamfile_list();
     void _get_calling_interval();  // load the calling region from input
     void _get_sample_id_from_bam();
     void _get_popgroup_info();
@@ -60,6 +59,13 @@ private:
 
     // For variant calling
     void _variant_caller_process();
+    /**
+     * @brief Create a batch of temp files for variant discovery (could be deleted when the jobs done).
+     * 
+     * @param genome_region 
+     * @return std::vector<std::string> 
+     * 
+     */
     std::vector<std::string> _create_batchfiles(const ngslib::GenomeRegionTuple &genome_region, 
                                                 const std::string bf_prefix);
     void _variants_discovery(const std::vector<std::string> &batchfiles, 
@@ -125,6 +131,9 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
                            const std::string region,  // genome region format like samtools
                            const std::string tmp_vcf_fn,
                            const std::string tmp_cvg_fn);
+
+// Get sample id from batchfiles header.
+std::vector<std::string> _get_sampleid_from_batchfiles(const std::vector<std::string> &batchfiles);
 
 bool _basevar_caller(const std::vector<std::string> &smp_bf_line_vector, 
                      const std::map<std::string, std::vector<size_t>> &group_smp_idx,

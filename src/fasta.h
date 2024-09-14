@@ -56,7 +56,9 @@ namespace ngslib {
         std::string iseq_name(int i) { return std::string(faidx_iseq(fai, i)); } 
 
         // Return sequence length, -1 if not present
-        uint32_t seq_length(const char *seq_id) const { return faidx_seq_len64(fai, seq_id); }
+        uint32_t seq_length(const char *seq_id) const { 
+            return faidx_seq_len64(fai, seq_id) > 0 ? faidx_seq_len64(fai, seq_id) : 0; 
+        }
         uint32_t seq_length(const std::string seq_id) const { return seq_length(seq_id.c_str()); }
 
         /** 

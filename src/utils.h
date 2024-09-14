@@ -51,6 +51,9 @@ namespace ngslib {
     bool is_readable(const char *name);
     inline bool is_readable(const std::string &name) { return is_readable(name.c_str()); }
 
+    // check a fold path is empty or not
+    bool path_exists_and_not_empty(std::string folder_path);
+
     /**
      * @brief Make a folder if it doesn't exist, handling concurrent race conditions.
      * @param path  The directry path
@@ -69,16 +72,6 @@ namespace ngslib {
     std::string get_last_modification_file(std::string directory_path);
 
     template<typename T>
-    T sum(const std::vector<T> &value) {
-        T d(0);
-        for (auto x: value) {
-            d += x;
-        }
-
-        return d;
-    }
-
-    template<typename T>
     std::string join(const std::vector<T> &input, const std::string delim="\t") {
         if (input.empty()) 
             return "";
@@ -93,7 +86,7 @@ namespace ngslib {
 
     void split(const std::string &in_str, std::vector<std::string> &out, const char *delim, bool is_append=false);
     
-    // 重载了除 vector<string> 之外的所有其他基础数据类型，包括：int，double，float
+    // 重载了除 vector<string> 之外的所有其他基础数据类型(string 的操作和它们不同)，包括：int，double，float
     template<typename T>
     void split(const std::string &in_str, std::vector<T> &out, const char *delim, bool is_append=false) {
         
@@ -149,15 +142,25 @@ namespace ngslib {
         return new_v;
     }
 
-    template<class ForwardIterator>
-    inline size_t argmin(ForwardIterator first, ForwardIterator last) {
-	    return std::distance(first, std::min_element(first, last));
+    // Template function to discover and return all duplicated elements as a vector
+    template <typename T>
+    std::vector<T> find_duplicates(std::vector<T> input) { // do not pass reference or pointer to the 'input'
+
+        std::sort(input.begin(), input.end());  // The order of 'input' will be changed here
+        std::vector<T> duplicates;
+        for (size_t i(1); i < input.size(); ++i) {
+            if (input[i] == input[i-1]) {
+                if (duplicates.empty() || (input[i] != duplicates.back())) {
+                    duplicates.push_back(input[i]);
+                }
+            }
+        }
+
+        return duplicates;
     }
 
-    template<class ForwardIterator>
-    inline size_t argmax(ForwardIterator first, ForwardIterator last) {
-        return std::distance(first, std::max_element(first, last));
-    }
+    // 把 genome_region 切分为 num 个小区间并返回
+    std::vector<GenomeRegionTuple> region_slice(const GenomeRegionTuple &genome_region, int num=1);
 
 }  // namespace ngslib
 

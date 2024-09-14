@@ -87,7 +87,16 @@ private:
     // init the base likelihood by input bases
     std::vector<double> _set_allele_initial_freq(const std::vector<char> &bases);
 
-    // Calculate population likelihood for all the combination of bases
+    /**
+     * @brief Calculate population likelihood for all the combination of bases
+     * 
+     * @param bases A 1-d array. An array subset of bases from [A, C, G, T] 
+     * @param n     The combination number. n must less or equal to the length of ``bases``
+     * 
+     * @return AA   AA.bc: An array of combinamtion bases
+     *              AA.lr: Likelihood of ``bc``
+     * 
+     */
     AA _f(const std::vector<char> &bases, int n);
 
 public:
@@ -97,7 +106,6 @@ public:
     ~BaseType(){};
 
     BaseType(const BaseType &b);  // copy constructor
-    // BaseType &operator=(const BaseType &b); // We do not have free any data before assige, no need this function;
 
     // The main function for likelihood ratio test
     /**
@@ -118,7 +126,6 @@ public:
 
     const double get_var_qual() const { return this->_var_qual; }
     const int get_total_depth() const { return this->_total_depth; }
-
     const double get_base_depth(char b) const {
         // operator[] doesn't have a 'const' qualifier in std::map. Use 'at' instead in C++11
         // https://stackoverflow.com/questions/42095642/error-passing-const-stdmapint-int-as-this-argument-discards-qualifiers
@@ -145,6 +152,19 @@ public:
 
 }; // BaseType class
 
+/**
+ * @brief Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
+ * 
+ * @param ref_base A reference base
+ * @param alt_bases_string 
+ * @param bases 
+ * @param values 
+ * @return double   Phred-scale value of ranksum-test pvalue
+ * 
+ * Note: There's some difference between scipy.stats.ranksums with R's wilcox.test:
+ *       https://stackoverflow.com/questions/12797658/pythons-scipy-stats-ranksums-vs-rs-wilcox-test
+ * 
+ */
 double ref_vs_alt_ranksumtest(const char ref_base, 
                               const std::string alt_bases_string,
                               const std::vector<char> &bases,

@@ -11,13 +11,12 @@
 #ifndef __INCLUDE_BASETYPE_UTILS_H__
 #define __INCLUDE_BASETYPE_UTILS_H__
 
-#include <iostream>
 #include <getopt.h>
 #include <string>
 #include <vector>
 
 static const std::string __BASETYPE_USAGE = 
-    "About: Calling variants by BaseVar.\n" 
+    "About: Call variants and estimate allele frequency by BaseVar.\n" 
     "Usage: basevar basetype [options] <-R Fasta> <--output-vcf> <--output-cvg> [-I input] ...\n\n" 
     "optional arguments:\n" 
     "  -I, --input=FILE             BAM/CRAM file containing reads.\n"
@@ -96,11 +95,15 @@ struct BaseTypeARGS {
                     smart_rerun(false), filename_has_samplename(false) {}
 };
 
+// Getting the first column from input file, this it's used for getting 
+// filename from input filelist.
+std::vector<std::string> get_firstcolumn_from_file(const std::string fn);
+
 /// Header for VCF
 std::string vcf_header_define(const std::string &ref_file_path, const std::vector<std::string> &addition_info, 
                               const std::vector<std::string> &samples);
 std::string cvg_header_define(const std::vector<std::string> &group_info, const std::vector<char> &BASES);
-void merge_file_by_line(const std::vector<std::string> & infiles, const std::string &outfile, 
-                        std::string header, bool is_remove_tempfile=false);
+void merge_file_by_line(const std::vector<std::string> &infiles, const std::string &outfile, 
+                        std::string header="#", bool is_remove_tempfile=false);
 
 #endif

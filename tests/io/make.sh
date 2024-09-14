@@ -18,3 +18,6 @@ gcc -O3 -Wall -I ../../src -std=c++11 -lstdc++ -o test_combinations test_combina
 
 
 g++ -O3 -fPIC test_algorithm.cpp ../../htslib/libhts.a -I ../../src -I ../../htslib -o test_algorithm && ./test_algorithm
+
+g++ -O3 -fPIC test_vcfconcat.cpp ../../htslib/libhts.a ../../src/external/vcfconcat.c -I ../../src -I ../../htslib -o test_vcfconcat
+

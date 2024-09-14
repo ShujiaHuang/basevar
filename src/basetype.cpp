@@ -8,14 +8,13 @@
  */
 
 #include <cctype>   // use toupper()
-
 #include <htslib/kfunc.h>
 
 #include "basetype.h"
 #include "algorithm.h"
 #include "external/combinations.h"
 
-#include "utils.h"  // join(), sum()
+#include "utils.h"  // join()
 
 //////////////////////////////////////////////////////////////
 //// The codes for the member function of BaseType class /////
@@ -91,28 +90,6 @@ BaseType::BaseType(const BaseType &b) {
     this->_B_IDX       = b._B_IDX;
 }
 
-// We do not have free any data before assige, no need this function.
-// BaseType &BaseType::operator=(const BaseType &b) { 
-
-//     this->_only_call_snp = b._only_call_snp;
-//     this->_ref_id        = b._ref_id;
-//     this->_ref_pos       = b._ref_pos;
-//     this->_ref_base      = b._ref_base;
-//     this->_alt_bases     = b._alt_bases;
-
-//     this->_min_af      = b._min_af;
-//     this->_var_qual    = b._var_qual;
-//     this->_af_by_lrt   = b._af_by_lrt;
-//     this->_qual_pvalue = b._qual_pvalue;
-//     this->_ind_allele_likelihood = b._ind_allele_likelihood;
-
-//     this->_depth       = b._depth;
-//     this->_total_depth = b._total_depth;
-//     this->_B_IDX       = b._B_IDX;
-
-//     return *this;
-// }
-
 std::vector<double> BaseType::_set_allele_initial_freq(const std::vector<char> &bases) {
     // bases 数组中 A,C,G,T 这四个碱基最多只能各出现一次
     // Initialized the array to {0, 0, 0, 0}, which set initial observed allele likelihood for [A, C, G, T]
@@ -125,16 +102,6 @@ std::vector<double> BaseType::_set_allele_initial_freq(const std::vector<char> &
     return obs_allele_freq;  // 1 x 4 vector. The allele frequence of [A, C, G, T]
 }
 
-/**
- * @brief Calculate population likelihood for all the combination of bases
- * 
- * @param bases A 1-d array. An array subset of bases from [A, C, G, T] 
- * @param n     The combination number. n must less or equal to the length of ``bases``
- * 
- * @return AA   AA.bc: An array of combinamtion bases
- *              AA.lr: Likelihood of ``bc``
- * 
- */
 AA BaseType::_f(const std::vector<char> &bases, int n) {
 
     AA data;
@@ -143,14 +110,14 @@ AA BaseType::_f(const std::vector<char> &bases, int n) {
     for (size_t i = 0; i < cbs_v.size(); i++) {      // 循环该位点每一种可能的碱基组合
 
         std::vector<double> obs_allele_freq = this->_set_allele_initial_freq(cbs_v[i]);
-        if (ngslib::sum(obs_allele_freq) == 0) // Empty coverage for this type of combination, skip.
+        if (sum(obs_allele_freq) == 0) // Empty coverage for this type of combination, skip.
             throw std::runtime_error("The sum of frequence of active bases must always > 0. Check: " + 
                                      ngslib::join(cbs_v[i], ",") + " - " + ngslib::join(obs_allele_freq, ","));
         
         std::vector<double> log_marginal_likelihood;
         // The value of 'obs_allele_freq' and 'log_marginal_likelihood' will be updated in EM process.
         EM(_ind_allele_likelihood, obs_allele_freq, log_marginal_likelihood);
-        double sum_log_marginal_likelihood = ngslib::sum(log_marginal_likelihood);
+        double sum_log_marginal_likelihood = sum(log_marginal_likelihood);
 
         data.bc.push_back(cbs_v[i]);
         data.bp.push_back(obs_allele_freq);
@@ -160,12 +127,6 @@ AA BaseType::_f(const std::vector<char> &bases, int n) {
     return data;
 }
 
-/**
- * @brief The main function for likelihood ratio test
- * 
- * @param specific_bases Calculating LRT for specific base combination
- * 
- */
 void BaseType::lrt(const std::vector<char> &specific_bases) {
 
     if (_total_depth == 0) return;
@@ -193,7 +154,7 @@ void BaseType::lrt(const std::vector<char> &specific_bases) {
         for (size_t j(0); j < var.lr.size(); ++j) {
             lrt_chivalue.push_back(2 * (lr_alt - var.lr[j]));
         }
-        size_t i_min = ngslib::argmin(lrt_chivalue.begin(), lrt_chivalue.end());
+        size_t i_min = argmin(lrt_chivalue.begin(), lrt_chivalue.end());
 
         lr_alt = var.lr[i_min];
         chi_sqrt_value = lrt_chivalue[i_min];
@@ -237,19 +198,6 @@ void BaseType::lrt(const std::vector<char> &specific_bases) {
     return;
 }
 
-/**
- * @brief Mann-Whitney-Wilcoxon Rank Sum Test for REF and ALT array.
- * 
- * @param ref_base A reference base
- * @param alt_bases_string 
- * @param bases 
- * @param values 
- * @return double   Phred-scale value of ranksum-test pvalue
- * 
- * Note: There's some difference between scipy.stats.ranksums with R's wilcox.test:
- *       https://stackoverflow.com/questions/12797658/pythons-scipy-stats-ranksums-vs-rs-wilcox-test
- * 
- */
 double ref_vs_alt_ranksumtest(const char ref_base, 
                               const std::string alt_bases_string,
                               const std::vector<char> &bases,

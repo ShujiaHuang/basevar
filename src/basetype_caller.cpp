@@ -8,7 +8,7 @@
  */
 #include <sstream>
 #include <fstream>
-#include <ctime>
+#include <ctime>      // clock
 #include <algorithm>  // std::min
 
 #include <htslib/bgzf.h>
@@ -53,10 +53,7 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
 
             case '3': _args->filename_has_samplename = true;     break;  // 恒参
             case '4': _args->smart_rerun             = true;     break;  // 恒参
-            case 'h': 
-                std::cout << usage() << std::endl;
-                exit(1);
-
+            case 'h': std::cout << usage() << std::endl; exit(1);
             default: 
                 std::cerr << "Unknown argument: " << c << std::endl; 
                 exit(1);
@@ -114,7 +111,10 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
                      "************************************************\n\n";
     }
 
-    if (!_args->in_bamfilelist.empty()) _get_bamfile_list();
+    if (!_args->in_bamfilelist.empty()) {
+        std::vector<std::string> filelist = get_firstcolumn_from_file(_args->in_bamfilelist);
+        _args->input_bf.insert(_args->input_bf.end(), filelist.begin(), filelist.end());
+    }
     std::cout << "[INFO] Finish loading arguments and we have " << _args->input_bf.size()
               << " BAM/CRAM files for variants calling.\n"      << std::endl;
 
@@ -126,8 +126,16 @@ void BaseTypeRunner::set_arguments(int cmd_argc, char *cmd_argv[]) {
 
     _get_calling_interval();
     print_calling_interval();
+    _get_sample_id_from_bam();  // keep the order of '_samples_id' as the same as input 'aligne_files'
 
-    _get_sample_id_from_bam();  // '_samples_id' has the same order with input aligne_files
+    // check the input bamfiles have duplicate or not
+    std::vector<std::string> duplicate_samples = ngslib::find_duplicates(_samples_id);
+    if (!duplicate_samples.empty()) {
+        std::cout << "[WARNING] Find " << duplicate_samples.size() << " duplicated samples within " 
+                  << "the input bamfiles: " + ngslib::join(duplicate_samples, ",") + "\n" 
+                  << std::endl;
+    }
+
     if (!_args->pop_group_file.empty()) 
         _get_popgroup_info();
 
@@ -142,6 +150,9 @@ void BaseTypeRunner::run() {
 
 void BaseTypeRunner::_variant_caller_process() {
 
+    clock_t cpu_start_time = clock();
+    time_t real_start_time = time(0);
+
     // Get filepath and stem name first.
     std::string _bname = ngslib::basename(_args->output_vcf);
     size_t si = _bname.find(".vcf");
@@ -149,6 +160,11 @@ void BaseTypeRunner::_variant_caller_process() {
 
     std::string outdir = ngslib::dirname(_args->output_vcf);
     std::string cache_outdir = outdir + "/cache_" + stem_bn;
+
+    if (IS_DELETE_CACHE_BATCHFILE && ngslib::path_exists_and_not_empty(cache_outdir)) {
+        throw std::runtime_error("[ERROR] [" + cache_outdir + "] must be an empty folder. "
+                                 "You can delete it manual before execute BaseVar.");
+    }
     ngslib::safe_mkdir(cache_outdir);  // make cache directory for batchfiles
 
     if (_args->smart_rerun) {
@@ -160,7 +176,6 @@ void BaseTypeRunner::_variant_caller_process() {
 
     // 以区间为单位进行变异检测, 每个区间里调用多线程
     std::vector<std::string> batchfiles, vcffiles, cvgfiles;
-
     std::string ref_id; uint32_t reg_start, reg_end;
     for (size_t i(0); i < _calling_intervals.size(); ++i) {
 
@@ -173,17 +188,31 @@ void BaseTypeRunner::_variant_caller_process() {
         ///////////////////////////////////////////////////////////
         std::string prefix = cache_outdir + "/" + stem_bn + "." + regstr;     
         batchfiles = _create_batchfiles(_calling_intervals[i], prefix);
-        std::cout << "[INFO] Done for creating " << regstr << " - " << batchfiles.size() 
-                  << " batchfiles and start to call variants.\n";
-        
+
+        // Time information
+        time_t now = time(0);
+        std::string ct(ctime(&now)); 
+        ct.pop_back();
+        std::cout << "[INFO] "+ ct +". Done for creating all " << batchfiles.size() << " batchfiles in " 
+                  << regstr + " and start to call variants, "  << difftime(now, real_start_time)
+                  << " (CPU time: " << (double)(clock() - cpu_start_time) / CLOCKS_PER_SEC 
+                  << ") seconds elapsed in total.\n" << std::endl;
+
         ///////////////////////////////////////////////////////////
         // Calling variants from batchfiles with mulitple thread //
         ///////////////////////////////////////////////////////////
         std::string sub_vcf_fn = prefix + ".vcf.gz";
         std::string sub_cvg_fn = prefix + ".cvg.gz";
-
         _variants_discovery(batchfiles, _calling_intervals[i], sub_vcf_fn, sub_cvg_fn);
-        std::cout << "[INFO] Done for calling variants in : " + regstr  + "\n" << std::endl;
+
+        // Time information
+        now = time(0);
+        ct  = ctime(&now); 
+        ct.pop_back();
+        std::cout << "\n" << "[INFO] "+ ct +". Done for calling all variants in " + regstr + ": "
+                  << "[" + sub_vcf_fn + "," + sub_cvg_fn + "], " << difftime(now, real_start_time)
+                  << " (CPU time: " << (double)(clock() - cpu_start_time) / CLOCKS_PER_SEC 
+                  << ") seconds elapsed in total.\n" << std::endl;
 
         vcffiles.push_back(sub_vcf_fn);
         cvgfiles.push_back(sub_cvg_fn);
@@ -211,7 +240,7 @@ void BaseTypeRunner::_variant_caller_process() {
     merge_file_by_line(vcffiles, _args->output_vcf, header, true);
 
     const tbx_conf_t bf_tbx_conf = {1, 1, 2, 0, '#', 0};  // {preset, seq col, beg col, end col, header-char, skip-line}
-    if ((ngslib::suffix_name(_args->output_vcf) == ".gz") &&  // create index 
+    if ((ngslib::suffix_name(_args->output_vcf) == ".gz") &&          // create index 
         tbx_index_build(_args->output_vcf.c_str(), 0, &bf_tbx_conf))  // file suffix is ".tbi"
         throw std::runtime_error("tbx_index_build failed: Is the file bgzip-compressed? "
                                  "Check this file: " + _args->output_vcf + "\n");
@@ -219,7 +248,7 @@ void BaseTypeRunner::_variant_caller_process() {
     // Merge CVG
     header = cvg_header_define(group_name, BASES);
     merge_file_by_line(cvgfiles, _args->output_cvg, header, true);
-    if ((ngslib::suffix_name(_args->output_cvg) == ".gz") &&   // create index
+    if ((ngslib::suffix_name(_args->output_cvg) == ".gz") &&          // create index
         tbx_index_build(_args->output_cvg.c_str(), 0, &bf_tbx_conf))  // file suffix is ".tbi"
         throw std::runtime_error("tbx_index_build failed: Is the file bgzip-compressed? "
                                  "Check this file: " + _args->output_cvg + "\n");
@@ -230,33 +259,13 @@ void BaseTypeRunner::_variant_caller_process() {
     return;
 }
 
-void BaseTypeRunner::_get_bamfile_list() {
-    std::ifstream i_fn(_args->in_bamfilelist.c_str());
-    if (!i_fn) {
-        std::cerr << "[ERROR] Cannot open file: " + _args->in_bamfilelist << std::endl;
-        exit(1);
-    }
-
-    std::string tmp, fn;
-    while (1) {
-        i_fn >> fn;
-        if (i_fn.eof()) break;
-
-        _args->input_bf.push_back(fn);
-        std::getline(i_fn, tmp, '\n');
-    }
-    i_fn.close();
-
-    return;
-}
-
 void BaseTypeRunner::_get_sample_id_from_bam() {
-    clock_t start_time = clock();
+    time_t real_start_time = time(0);
 
     // Loading sample ID in BAM/CRMA files from RG tag.
     if (_args->filename_has_samplename)
-        std::cout << "[INFO] loading samples' id from filename becuase you set "
-                     "--filname-has-samplename.\n";
+        std::cout << "[INFO] BaseVar'll load samples id from filename directly, becuase you set "
+                     "--filename-has-samplename.\n";
 
     std::string samplename, filename;
     size_t si;
@@ -289,7 +298,7 @@ void BaseTypeRunner::_get_sample_id_from_bam() {
     std::string ct(ctime(&now));
     ct.pop_back();  // rm the trailing '\n' put by `asctime`
     std::cout << "[INFO] " + ct + ". Done for loading all samples' id from alignment files, " 
-              << (double)(clock() - start_time) / CLOCKS_PER_SEC << " seconds elapsed.\n" 
+              << difftime(real_start_time, now) << " seconds elapsed.\n" 
               << std::endl;
 
     return;
@@ -304,6 +313,7 @@ void BaseTypeRunner::_get_calling_interval() {
         ngslib::split(_args->regions, rg_v, ",");
 
         for (size_t i(0); i < rg_v.size(); ++i) {
+            if (rg_v[i].length() == 0) continue; // ignore empty string 
             _calling_intervals.push_back(_make_gregion_tuple(rg_v[i]));
         }
     } else {
@@ -368,14 +378,14 @@ void BaseTypeRunner::_get_popgroup_info() {
     }
 
     std::map<std::string, std::string> sample2group;
-    std::string tmp, sn, gn;
+    std::string skip, sn, gn;
     while (1) {
         // Only two columns: sample_id and group_id
         i_fn >> sn >> gn;
         if (i_fn.eof()) break;
         
         sample2group[sn] = gn;
-        std::getline(i_fn, tmp, '\n');
+        std::getline(i_fn, skip, '\n');  // skip the rest information of line.
     }
     i_fn.close();
 
@@ -395,28 +405,18 @@ void BaseTypeRunner::_get_popgroup_info() {
             }
         }
     }
-    // test
-    // for(std::map<std::string, std::vector<size_t>>::iterator it(_groups_idx.begin()); it != _groups_idx.end(); ++it){
-    //     std::cout << " - " << it->first << " " << it->second.size() << " : " << ngslib::join(it->second, ",") << std::endl;
-    // }
+
     return;
 }
 
-/**
- * @brief Create a batch of temp files for variant discovery (could be deleted when the jobs done).
- * 
- * @param genome_region 
- * @return std::vector<std::string> 
- * 
- */
 std::vector<std::string> BaseTypeRunner::_create_batchfiles(const ngslib::GenomeRegionTuple &genome_region, 
                                                             const std::string bf_prefix) 
 {
-    std::string ref_id;
-    std::tie(ref_id, std::ignore, std::ignore) = genome_region;
+    std::string ref_id; uint32_t reg_beg, reg_end;
+    std::tie(ref_id, reg_beg, reg_end) = genome_region;
     std::string fa_seq = reference[ref_id];  // use the whole sequence of ``ref_id`` for simply
 
-    int bn = _args->input_bf.size() / _args->batchcount;
+    int bn = _args->input_bf.size() / _args->batchcount;  // number of batchfiles
     if (_args->input_bf.size() % _args->batchcount > 0)
         bn++;
 
@@ -436,6 +436,7 @@ std::vector<std::string> BaseTypeRunner::_create_batchfiles(const ngslib::Genome
             continue;
         }
 
+        // slicing bamfiles for a batchfile.
         size_t x(i), y(i + _args->batchcount);
         std::vector<std::string> batch_align_files = ngslib::vector_slicing(_args->input_bf, x, y);
         std::vector<std::string> batch_sample_ids  = ngslib::vector_slicing(_samples_id, x, y);
@@ -443,9 +444,9 @@ std::vector<std::string> BaseTypeRunner::_create_batchfiles(const ngslib::Genome
         // make Thread Pool
         create_batchfile_processes.emplace_back(
             thread_pool.enqueue(__create_a_batchfile, 
-                                batch_align_files,  // 循环内变量，值会变，只能拷贝，不可传引用，否则多线程执行时将丢失该值
-                                batch_sample_ids,   // 循环内变量，值会变，只能拷贝，不可传引用，否则多线程执行时将丢失该值
-                                std::cref(fa_seq),  // 循环外变量，值不变，可传引用，省内存
+                                batch_align_files,  // 局部变量，会变，必拷贝，不可传引用，否则线程执行时将丢失该值
+                                batch_sample_ids,   // 局部变量，会变，必拷贝，不可传引用，否则线程执行时将丢失该值
+                                std::cref(fa_seq),  // 外部变量，不变，传引用，省内存
                                 std::cref(genome_region),
                                 _args->mapq,
                                 batchfile));
@@ -461,6 +462,7 @@ std::vector<std::string> BaseTypeRunner::_create_batchfiles(const ngslib::Genome
         }
     }
     create_batchfile_processes.clear();  // release the thread
+
     return batchfiles;  // done for batchfiles created and return
 }
 
@@ -469,14 +471,14 @@ void BaseTypeRunner::_variants_discovery(const std::vector<std::string> &batchfi
                                          const std::string out_vcf_fn,
                                          const std::string out_cvg_fn) 
 {
-    static const uint32_t STEP_REGION_LEN = 1000000; // 10 for test, should set to be large than 1000000
+    static const uint32_t STEP_REGION_LEN = 100000; // 10 for test, should set to be large than 100000
 
     // get region information
-    std::string ref_id; uint32_t reg_start, reg_end, sub_reg_start, sub_reg_end;
-    std::tie(ref_id, reg_start, reg_end) = genome_region;
+    std::string ref_id; uint32_t reg_beg, reg_end, sub_reg_start, sub_reg_end;
+    std::tie(ref_id, reg_beg, reg_end) = genome_region;
 
-    int bn = (reg_end - reg_start + 1) / STEP_REGION_LEN;
-    if ((reg_end - reg_start + 1) % STEP_REGION_LEN > 0)
+    int bn = (reg_end - reg_beg + 1) / STEP_REGION_LEN;
+    if ((reg_end - reg_beg + 1) % STEP_REGION_LEN > 0)
         bn++;
 
     // prepare multiple-thread
@@ -484,7 +486,7 @@ void BaseTypeRunner::_variants_discovery(const std::vector<std::string> &batchfi
     std::vector<std::future<bool>> call_variants_processes;
 
     std::vector<std::string> subvcfs, subcvgs;
-    for (uint32_t i(reg_start), j(1); i < reg_end + 1; i += STEP_REGION_LEN, ++j) {
+    for (uint32_t i(reg_beg), j(1); i < reg_end + 1; i += STEP_REGION_LEN, ++j) {
 
         std::string tmp_vcf_fn = out_vcf_fn + "." + ngslib::tostring(j) + "_" + ngslib::tostring(bn);
         std::string tmp_cvg_fn = out_cvg_fn + "." + ngslib::tostring(j) + "_" + ngslib::tostring(bn);
@@ -502,9 +504,9 @@ void BaseTypeRunner::_variants_discovery(const std::vector<std::string> &batchfi
                                 std::cref(_samples_id),
                                 std::cref(_groups_idx),
                                 _args->min_af,
-                                regstr,        // 局部变量必须拷贝，会变的 
-                                tmp_vcf_fn,    // 局部变量必须拷贝，会变的 
-                                tmp_cvg_fn));  // 局部变量必须拷贝，会变的 
+                                regstr,        // 局部变量必须拷贝，会变 
+                                tmp_vcf_fn,    // 局部变量必须拷贝，会变 
+                                tmp_cvg_fn));  // 局部变量必须拷贝，会变 
     }
 
     // Run and make sure all processes could be finished.
@@ -513,54 +515,46 @@ void BaseTypeRunner::_variants_discovery(const std::vector<std::string> &batchfi
             bool x = p.get();
         }
     }
+    call_variants_processes.clear();  // release the thread
 
     std::string header = "## No need header here";
     merge_file_by_line(subvcfs, out_vcf_fn, header, true);
     merge_file_by_line(subcvgs, out_cvg_fn, header, true);
-    
+
     return;
 }
 
 /// Functions for calling variants outside of 'BaseTypeRunner' class 
 // A unit for calling variants and let it run in a thread.
 bool _variant_calling_unit(const std::vector<std::string> &batchfiles, 
-                           const std::vector<std::string> &sample_ids,
-                           const std::map<std::string, std::vector<size_t>> & group_smp_idx,
+                           const std::vector<std::string> &sample_ids,  // total samples
+                           const std::map<std::string, std::vector<size_t>> &group_smp_idx,
                            const double min_af,
-                           const std::string region,  // genome region format like samtools
+                           const std::string region,    // genome region format like samtools
                            const std::string tmp_vcf_fn,
                            const std::string tmp_cvg_fn) 
 {
+    clock_t cpu_start_time = clock();
+    time_t real_start_time = time(0);
+
     /*************** Preparing for reading data **************/
+    std::vector<std::string> bf_smp_ids = _get_sampleid_from_batchfiles(batchfiles);
+    // Check smaples id
+    if (ngslib::join(bf_smp_ids, ",") != ngslib::join(sample_ids, ","))
+        throw std::runtime_error("[BUG] The order of sample ids in batchfiles must be the same as "
+                                 "input bamfiles.\n" 
+                                 "Sample ids in batchfiles: " + ngslib::join(bf_smp_ids, ",") + "\n" 
+                                 "Sample ids in bamfiles  : " + ngslib::join(sample_ids, ",") + "\n");
+
     std::vector<BGZF*> batch_file_hds;
     std::vector<tbx_t*> batch_file_tbx;
     std::vector<hts_itr_t*> batch_file_itr;
-    std::vector<std::string> bf_smp_ids;  // The sample id in batchfiles.
     for (size_t i(0); i < batchfiles.size(); ++i) {
 
+        // Get and check the sample id from batchfiles header.
         BGZF *f = bgzf_open(batchfiles[i].c_str(), "r");
-        kstring_t s; s.s = NULL; s.l = s.m = 0;
-        
-        // get all the samples' id from the header of batchfiles.
-        while (bgzf_getline(f, '\n', &s) >= 0) {
-            if (s.s[0] != '#') { // head char is '#' in batchfile.
-                break;
-            } else if (strncmp(s.s, "##SampleIDs=", 12) == 0) {
-                // Header looks like: ##SampleIDs=smp1,smp2,smp3,...
-                std::vector<std::string> h;
-                ngslib::split(s.s, h, "=");
-
-                // h[1] is a string of sample ids, like: 'smp1,smp2,smp3,smp4,...'
-                // set 'is_append' to be 'true', which keep pushing back data into 'bf_smp_ids' vector.
-                ngslib::split(h[1], bf_smp_ids, ",", true); 
-                break;  // complete fetching the sample ids, end the loop
-            }
-        }
-        free(s.s);
-        if ((bgzf_close(f)) < 0) throw std::runtime_error("[ERROR] " + batchfiles[i] + " fail close.");
-
         f = bgzf_open(batchfiles[i].c_str(), "r"); // open again
-        batch_file_hds.push_back(f);  // record the file handle
+        batch_file_hds.push_back(f);               // record the file handle
 
         tbx_t *tbx = tbx_index_load(batchfiles[i].c_str());
         if (!tbx) {
@@ -575,14 +569,6 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
         }
         batch_file_itr.push_back(itr);
     }
-
-    // Check smaples
-    if (ngslib::join(bf_smp_ids, ",") != ngslib::join(sample_ids, ","))
-            throw std::runtime_error("[BUG] The order of sample ids in batchfiles must be the same as "
-                                     "input bamfiles.\n" 
-                                     "Sample ids in batchfiles: " + ngslib::join(bf_smp_ids, ",") + "\n" 
-                                     "Sample ids in bamfiles  : " + ngslib::join(sample_ids, ",") + "\n");
-
     /************* Done for reading data prepare *************/
 
     // Start calling variants
@@ -593,7 +579,7 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
     if (!CVG) throw std::runtime_error("[ERROR] " + tmp_cvg_fn + " open failure.");
 
     std::vector<std::string> smp_bf_line_vector;
-    smp_bf_line_vector.reserve(batchfiles.size());
+    smp_bf_line_vector.reserve(batchfiles.size());  // size number is as the same as batchfiles.
 
     bool is_eof(false), has_data(false);
     uint32_t n = 0;
@@ -628,7 +614,7 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
     for (size_t i(0); i < batchfiles.size(); ++i) {
         tbx_destroy(batch_file_tbx[i]);
         tbx_itr_destroy(batch_file_itr[i]);
-        if ((bgzf_close(batch_file_hds[i]) < 0)) 
+        if ((bgzf_close(batch_file_hds[i]) < 0))
             throw std::runtime_error("[ERROR] " + batchfiles[i] + " fail close.");
     }
 
@@ -636,7 +622,46 @@ bool _variant_calling_unit(const std::vector<std::string> &batchfiles,
     if (bgzf_close(VCF) < 0) throw std::runtime_error("[ERROR] " + tmp_vcf_fn + " fail close.");
     if (bgzf_close(CVG) < 0) throw std::runtime_error("[ERROR] " + tmp_cvg_fn + " fail close.");
 
+    // Time information
+    time_t now = time(0);
+    std::string ct(ctime(&now));
+    ct.pop_back();
+    std::cout << "[INFO] " + ct + ". Done for creating [" + tmp_vcf_fn + ", " + tmp_cvg_fn + "], "
+              << difftime(now, real_start_time) 
+              << " (CPU time: " << (double)(clock() - cpu_start_time) / CLOCKS_PER_SEC 
+              << ") seconds elapsed." << std::endl;
+
     return has_data;
+}
+
+std::vector<std::string> _get_sampleid_from_batchfiles(const std::vector<std::string> &batchfiles) {
+    // Get sample id from batchfiles header.
+
+    std::vector<std::string> bf_smp_ids;
+    for (size_t i(0); i < batchfiles.size(); ++i) {
+
+        BGZF *f = bgzf_open(batchfiles[i].c_str(), "r");
+        kstring_t s; s.s = NULL; s.l = s.m = 0;
+
+        // get all the samples' id from the header of batchfiles.
+        while (bgzf_getline(f, '\n', &s) >= 0) {
+            if (s.s[0] != '#') { // head char is '#' in batchfile.
+                break;
+            } else if (strncmp(s.s, "##SampleIDs=", 12) == 0) {
+                // Header looks like: ##SampleIDs=smp1,smp2,smp3,...
+                std::vector<std::string> h; ngslib::split(s.s, h, "=");
+
+                // `h[1]` is a string of sample ids, like: 'smp1,smp2,smp3,smp4,...'
+                // set 'is_append' to be 'true', keep pushing data back in 'bf_smp_ids' vector.
+                ngslib::split(h[1], bf_smp_ids, ",", true); 
+                break;  // complete fetching the sample ids, end the loop
+            }
+        }
+        free(s.s);
+        if ((bgzf_close(f)) < 0) throw std::runtime_error("[ERROR] " + batchfiles[i] + " fail close.");
+    }
+
+    return bf_smp_ids;
 }
 
 bool _basevar_caller(const std::vector<std::string> &smp_bf_line_vector, 
@@ -772,24 +797,25 @@ const BatchInfo __get_group_batchinfo(const BatchInfo *smp_bi, const std::vector
 }
 
 
-bool __create_a_batchfile(const std::vector<std::string> batch_align_files,  // Not a modifiable value
-                          const std::vector<std::string> batch_sample_ids,   // Not a modifiable value
-                          const std::string &fa_seq,                         // Not a modifiable value
-                          const ngslib::GenomeRegionTuple &genome_region,    // [chr, start, end]
-                          const int mapq_thd,                                // mapping quality threshold
-                          const std::string output_batch_file)               // output batchfile name
-{// 原为 BaseTypeRunner 的成员函数，未掌握如何将该函数指针传入 ThreadPool，遂作罢，后再改。
-    // This value affected the computing memory, could be set larger than 500000, 20 just for test
-    static const uint32_t STEP_REGION_LEN = 500000;
-    clock_t start_time = clock();
+bool __create_a_batchfile(const std::vector<std::string> batch_align_files,  
+                          const std::vector<std::string> batch_sample_ids,   
+                          const std::string &fa_seq,                         
+                          const ngslib::GenomeRegionTuple &genome_region,  // [chr, start, end]
+                          const int mapq_thd,                              // mapping quality threshold
+                          const std::string output_batch_file)             // output batchfile name
+{   // 原为 BaseTypeRunner 的成员函数，未掌握如何将该函数指针传入 ThreadPool，遂作罢，后再改。
+    clock_t cpu_start_time = clock();
+    time_t real_start_time = time(0);
 
-    std::string ref_id; uint32_t reg_start, reg_end;
-    std::tie(ref_id, reg_start, reg_end) = genome_region;  // 1-based
+    // This value affected the computing memory, could be set larger than 500000, 20 just for test
+    // 这个参数是为了限制存入 `batchsamples_posinfomap_vector` 的最大读取区间，从而控制内存消耗不要太大
+    static const uint32_t STEP_REGION_LEN = 500000;  
+
+    std::string ref_id; uint32_t reg_beg, reg_end;
+    std::tie(ref_id, reg_beg, reg_end) = genome_region;  // 1-based
 
     BGZF *obf = bgzf_open(output_batch_file.c_str(), "w"); // output file handle of output_batch_file
-    if (!obf) {
-        throw std::runtime_error("[ERROR] " + output_batch_file + " open failure.");
-    }
+    if (!obf) throw std::runtime_error("[ERROR] " + output_batch_file + " open failure.");
 
     // Header of batchfile
     std::string bf_header = "##fileformat=BaseVarBatchFile_v1.0\n" 
@@ -802,44 +828,47 @@ bool __create_a_batchfile(const std::vector<std::string> batch_align_files,  // 
     PosMapVector batchsamples_posinfomap_vector;
     batchsamples_posinfomap_vector.reserve(batch_align_files.size());  //  pre-set the capacity
 
-    bool is_not_empty = false, has_data = false;
-    uint32_t sub_reg_start, sub_reg_end;
-    for (uint32_t i(reg_start), j(0); i < reg_end + 1; i += STEP_REGION_LEN, ++j) {
+    bool is_empty = true, has_data = false;
+    uint32_t sub_reg_beg, sub_reg_end;
+    for (uint32_t i(reg_beg), j(0); i < reg_end + 1; i += STEP_REGION_LEN, ++j) {
         // Cut smaller regions to save computing memory.
-        sub_reg_start = i;
-        sub_reg_end = sub_reg_start + STEP_REGION_LEN - 1 > reg_end ? reg_end : sub_reg_start + STEP_REGION_LEN - 1;
-        is_not_empty = __fetch_base_in_region(batch_align_files, fa_seq, mapq_thd, 
-                                              std::make_tuple(ref_id, sub_reg_start, sub_reg_end),
-                                              batchsamples_posinfomap_vector);  // 传引用，省内存，得数据
-        if (!has_data && is_not_empty) {
+        sub_reg_beg = i;
+        sub_reg_end = sub_reg_beg + STEP_REGION_LEN - 1 > reg_end ? reg_end : sub_reg_beg + STEP_REGION_LEN - 1;
+        is_empty = __fetch_base_in_region(batch_align_files, fa_seq, mapq_thd, 
+                                          std::make_tuple(ref_id, sub_reg_beg, sub_reg_end),
+                                          batchsamples_posinfomap_vector);  // 传引用，省内存，得数据
+
+        if (!has_data && !is_empty) {
             has_data = true;
         }
 
         /* Output batchfile, no matter 'batchsamples_posinfomap_vector' is empty or not. */
         __write_record_to_batchfile(batchsamples_posinfomap_vector, fa_seq,
-                                    std::make_tuple(ref_id, sub_reg_start, sub_reg_end), 
+                                    std::make_tuple(ref_id, sub_reg_beg, sub_reg_end), 
                                     obf);
-
         batchsamples_posinfomap_vector.clear();  // 必须清空，为下个循环做准备
     }
 
-    int is_cl = bgzf_close(obf);  // 关闭文件
+    int is_cl = bgzf_close(obf);  // close file
     if (is_cl < 0) {
         throw std::runtime_error("[ERROR] " + output_batch_file + " fail close.");
     }
 
     // Create a Tabix index for 'output_batch_file'
-    const tbx_conf_t bf_tbx_conf = {1, 1, 2, 0, '#', 0};  // {preset, seq col, beg col, end col, header-char, skip-line}
+    // conf: {preset, seq col, beg col, end col, header-char, skip-line}
+    const tbx_conf_t bf_tbx_conf = {1, 1, 2, 0, '#', 0};
     if (tbx_index_build(output_batch_file.c_str(), 0, &bf_tbx_conf))  // file suffix is ".tbi"
         throw std::runtime_error("tbx_index_build failed: Is the file bgzip-compressed? "
                                  "Check this file: " + output_batch_file + "\n");
 
     // Time information
     time_t now = time(0);
-    std::string ct(ctime(&now));
+    std::string ct(ctime(&now)); 
     ct.pop_back();  // rm the trailing '\n' put by `asctime`
-    std::cout << "[INFO] " + ct + ". Done for creating batchfile " << output_batch_file   << ", " 
-              << (double)(clock() - start_time) / CLOCKS_PER_SEC   << " seconds elapsed." << std::endl;
+    std::cout << "[INFO] " + ct + ". Done for creating batchfile " 
+              << output_batch_file << ", " << difftime(now, real_start_time) 
+              << " (CPU time: " << (double)(clock() - cpu_start_time) / CLOCKS_PER_SEC 
+              << ") seconds elapsed." << std::endl;
 
     return has_data;
 }
@@ -850,7 +879,7 @@ bool __fetch_base_in_region(const std::vector<std::string> &batch_align_files,
                             const ngslib::GenomeRegionTuple genome_region,
                             PosMapVector &batchsamples_posinfomap_vector)  
 {
-    // only using here, In case of missing the overlap reads, 200bp would be enough
+    // only using here, In case of missing the overlap reads on side position, 200bp would be enough
     static const uint32_t REG_EXPEND_SIZE = 200;
 
     std::string ref_id; uint32_t reg_start, reg_end;
@@ -861,7 +890,7 @@ bool __fetch_base_in_region(const std::vector<std::string> &batch_align_files,
     std::string exp_regstr = ref_id + ":" + ngslib::tostring(exp_reg_start) + "-" + ngslib::tostring(exp_reg_end);
 
     // Loop all alignment files
-    bool is_not_empty = false;
+    bool is_empty = true;
     for(size_t i(0); i < batch_align_files.size(); ++i) {
         ngslib::Bam bf(batch_align_files[i], "r");  // open bamfile in reading mode (one sample, one bamfile)
 
@@ -869,13 +898,11 @@ bool __fetch_base_in_region(const std::vector<std::string> &batch_align_files,
         PosMap sample_posinfo_map;
 
         if (bf.fetch(exp_regstr)) { // Set 'bf' only fetch alignment reads in 'exp_regstr'.
-// uint32_t read_count = 0;
             hts_pos_t map_ref_start, map_ref_end;  // hts_pos_t is uint64_t
             std::vector<ngslib::BamRecord> sample_target_reads; 
             ngslib::BamRecord al;       // alignment read
 
             while (bf.next(al) >= 0) {  // -1 => hit the end of alignement file.
-// ++read_count;
                 if (al.mapq() < mapq_thd || al.is_duplicate() || al.is_qc_fail()) continue;
                 map_ref_start = al.map_ref_start_pos() + 1;  // al.map_ref_start_pos() is 0-based, convert to 1-based
                 map_ref_end   = al.map_ref_end_pos();        // al.map_ref_end_pos() is 1-based
@@ -892,12 +919,11 @@ bool __fetch_base_in_region(const std::vector<std::string> &batch_align_files,
                 // get alignment information of [i] sample.
                 __seek_position(sample_target_reads, fa_seq, genome_region, sample_posinfo_map);
             }
-// std::cout << "* " + exp_regstr + " total read count: " << read_count << ". Hit read count: " << sample_target_reads.size() << "\n\n";
         }
 
-        if (!is_not_empty && !sample_posinfo_map.empty()) { 
+        if (is_empty && !sample_posinfo_map.empty()) { 
             // at least one sample has data in this region
-            is_not_empty = true; 
+            is_empty = false; 
         }
 
         // Push it into 'batchsamples_posinfomap_vector' even if 'sample_posinfo_map' is empty, 
@@ -909,7 +935,7 @@ bool __fetch_base_in_region(const std::vector<std::string> &batch_align_files,
         throw std::runtime_error("[basetype.cpp::__fetch_base_in_region] 'pos_batchinfo_vector.size()' "
                                  "should be the same as 'batch_align_files.size()'");
 
-    return is_not_empty;  // no cover reads in 'genome_region' if empty.
+    return is_empty;  // no cover reads in 'genome_region' if empty.
 }
 
 void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
@@ -930,7 +956,6 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
     std::vector<ngslib::ReadAlignedPair> aligned_pairs;
     for(size_t i(0); i < sample_map_reads.size(); ++i) {
 
-// std::cout << sample_map_reads[i] << "\n";
         align_base_info.map_strand = sample_map_reads[i].map_strand();  // '*', '-' or '+'
         align_base_info.mapq = sample_map_reads[i].mapq();
 
@@ -938,9 +963,8 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
         char mean_qqual_char = int(sample_map_reads[i].mean_qqual()) + 33; // 33 is the offset of base QUAL
         uint32_t map_ref_pos;
         for (size_t i(0); i < aligned_pairs.size(); ++i) {
-            // Todo: The data of 'align_base_info' and 'aligned_pairs[i]' is similar, 
-            // could we just use 'aligned_pairs[i]' to replace 'align_base_info'?
-
+            // Todo: data of 'align_base_info' and 'aligned_pairs[i]' is similar, 
+            // just use 'aligned_pairs[i]' to replace 'align_base_info'?
             map_ref_pos = aligned_pairs[i].ref_pos + 1;  // ref_pos is 0-based, convert to 1-based;
 
             if (reg_end < map_ref_pos) break;
@@ -993,13 +1017,7 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
                 // {ref_pos (no need to add ref_id in the key) => map info}
                 sample_posinfo_map.insert({map_ref_pos, align_base_info});
             }
-
-// std::cout 
-// << " - "  << aligned_pairs[i].op << " - [" << ref_id << ", " << align_base_info.ref_pos << ", " 
-// << align_base_info.map_strand    << ", "   << align_base_info.ref_base << "-" << align_base_info.read_base << "] - [" 
-// << aligned_pairs[i].qpos << ", " << aligned_pairs[i].read_base << ", " << aligned_pairs[i].read_qual << "]\n";
         }
-// std::cout << "\n";
     }
 
     return;
@@ -1177,10 +1195,6 @@ void _out_vcf_line(const BaseType &bt,
         info.insert(info.end(), group_af_info.begin(), group_af_info.end());
     }
 
-// std::cout << "Calling _out_vcf_line: "<< bt.get_ref_id() << " - " << bt.get_ref_pos() 
-//           << " - " << bt.get_ref_base() << " - " << ngslib::join(bt.get_alt_bases(), ",") << " - "
-//           << ngslib::join(info, ";") << "\n";
-    
     std::string sample_format = "GT:AB:SO:BP";
     std::string qs  = (bt.get_var_qual() > QUAL_THRESHOLD) ? "." : "LowQual";
     std::string out = bt.get_ref_id() + "\t" + std::to_string(bt.get_ref_pos()) + "\t.\t" + bt.get_ref_base() + "\t" + 
@@ -1228,9 +1242,7 @@ void _out_cvg_line(const BatchInfo *smp_bi,
         }
     }
 
-    std::string alt_bases_string = ngslib::join(alt_bases, "");
-    StrandBiasInfo sbi = strand_bias(upper_ref_base, alt_bases_string, align_bases, smp_bi->map_strands);
-
+    StrandBiasInfo sbi = strand_bias(upper_ref_base, ngslib::join(alt_bases, ""), align_bases, smp_bi->map_strands);
     if (total_depth > 0) {
         std::vector<int> dd;
         for (auto b : BASES) dd.push_back(base_depth[b]);
