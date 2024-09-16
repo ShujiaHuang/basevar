@@ -75,7 +75,7 @@ masked them:
 then type `make` again to contiune the following processes.
 
 
-#### Method 2. Manual install processes (Optional)
+#### Method 2. Manually install processes (Optional)
 
 **1. Download BaseVar from github**
 
@@ -113,7 +113,7 @@ $ make
 
 ```
 
-**Note**: If you encounter an error message similar to the following during the compilation of htslib, you can safely disregard it as the code should continue to function properly:
+**Note**: If you encounter an error message similar to the following during the compilation of htslib, you can safely disregard it as the code should continue to function properly.
 
 ```bash
 test/test_khash.c: In function 'write_stats_str2int':
@@ -133,7 +133,7 @@ Feel free to proceed with your installation tasks despite encountering this erro
 
 Navigate into `bin/` folder (`cd basevar/bin`) first and execute the following commands:
 
-**Manual install in Linux**
+**Manually install in Linux**
 
 ```bash
 $ cd bin/
@@ -141,7 +141,7 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 
 ```
 
-**Manual install in MacOS**
+**Manually install in MacOS**
 
 ```bash
 $ cd bin/
@@ -154,9 +154,7 @@ To review each of the parameters, you can type `basevar basetype -h` in the Linu
 ```bash
 $ /path/to/basevar basetype -h
 
-BaseVar: A software for calling variants efficiently from low-pass whole genome sequencing data.
-
-About: Calling variants by BaseVar.
+About: Call variants and estimate allele frequency by BaseVar.
 Usage: basevar basetype [options] <-R Fasta> <--output-vcf> <--output-cvg> [-I input] ...
 
 optional arguments:
@@ -164,10 +162,11 @@ optional arguments:
   -L, --align-file-list=FILE   BAM/CRAM files list, one file per row.
   -R, --reference FILE         Input reference fasta file.
 
-  -m, --min-af=float           Setting prior precision of MAF and skip uneffective caller positions.
-                               Usually you can set it to be min(0.001, 100/x), x is the number of input
-                               BAM files.[min(0.001,100/x)]. In generally, you don't have to worry about
-                               this parameter.
+  -m, --min-af=float           Setting prior precision of MAF and skip ineffective caller positions,
+                               a typical approach involves setting it to min(0.001, 100/x), where x
+                               represents the number of input BAM files [min(0.001, 100/x)]. In most
+                               cases, users need not be overly concerned about this parameter, as it
+                               is generally handled automatically by the program.
   -q, --mapq=INT               Only include reads with mapping quality >= INT. [10]
   -B, --batch-count=INT        INT simples per batchfile. [200]
   -t, --thread=INT             Number of threads. [4]
@@ -180,13 +179,12 @@ optional arguments:
   --output-cvg FILE            Output position coverage file.
 
   --filename-has-samplename    If the name of bamfile is something like 'SampleID.xxxx.bam', set this
-                               argrument could save a lot of time during get the sample id from BAMfile
-                               header information.
+                               argrument could save a lot of time during get the sample id from BAMfile.
   --smart-rerun                Rerun process by checking batchfiles.
   -h, --help                   Show this help message and exit.
 ```
 
-This command will provide detailed information about the parameters of `basevar`.
+This command will provide detailed information about parameters of `basevar`.
 
 
 ## Quick start
