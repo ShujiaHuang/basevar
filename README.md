@@ -19,6 +19,64 @@ Please cite the following paper if you use BaseVar in your published projects or
 
 ### How to install htslib
 
+#### Method 1. Install by cmake (Recommend)
+
+
+This is the simplest way of installing basevar by *cmake*
+
+```bash
+$ git clone --recursive https://github.com/ShujiaHuang/basevar.git
+$ cd basevar
+$ mkdir build
+$ cmake ..
+$ make 
+
+```
+
+If everything is smooth, you'll find an new exectutable file named `basevar` in `basevar/bin/` folder.
+
+**CAUTION:** If you encounter an error message similar to the following during the compilation of htslib:
+
+
+```bash
+test/test_khash.c: In function 'write_stats_str2int':
+test/test_khash.c:53:9: warning: implicit declaration of function 'kh_stats' [-Wimplicit-function-declaration]
+   53 |     if (kh_stats(str2int, h, &empty, &deleted, &hist_size, &hist) == 0) {
+      |         ^~~~~~~~
+test/test_khash.c:53:18: error: 'str2int' undeclared (first use in this function)
+   53 |     if (kh_stats(str2int, h, &empty, &deleted, &hist_size, &hist) == 0) {
+      |                  ^~~~~~~
+test/test_khash.c:53:18: note: each undeclared identifier is reported only once for each function it appears in
+make: *** [test/test_khash.o] Error 1
+```
+
+you can safely disregard it as the code should continue to function properly. To continue the installation processes of basevar, you can comment out relevant codes of compiling `htslib` in `CMakeList.txt` by adding "#" at the beginning of each line:
+
+```
+add_custom_target(
+    Buildhts ALL
+    COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
+)
+```
+
+
+masked them:
+
+```
+# add_custom_target(
+#     Buildhts ALL
+#     COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
+#     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
+# )
+```
+
+
+then type `make` again to contiune the following processes.
+
+
+#### Method 2. Manually install (Optional)
+
 **1. Download BaseVar from github**
 
 BaseVar is hosted on Github and can be downloaded with the following command:
