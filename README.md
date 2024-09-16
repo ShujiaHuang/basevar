@@ -19,7 +19,7 @@ Please cite the following paper if you use BaseVar in your published projects or
 
 ### How to install htslib
 
-#### Method 1. Install by cmake (Recommend)
+#### Method 1. Install basevar by using cmake (Recommend)
 
 
 This is the simplest way of installing basevar by *cmake*
@@ -75,7 +75,7 @@ masked them:
 then type `make` again to contiune the following processes.
 
 
-#### Method 2. Manually install (Optional)
+#### Method 2. Manual install processes (Optional)
 
 **1. Download BaseVar from github**
 
@@ -133,7 +133,7 @@ Feel free to proceed with your installation tasks despite encountering this erro
 
 Navigate into `bin/` folder (`cd basevar/bin`) first and execute the following commands:
 
-**Manual install for Linux**
+**Manual install in Linux**
 
 ```bash
 $ cd bin/
@@ -141,7 +141,7 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 
 ```
 
-**Manual install for MacOS**
+**Manual install in MacOS**
 
 ```bash
 $ cd bin/
