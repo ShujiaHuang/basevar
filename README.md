@@ -75,7 +75,7 @@ Feel free to proceed with your installation tasks despite encountering this erro
 
 Navigate into `bin/` folder (`cd basevar/bin`) first and execute the following commands:
 
-**For Linux**
+**Manual install for Linux**
 
 ```bash
 $ cd bin/
@@ -83,7 +83,7 @@ $ g++ -O3 -fPIC ../src/main.cpp ../src/basetype.h ../src/basetype.cpp ../src/bas
 
 ```
 
-**For MacOS**
+**Manual install for MacOS**
 
 ```bash
 $ cd bin/
