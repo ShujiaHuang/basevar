@@ -22,7 +22,7 @@ Please cite the following paper if you use BaseVar in your published projects or
 #### Method 1. Install basevar by using cmake (Recommend)
 
 
-This is the simplest way of installing basevar by *cmake*
+This is the simplest way of installing basevar by `cmake`
 
 ```bash
 $ git clone --recursive https://github.com/ShujiaHuang/basevar.git
@@ -72,7 +72,7 @@ masked them:
 ```
 
 
-then type `make` again to contiune the following processes.
+then type `make` again to contiune the processes.
 
 
 #### Method 2. Manually install processes (Optional)
