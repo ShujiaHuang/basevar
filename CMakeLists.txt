@@ -11,11 +11,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fPIC")
 
 # Compile htslib first
-# add_custom_target(
-#     Buildhts ALL
-#     COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
-#     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
-# )
+add_custom_target(
+    Buildhts ALL
+    COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
+)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
