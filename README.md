@@ -35,7 +35,7 @@ $ make
 
 ```
 
-If everything is smooth, you'll find an new exectutable file named `basevar` in `basevar/bin/` folder.
+If everything is smooth, you'll find an exectutable file named `basevar` in `basevar/bin/` folder.
 
 **CAUTION:** If you encounter an error message similar to the following during the compilation of htslib:
 
