@@ -82,24 +82,13 @@ BaseVar is hosted on Github and can be downloaded with the following command:
 $ git clone --recursive https://github.com/ShujiaHuang/basevar.git
 ```
 
-> WARNING: Please try several times if fail to clone the data causing by 
-> the network problem.
+> **WARNING**: Please try several times if fail to clone the data causing by the network problem.
 
 
 **2. Navigate into htslib/htscodecs folder and run the following commands**
 
-After cloing, navigate into the `basevar` folder (cd basevar) and execute the following:
+After cloing, navigate into the `basevar` folder (`cd basevar`) and execute the following:
 
-```bash
-
-$ cd htslib/htscodecs
-$ autoreconf -i
-$ ./configure
-$ make
-
-```
-
-**3. Go back to the upper folder and install main htslib by running following commands**
 
 ```bash
 
@@ -126,7 +115,7 @@ make: *** [test/test_khash.o] Error 1
 
 Feel free to proceed with your installation tasks despite encountering this error during the compilation process.
 
-**4. Go back to the upper directory and install `basevar` by running the commands below**
+**3. Go back to the upper directory and install `basevar` by running the commands below**
 
 Navigate into `bin/` folder (`cd basevar/bin`) first and execute the following commands:
 
@@ -223,7 +212,6 @@ For stramlinened variant calling across the entire genome, you can use the pipel
 ```bash
 $ python create_pipeline.py -R $ref --ref_fai $ref_fai -c chr20 --delta 5000000 -t 20 -L $bamlist -o $outdir > basevar.chr20.sh
 ```
-
 
 **BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
 
