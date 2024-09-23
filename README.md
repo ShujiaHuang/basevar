@@ -19,6 +19,8 @@ Please cite the following paper if you use BaseVar in your published projects or
 
 ### How to install htslib
 
+You can install `basevar` using either of the following two methods.
+
 #### Method 1. Install basevar by using cmake (Recommend)
 
 This is the simplest way of installing basevar by *cmake*
