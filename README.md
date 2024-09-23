@@ -9,19 +9,16 @@ Now, BaseVar has been fully implemented by C++. BaseVar showcases significant en
 
 Please cite the following paper if you use BaseVar in your published projects or papers. 
 
-> Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
+> - [1] Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
 
 
 ## Installation
 
-*BaseVar requires C++17 or higher.* Compile the program from source codes step-by-step.
-
-
-### How to install htslib
+*BaseVar requires C++17 or higher.* Compile `base` from source codes step-by-step.
 
 You can install `basevar` using either of the following two methods.
 
-#### Method 1. Install basevar by using cmake (Recommend)
+### Method 1. Install `basevar` by using cmake (Recommend)
 
 This is the simplest way of installing basevar by *cmake*
 
@@ -34,10 +31,9 @@ $ make
 
 ```
 
-If everything is smooth, you'll find an new exectutable file named `basevar` in `basevar/bin/` folder.
+If everything is smooth, you'll find an exectutable file named `basevar` in `basevar/bin/` folder.
 
 **CAUTION:** If you encounter an error message similar to the following during the compilation of htslib:
-
 
 ```bash
 test/test_khash.c: In function 'write_stats_str2int':
@@ -51,30 +47,31 @@ test/test_khash.c:53:18: note: each undeclared identifier is reported only once 
 make: *** [test/test_khash.o] Error 1
 ```
 
-you can safely disregard it as the code should continue to function properly. To continue the installation processes of basevar, you can comment out relevant codes of compiling `htslib` in `CMakeList.txt` by adding "#" at the beginning of each line:
+you can safely disregard it as the code should continue to function properly. To continue the installation processes of basevar, 
+you can comment out relevant codes of compiling `htslib` in `CMakeList.txt` by adding "#" at the beginning of each line:
 
 ```
 add_custom_target(
     Buildhts ALL
-    COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
+    COMMAND autoreconf -i && ./configure && make
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
 )
 ```
 
-masked them:
+commnet out the lines:
 
 ```
 # add_custom_target(
 #     Buildhts ALL
-#     COMMAND autoreconf -i && ./configure && make -Wimplicit-function-declaration
+#     COMMAND autoreconf -i && ./configure && make
 #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
 # )
 ```
 
-then type `make` again to contiune the following processes.
+then type `make` again in `build` folder to contiune the following processes.
 
 
-#### Method 2. Manually install processes (Optional)
+### Method 2. Manually install processes (Optional)
 
 **1. Download BaseVar from github**
 
