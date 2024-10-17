@@ -15,7 +15,8 @@ Please cite the following paper if you use BaseVar in your published projects or
 
 ## Installation
 
-*BaseVar requires C++17 or higher.* Compile `base` from source codes step-by-step.
+*BaseVar requires C++17 or above.* Compile `basevar` from source codes step-by-step.
+
 
 You can install `basevar` using either of the following two methods.
 
