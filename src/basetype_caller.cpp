@@ -161,10 +161,10 @@ void BaseTypeRunner::_variant_caller_process() {
     std::string outdir = ngslib::dirname(_args->output_vcf);
     std::string cache_outdir = outdir + "/cache_" + stem_bn;
 
-    if (IS_DELETE_CACHE_BATCHFILE && ngslib::path_exists_and_not_empty(cache_outdir)) {
-        throw std::runtime_error("[ERROR] [" + cache_outdir + "] must be an empty folder. "
-                                 "You can delete it manual before execute BaseVar.");
-    }
+    // if (IS_DELETE_CACHE_BATCHFILE && ngslib::path_exists_and_not_empty(cache_outdir)) {
+    //     throw std::runtime_error("[ERROR] [" + cache_outdir + "] must be an empty folder. "
+    //                              "You can delete it manual before execute BaseVar.");
+    // }
     ngslib::safe_mkdir(cache_outdir);  // make cache directory for batchfiles
 
     if (_args->smart_rerun) {
