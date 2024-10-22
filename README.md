@@ -205,9 +205,11 @@ The format of `sample_group.info` could be found [here](tests/data/140k_thalasse
 
 ```bash
 
-basevar basetype -R reference.fasta -B 200 -t 4 \
+basevar basetype -R reference.fasta \
+    -B 200 -t 4 \
     -L bamfile.list \ 
     --regions=chr11:5246595-5248428,chr17:41197764-41276135 \
+    --pop-group=sample_group.info \
     --output-vcf test.vcf.gz \
     --output-cvg test.cvg.tsv.gz
 ```
@@ -215,8 +217,12 @@ basevar basetype -R reference.fasta -B 200 -t 4 \
 For stramlinened variant calling across the entire genome, you can use the pipeline generator [**create_pipeline.py**](https://github.com/ShujiaHuang/basevar/blob/master/scripts/create_pipeline.py), which distributes the computational tasks based on the --delta parameter across a specific chromosome defined by the -c parameter.
 
 ```bash
-$ python create_pipeline.py -R $ref --ref_fai $ref_fai -c chr20 --delta 5000000 -t 20 -L $bamlist -o $outdir > basevar.chr20.sh
+$ python create_pipeline.py -R reference.fa --ref_fai reference_fa.fai -c chr20 --delta 5000000 -t 20 -L bamfile.list -o outdir > basevar.chr20.sh
 ```
 
 **BaseVar** is under active development. Obtain the newest version by pulling the newest version and compilling again.
+
+
+
+
 
