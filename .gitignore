@@ -3,7 +3,6 @@
 *.fai
 *.log
 *.pdf
-*.png
 *.so
 .*.sw?
 *.egg
