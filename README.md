@@ -1,5 +1,12 @@
 # BaseVar: Call variants from ultra low-pass WGS data
 
+<p align="center">
+  <a href="https://github.com/ShujiaHuang/basevar">
+    <img height="300" src="https://github.com/ShujiaHuang/basevar/blob/main/docs/assets/images/basevar.png" align="center">
+  </a>
+</p>
+
+
 *BaseVar* is a specialized tool tailored for variant calling using ultra low-depth (<1x) sequencing data, particularly catering to non-invasive prenatal test (NIPT) data in human genetic studies. Leveraging maximum likelihood and likelihood ratio models, BaseVar accurately identifies polymorphisms at genomic positions and calculates allele frequencies. For in-depth mathematical explanations, refer to the comprehensive documentation available [here](https://doi.org/10.1016/j.cell.2018.08.016).
 
 Now, BaseVar has been fully implemented by C++. BaseVar showcases significant enhancements over its [original Python counterpart](https://github.com/ShujiaHuang/basevar/tree/python-version-0.6.1.1). The C++ implementation delivers a computing speed exceeding 20 times that of the Python version, all while demanding substantially less memory. Typically, each thread (-t/--thread) consumes merely 3GB to 4GB of memory when the -B (--batch-count) option is configured to 200, a stark contrast to the Python version's requirement of over 20GB.
@@ -7,7 +14,7 @@ Now, BaseVar has been fully implemented by C++. BaseVar showcases significant en
 
 ## Citation
 
-Please cite the following paper if you use BaseVar in your published projects or papers. 
+Please cite the following papers if you use BaseVar in your published projects or papers. 
 
 > - [1] Liu S, Liu Y, Gu Y, Lin X, Zhu H, Liu H, Xu Z, Cheng S, Lan X, Li L, Huang M, Li H, Nielsen R, Davies RW, Albrechtsen A, Chen GB, Qiu X, Jin X, Huang S. (2024). Utilizing non-invasive prenatal test sequencing data for human genetic investigation. *Cell Genomics* 4(10), 100669 [doi:10.1016/j.xgen.2024.100669](https://www.cell.com/cell-genomics/fulltext/S2666-979X(24)00288-X)
 > - [2] Liu, S., Huang, S., Chen, F., Zhao, L., Yuan, Y., Francis, S.S., Fang, L., Li, Z., Lin, L., Liu, R., et al. (2018). Genomic Analyses from Non-invasive Prenatal Testing Reveal Genetic Associations, Patterns of Viral Infections, and Chinese Population History. *Cell* 175, 347–359.e14. [doi:10.1016/j.cell.2018.08.016](https://doi.org/10.1016/j.cell.2018.08.016).
