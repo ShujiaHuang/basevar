@@ -79,7 +79,7 @@ commnet out the lines:
 # )
 ```
 
-then type `cmake .. && make` again in `build` folder to contiune the following processes.
+then type `cmake .. && make` again in `build` folder to contiune the processes.
 
 
 ### Method 2. Manually install processes (Optional)
