@@ -1,0 +1,12 @@
+autom4te.cache/
+config.guess
+config.h
+config.h.in
+config.mk
+config.status
+config.sub
+configure
+htscodecs.mk
+htslib-uninstalled.pc
+htslib.pc.tmp
+htslib_static.mk
