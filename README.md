@@ -30,7 +30,7 @@ You can install `basevar` using either of the following two methods.
 This is the simplest way of installing basevar by *cmake*
 
 ```bash
-$ git clone --recursive https://github.com/ShujiaHuang/basevar.git
+$ git clone https://github.com/ShujiaHuang/basevar.git
 $ cd basevar
 $ mkdir build
 $ cmake ..
