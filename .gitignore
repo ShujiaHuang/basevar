@@ -1,5 +1,4 @@
 *.o
-*.a
 
 *.py[cod]
 *.gzi
@@ -20,5 +19,6 @@ venv/
 *.egg-info/
 dist/
 build/
+b/
 trash/
 __pycache__
