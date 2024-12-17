@@ -25,8 +25,7 @@ add_executable(basevar ${SRC_LIST})
 # Compile htslib
 add_custom_target(
     Buildhts ALL
-    #COMMAND autoreconf -i && ./configure && make
-    COMMAND make
+    COMMAND autoreconf -i && ./configure && make
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/htslib
 )
 
