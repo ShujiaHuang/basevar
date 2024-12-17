@@ -2,7 +2,7 @@
 cmake_minimum_required (VERSION 3.12.0)
 
 # Project information
-project (BaseVar VERSION 1.1.0 LANGUAGES CXX)
+project (BaseVar VERSION 1.2.0 LANGUAGES CXX)
 
 # Set the C++ standard required for the project
 set(CMAKE_CXX_STANDARD 17)  # C++ 17
