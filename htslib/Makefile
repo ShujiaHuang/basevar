@@ -514,7 +514,8 @@ htscodecs/htscodecs:
 
 # Build the htscodecs/htscodecs/version.h file if necessary
 htscodecs/htscodecs/version.h: force
-	@if test -e $(srcdir)/htscodecs/.git && test -e $(srcdir)/htscodecs/configure.ac ; then \
+#	@if test -e $(srcdir)/htscodecs/.git && test -e $(srcdir)/htscodecs/configure.ac ; then  # Mask by Shujia Huang 2024-12-17 08:53:19
+	@if test -e $(srcdir)/htscodecs/configure.ac ; then \
 	  vers=`cd $(srcdir)/htscodecs && git describe --always --dirty --match 'v[0-9]\.[0-9]*'` && \
 	  case "$$vers" in \
 	    v*) vers=$${vers#v} ;; \
