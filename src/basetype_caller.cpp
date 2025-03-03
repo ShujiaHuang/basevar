@@ -954,13 +954,13 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
 
     // A vector of: (cigar_op, read position, reference position, read base, read_qual, reference base)
     std::vector<ngslib::ReadAlignedPair> aligned_pairs;
-    for(size_t i(0); i < sample_map_reads.size(); ++i) {
+    for (auto &al: sample_map_reads) {
 
-        align_base_info.map_strand = sample_map_reads[i].map_strand();  // '*', '-' or '+'
-        align_base_info.mapq = sample_map_reads[i].mapq();
+        align_base_info.map_strand = al.map_strand();  // '*', '-' or '+'
+        align_base_info.mapq = al.mapq();
 
-        aligned_pairs = sample_map_reads[i].get_aligned_pairs(fa_seq);
-        char mean_qqual_char = int(sample_map_reads[i].mean_qqual()) + 33; // 33 is the offset of base QUAL
+        aligned_pairs = al.get_aligned_pairs(fa_seq);
+        char mean_qqual_char = int(al.mean_qqual()) + 33; // 33 is the offset of base QUAL
         uint32_t map_ref_pos;
         for (size_t i(0); i < aligned_pairs.size(); ++i) {
             // Todo: data of 'align_base_info' and 'aligned_pairs[i]' is similar, 
@@ -981,7 +981,7 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
                 align_base_info.read_base_qual = aligned_pairs[i].read_qual[0];
             } else if (aligned_pairs[i].op == BAM_CINS) {  /* CIGAR: I */
                 if (!aligned_pairs[i].ref_base.empty()) {
-                    std::cerr << sample_map_reads[i] << "\n";
+                    std::cerr << al << "\n";
                     throw std::runtime_error("[ERROR] We got reference base in insertion region.");
                 }
 
@@ -992,7 +992,7 @@ void __seek_position(const std::vector<ngslib::BamRecord> &sample_map_reads,
                 align_base_info.read_base_qual = mean_qqual_char;  // set to be mean quality of the whole read
             } else if (aligned_pairs[i].op == BAM_CDEL) {  /* CIGAR: D */
                 if (!aligned_pairs[i].read_base.empty()) {
-                    std::cerr << sample_map_reads[i] << "\n";
+                    std::cerr << al << "\n";
                     throw std::runtime_error("[ERROR] We got read bases in deletion region.");
                 }
 
