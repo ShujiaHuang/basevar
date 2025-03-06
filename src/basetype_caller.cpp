@@ -158,7 +158,7 @@ void BaseTypeRunner::_variant_caller_process() {
     size_t si = _bname.find(".vcf");
     std::string stem_bn = (si > 0 && si != std::string::npos) ? _bname.substr(0, si) : _bname;
 
-    std::string outdir = ngslib::dirname(_args->output_vcf);
+    std::string outdir = ngslib::dirname(ngslib::abspath(_args->output_vcf));
     std::string cache_outdir = outdir + "/cache_" + stem_bn;
 
     // if (IS_DELETE_CACHE_BATCHFILE && ngslib::path_exists_and_not_empty(cache_outdir)) {
